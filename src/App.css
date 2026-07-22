@@ -1,1 +1,14 @@
 @import "tailwindcss";
+@import "daisyui/daisyui.css";
+
+/* Customizing the Light Theme */
+[data-theme="light"] {
+  --color-primary: #05683b;
+  --color-secondary: #febe10;
+}
+
+/* Customizing the Dark Theme */
+[data-theme="dark"] {
+  --color-primary: #05683b;
+  --color-secondary: #febe10;
+}
