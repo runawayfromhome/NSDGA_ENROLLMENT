@@ -1,0 +1,19 @@
+// Admin Settings — account security, including Two-Factor Authentication.
+import AdminSidebar from '../../AdminSidebar';
+import ChangePassword from '../../ChangePassword';
+import MfaSettings from '../../MfaSettings';
+
+const AdminSettings = () => (
+  <div className="flex min-h-screen bg-[#F8F9FA]">
+    <AdminSidebar />
+    <div className="flex-1 lg:ml-64 flex flex-col">
+      <main className="p-6 md:p-12 max-w-[1200px] w-full space-y-10">
+        <h1 className="text-3xl font-bold text-slate-800">Account Settings &amp; Security</h1>
+        <ChangePassword />
+        <MfaSettings />
+      </main>
+    </div>
+  </div>
+);
+
+export default AdminSettings;
