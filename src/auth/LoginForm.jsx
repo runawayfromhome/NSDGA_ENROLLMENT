@@ -19,7 +19,7 @@ import Eye from '../components/icons/StudentPortalIcons/Eye';
 import { useSession } from '../contexts/useSession';
 import { ROLE_HOME } from './authStore';
 
-export default function LoginForm({ portalName = 'Staff Portal', subtitle }) {
+export default function LoginForm({ portalName = 'Staff Portal', subtitle, role = null }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +43,7 @@ export default function LoginForm({ portalName = 'Staff Portal', subtitle }) {
     const password = e.target.elements.password.value;
 
     setSubmitting(true);
-    const result = await login(email, password);
+    const result = await login(email, password, role);
     setSubmitting(false);
 
     if (!result.ok) {

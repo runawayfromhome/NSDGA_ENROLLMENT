@@ -40,6 +40,9 @@ export const MFA_SETUP_PATH = {
   headadmin: '/HeadAdminPortal/MfaSetup',
 };
 
+// Friendly labels + which role each login page accepts.
+export const PORTAL_LABEL = { registrar: 'Registrar', admin: 'Admin', headadmin: 'Head Administrator' };
+
 // --- profiles ----------------------------------------------------------------
 export async function fetchProfileById(id) {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
@@ -135,7 +138,7 @@ function shortDevice() {
 
 // --- auth --------------------------------------------------------------------
 // Returns { ok, error, profile }. Records the attempt in the audit log.
-export async function signIn(email, password) {
+export async function signIn(email, password, expectedRole = null) {
   const clean = (email || '').trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (error) {
@@ -151,6 +154,12 @@ export async function signIn(email, password) {
     await recordAudit({ email: clean, name: profile.name, role: profile.role, action: 'LOGIN', status: 'FAILED', reason: 'Account disabled' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This account has been disabled. Please contact the administrator.' };
+  }
+  // Each portal's login only accepts its own role (no cross-portal login).
+  if (expectedRole && profile.role !== expectedRole) {
+    await recordAudit({ email: clean, name: profile.name, role: profile.role, action: 'LOGIN', status: 'FAILED', reason: `Wrong portal (expected ${expectedRole})` });
+    await supabase.auth.signOut();
+    return { ok: false, error: `This is the ${PORTAL_LABEL[expectedRole] || expectedRole} login. Your account isn't a ${PORTAL_LABEL[expectedRole] || expectedRole} — please use the correct portal.` };
   }
   // If the user has an authenticator enrolled, the password alone is not enough —
   // the login isn't "complete" until they enter the 6-digit code.

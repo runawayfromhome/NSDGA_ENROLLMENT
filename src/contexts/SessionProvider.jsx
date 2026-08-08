@@ -75,8 +75,8 @@ export default function SessionProvider({ children }) {
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [loadFrom]);
 
-  const login = useCallback(async (email, password) => {
-    const result = await storeSignIn(email, password);
+  const login = useCallback(async (email, password, expectedRole = null) => {
+    const result = await storeSignIn(email, password, expectedRole);
     if (result.ok) {
       const { data } = await supabase.auth.getSession();
       await loadFrom(data.session);

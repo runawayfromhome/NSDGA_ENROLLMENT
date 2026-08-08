@@ -4,6 +4,7 @@ import LoginForm from '../../../auth/LoginForm';
 const LoginPage = () => (
   <LoginForm
     portalName="Registrar Portal"
+    role="registrar"
     subtitle="Sign in to review applications and manage student records."
   />
 );

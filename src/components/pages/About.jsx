@@ -1,19 +1,28 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import MainLayout from '../../layouts/Mainlayouts'
 import AboutImage from '../../assets/About.png'
 import NuestraLogoImage from '../../assets/nuestralogo.jpg'
 import { LuEye, LuSparkles } from "react-icons/lu";
 import ExecutiveBoardCard from '../icons/ExecutiveBoardCard';
+import { getSection } from '../../lib/content'
+
+const FALLBACK_BOARD = [
+  { name: "Engr. Felipe C. Urrutia", title: "School President" },
+  { name: "Guia B. Urrutia", title: "Executive Vice President" },
+  { name: "Philip James B. Urrutia", title: "V.P. for Building Administration & Infrastructure Development" },
+  { name: "Engr. Patrick Gene B. Urrutia", title: "V.P. for External Affairs" },
+  { name: "Phia Mae U. Grivas", title: "V.P. for Finance" },
+  { name: "Engr. Paul Gian B. Urrutia", title: "V.P. for Academics" },
+];
 
 const About = () => {
-  const boardMembers = [
-    { name: "Engr. felipe C. Urrutia", title: "SCHOOL PRESIDENT" },
-    { name: "Guia B. Urrutia", title: "EXECUTIVE VICE PRESIDENT" },
-    { name: "Philip James B. Urrutia", title: "V.P. FOR BUILDING ADMINISTRATION & INFRASTRUCTURE DEVELOPMENT" },
-    { name: "Engr. Patrick Gene B. Urrutia", title: "V.P. FOR EXTERNAL AFFAIRS" },
-    { name: "Phia Mae U. Grivas", title: "V.P. FOR FINANCE" },
-    { name: "Engr. Paul Gian B. Urrutia", title: "V.P. FOR ACADEMICS" },
-  ];
+  const [boardMembers, setBoardMembers] = useState(FALLBACK_BOARD);
+
+  useEffect(() => {
+    getSection('board').then((c) => {
+      if (c.items?.length) setBoardMembers(c.items);
+    });
+  }, []);
 
   return (
     <MainLayout>
@@ -185,10 +194,10 @@ const About = () => {
               {boardMembers.map((member, index) => (
                 <ExecutiveBoardCard key={index}>
                   <div className="w-32 h-32 flex-shrink-0 bg-white border border-gray-300 p-1">
-                    <img 
-                      src="https://via.placeholder.com/150" 
-                      alt="Avatar" 
-                      className="w-full h-full object-contain"
+                    <img
+                      src={member.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(member.name)}`}
+                      alt={member.name}
+                      className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="text-left">

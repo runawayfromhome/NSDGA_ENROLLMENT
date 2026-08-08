@@ -4,6 +4,7 @@ import LoginForm from '../../../auth/LoginForm';
 const AdminLogin = () => (
   <LoginForm
     portalName="Admin Portal"
+    role="admin"
     subtitle="Sign in to manage website content and school information."
   />
 );
