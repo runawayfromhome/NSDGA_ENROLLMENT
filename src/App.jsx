@@ -31,11 +31,25 @@ import RegistrarSettings from './components/pages/RegistrarPortal/RegistrarSetti
 import StudentRecords from './components/pages/RegistrarPortal/StudentRecords';
 import Document from './components/pages/RegistrarPortal/Documents';
 import DocuStudentProfile from './components/pages/RegistrarPortal/DocuStudentProfile';
-import EditContactUs from './components/pages/AdminEdit/EditContactUs';
-import EditSchoolEvent from './components/pages/AdminEdit/EditSchoolEvent';
-import EditExecutiveBoard from './components/pages/AdminEdit/EditExecutiveBoard';
-import EditAcademicSched from './components/pages/AdminEdit/EditAcademicSched';
-  
+import EditContactUs from './components/pages/AdminPortal/EditContactUs';
+import EditSchoolEvent from './components/pages/AdminPortal/EditSchoolEvent';
+import EditExecutiveBoard from './components/pages/AdminPortal/EditExecutiveBoard';
+import EditAcademicSched from './components/pages/AdminPortal/EditAcademicSched';
+// Auth + staff/head-admin portals
+import ProtectedRoute from './auth/ProtectedRoute';
+import AdminLayout from './components/AdminLayout';
+import AdminLogin from './components/pages/AdminPortal/Login';
+import AdminDashboard from './components/pages/AdminPortal/Dashboard';
+import AdminProfile from './components/pages/AdminPortal/MyProfile';
+import AdminSettings from './components/pages/AdminPortal/Settings';
+import StaffProfileSetup from './components/pages/StaffProfile/ProfileSetup';
+import MfaSetup from './components/pages/StaffProfile/MfaSetup';
+import HeadAdminLogin from './components/pages/HeadAdminPortal/Login';
+import HeadAdminAccounts from './components/pages/HeadAdminPortal/Accounts';
+import HeadAdminAuditLog from './components/pages/HeadAdminPortal/AuditLog';
+import HeadAdminReports from './components/pages/HeadAdminPortal/Reports';
+import HeadAdminSettings from './components/pages/HeadAdminPortal/Settings';
+
 
 function App() {
   return (
@@ -64,19 +78,37 @@ function App() {
       <Route path="/StudentPortal/Documents" element={<Documents />} />
       <Route path="/StudentPortal/Profile" element={<Profile />} />
       <Route path="/StudentPortal/Settings" element={<Setting />} />
+      {/* Registrar portal — login public; ProfileSetup requires login only; the rest require a VERIFIED registrar */}
       <Route path="/RegistrarPortal/Login" element={<LoginPage />} />
-      <Route path="/RegistrarPortal/Dashboard" element={<Dashboard />} />
-      <Route path="/RegistrarPortal/Applications" element={<Applications />} />
-      <Route path="/RegistrarPortal/Applications/:id" element={<ApplicationDetails />} />
-      <Route path="/RegistrarPortal/Profile" element={<MyProfile />} />
-      <Route path="/RegistrarPortal/Settings" element={<RegistrarSettings />} />
-      <Route path="/RegistrarPortal/StudentRecords" element={<StudentRecords />} />
-      <Route path="/RegistrarPortal/Documents" element={<Document />} />
-      <Route path="/RegistrarPortal/DocuStudentProfile" element={<DocuStudentProfile />} />
-      <Route path="/AdminEdit/EditContactUs" element={<EditContactUs />} />
-      <Route path="/AdminEdit/EditSchoolEvent" element={<EditSchoolEvent />} />
-      <Route path="/AdminEdit/EditExecutiveBoard" element={<EditExecutiveBoard />} />
-      <Route path="/AdminEdit/EditAcademicSched" element={<EditAcademicSched />} />
+      <Route path="/RegistrarPortal/ProfileSetup" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login"><StaffProfileSetup /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Dashboard" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Dashboard /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Applications" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Applications /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Applications/:id" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><ApplicationDetails /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Profile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><MyProfile /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Settings" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><RegistrarSettings /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/StudentRecords" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentRecords /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Documents" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Document /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/DocuStudentProfile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><DocuStudentProfile /></ProtectedRoute>} />
+
+      {/* Admin portal — login public; ProfileSetup requires login only; the rest require a VERIFIED admin (headadmin always allowed) */}
+      <Route path="/AdminPortal/Login" element={<AdminLogin />} />
+      <Route path="/AdminPortal/ProfileSetup" element={<ProtectedRoute allow={['admin']} loginPath="/AdminPortal/Login"><StaffProfileSetup /></ProtectedRoute>} />
+      <Route path="/AdminPortal/Dashboard" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/AdminPortal/Profile" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminProfile /></ProtectedRoute>} />
+      <Route path="/AdminPortal/Settings" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminSettings /></ProtectedRoute>} />
+      <Route path="/AdminPortal/MfaSetup" element={<ProtectedRoute allow={['admin']} loginPath="/AdminPortal/Login" requireVerified skipMfaGate><MfaSetup /></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditContactUs" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditContactUs /></AdminLayout></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditSchoolEvent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditSchoolEvent /></AdminLayout></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditExecutiveBoard" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditExecutiveBoard /></AdminLayout></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditAcademicSched" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditAcademicSched /></AdminLayout></ProtectedRoute>} />
+
+      {/* HeadAdmin portal — login public; management pages require the headadmin role */}
+      <Route path="/HeadAdminPortal/Login" element={<HeadAdminLogin />} />
+      <Route path="/HeadAdminPortal/Accounts" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminAccounts /></ProtectedRoute>} />
+      <Route path="/HeadAdminPortal/AuditLog" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminAuditLog /></ProtectedRoute>} />
+      <Route path="/HeadAdminPortal/Reports" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminReports /></ProtectedRoute>} />
+      <Route path="/HeadAdminPortal/MfaSetup" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login" skipMfaGate><MfaSetup /></ProtectedRoute>} />
+      <Route path="/HeadAdminPortal/Settings" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminSettings /></ProtectedRoute>} />
 
       {/* Any unknown URL falls back to the homepage */}
       <Route path="*" element={<Navigate to="/Home" replace />} />

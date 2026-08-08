@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import MainLayout from '../../layouts/Mainlayouts'
+import { getPublishedEvents, formatEventDate, getSection } from '../../lib/content'
 import SchoolEventCard from '../icons/SchoolEventCard'
 import EventsCard from '../icons/EventsCard'
 import AcadSchedEventCard from '../icons/AcadSchedEventCard'
@@ -8,41 +9,19 @@ import { LuCalendar, LuMapPin } from "react-icons/lu"
 
 const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [schoolEvents, setSchoolEvents] = useState([]);
+  const [levels, setLevels] = useState([]);
+  const [activeLevel, setActiveLevel] = useState(0);
 
-  const schoolEvents = [
-    {
-      date: "March 14, 2026",
-      title: "Mariprisa Rising League",
-      category: "ATHLETIC EXCELLENCE",
-      location: "Marist School Gymnasium",
-      image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?q=80&w=400",
-      description: "In a stunning display of grit and teamwork, the Nuestra Señora De Guia Academy elementary basketball team clinched the silver medal at the prestigious Mariprisa Rising League. Competing against the region's top athletic programs, our young athletes showcased exceptional sportsmanship and tactical brilliance.\n\nThe final match at the Marist School Gymnasium was a testament to their hard work throughout the semester. We invite all faculty and students to join the victory rally scheduled for the following Monday to celebrate this monumental achievement in school history."
-    },
-    {
-      date: "March 2, 2026",
-      title: "Seniors' Ball 2026",
-      category: "STUDENT LIFE",
-      location: "Marikina Convention Center",
-      image: "https://images.unsplash.com/photo-1516280440614-37939bbacd81?q=80&w=400",
-      description: "Seniors' Ball 2026 with the theme: \"MAHARLIKA: A Grand Evening of Timeless Filipino Grace and Heritage\" held at Marikina Convention Center."
-    },
-    {
-      date: "March 9, 2026",
-      title: "Deguian Meet 2026",
-      category: "CAMPUS EVENTS",
-      location: "NSDGA Main Campus",
-      image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=400",
-      description: "The impact of Deguian Meet 2026 is still being felt, and we are all still grinning from ear to ear. From the epic performances to heartwarming moments of winning, it was truly an event to remember for the Deguian community."
-    },
-    {
-      date: "April 15, 2026",
-      title: "Senior High STEM Exhibit",
-      category: "ACADEMIC SHOWCASE",
-      location: "STEM Laboratory Hall",
-      image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=400",
-      description: "Showcasing innovative projects from our STEM track students. This exhibit highlights technical skills in robotics and scientific research at the Marikina campus."
-    }
-  ];
+  // Load the Admin-published events + per-level academic schedule from Supabase.
+  useEffect(() => {
+    getPublishedEvents().then((items) =>
+      setSchoolEvents(items.map((e) => ({ ...e, date: formatEventDate(e.date) })))
+    );
+    getSection('schedule').then((c) => setLevels(c.levels || []));
+  }, []);
+
+  const activeTerms = levels[activeLevel]?.terms || [];
 
   const handleCardClick = (event) => {
     setSelectedEvent(event);
@@ -68,10 +47,16 @@ const Calendar = () => {
           </p>
         </div>
 
-        {/* SCHOOL EVENTS CAROUSEL */}
-        <SchoolEventCard>
-          <EventsCard events={schoolEvents} onCardClick={handleCardClick} />
-        </SchoolEventCard>
+        {/* SCHOOL EVENTS CAROUSEL (managed by Admin) */}
+        {schoolEvents.length > 0 ? (
+          <SchoolEventCard>
+            <EventsCard events={schoolEvents} onCardClick={handleCardClick} />
+          </SchoolEventCard>
+        ) : (
+          <div className="text-center text-slate-400 text-sm py-12 border border-dashed border-slate-200 rounded-2xl">
+            No upcoming events have been posted yet.
+          </div>
+        )}
 
         {/* EVENT MODAL (MATCHES SCREENSHOT) */}
         <dialog id="event_modal" className="modal backdrop:backdrop-blur-sm">
@@ -116,46 +101,40 @@ const Calendar = () => {
           </div>
         </dialog>
 
-        {/* ACADEMIC SCHEDULE SECTION */}
-        <AcadSchedEventCard>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-5xl font-black text-slate-100 italic">01</span>
-                <div>
-                  <h3 className="text-xl font-bold text-[#800000]">1st Semester</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">August 2024 — December 2024</p>
-                </div>
-              </div>
-              <AcadSchedCard>
-                <div className="space-y-4">
-                  <ScheduleItem label="Start of Classes" date="Aug 14" />
-                  <ScheduleItem label="Mid-term Exams" date="Oct 16-18" />
-                  <ScheduleItem label="Final Exams" date="Dec 11-13" />
-                  <ScheduleItem label="Semestrial Break" date="Dec 16 - Jan 5" />
-                </div>
-              </AcadSchedCard>
+        {/* ACADEMIC SCHEDULE SECTION (per level, managed by Admin) */}
+        {levels.length > 0 && (
+          <AcadSchedEventCard>
+            <div className="flex flex-wrap gap-2 mb-8">
+              {levels.map((l, i) => (
+                <button key={l.id} onClick={() => setActiveLevel(i)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-colors cursor-pointer ${i === activeLevel ? 'bg-[#800000] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                  {l.label}
+                </button>
+              ))}
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <span className="text-5xl font-black text-slate-100 italic">02</span>
-                <div>
-                  <h3 className="text-xl font-bold text-[#800000]">2nd Semester</h3>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">January 2025 — June 2025</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              {activeTerms.map((term, i) => (
+                <div key={term.id} className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    <span className="text-5xl font-black text-slate-100 italic">{String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-[#800000]">{term.name}</h3>
+                      {term.range && <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{term.range}</p>}
+                    </div>
+                  </div>
+                  <AcadSchedCard>
+                    <div className="space-y-4">
+                      {term.items.length
+                        ? term.items.map((it) => <ScheduleItem key={it.id} label={it.label} date={it.date} />)
+                        : <p className="text-sm text-slate-400">No dates posted yet.</p>}
+                    </div>
+                  </AcadSchedCard>
                 </div>
-              </div>
-              <AcadSchedCard>
-                <div className="space-y-4">
-                  <ScheduleItem label="Resumption of Classes" date="Jan 6" />
-                  <ScheduleItem label="Mid-term Exams" date="Mar 12-14" />
-                  <ScheduleItem label="Final Exams" date="May 21-23" />
-                  <ScheduleItem label="Commencement Exercises" date="June 4-6" />
-                </div>
-              </AcadSchedCard>
+              ))}
             </div>
-          </div>
-        </AcadSchedEventCard>
+          </AcadSchedEventCard>
+        )}
       </div>
     </MainLayout>
   )

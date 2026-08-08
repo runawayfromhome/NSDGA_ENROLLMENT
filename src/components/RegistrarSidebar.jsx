@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import AcademyLogo from '../assets/nuestralogo.jpg'; 
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import AcademyLogo from '../assets/nuestralogo.jpg';
+import { useSession } from '../contexts/useSession';
 import { 
   HiOutlineViewGrid, 
   HiOutlineDocumentText, 
@@ -14,6 +15,13 @@ import {
 const RegistrarSidebar = ({ activePage }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { session, logout } = useSession();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/RegistrarPortal/Login', { replace: true });
+  };
 
   const menuItems = [
     { name: 'Dashboard', icon: HiOutlineViewGrid, path: '/RegistrarPortal/Dashboard' },
@@ -85,10 +93,16 @@ const RegistrarSidebar = ({ activePage }) => {
 
       {/* Footer / Logout Section */}
       <div className={`${mobile ? 'p-4' : 'p-6'} mt-auto`}>
+        {session && (
+          <div className="mb-4 px-2">
+            <p className="text-[13px] font-bold text-slate-700 truncate">{session.name}</p>
+            <p className="text-[11px] text-slate-400 truncate">{session.email}</p>
+          </div>
+        )}
         <div className={`w-full h-[1px] bg-gray-200 mb-6 mx-auto ${mobile ? 'w-[85%]' : 'w-[85%]'}`} />
-        <button 
+        <button
           className="flex items-center justify-center gap-3 w-full py-3 bg-[#E2E4E7] hover:bg-gray-300 text-slate-500 rounded-xl text-[13px] md:text-[14px] font-bold transition-all active:scale-95 cursor-pointer"
-          onClick={() => console.log("Registrar Logging out...")}
+          onClick={handleLogout}
         >
           <HiOutlineLogout size={18} className="text-slate-500" />
           <span>Logout</span>
@@ -100,7 +114,7 @@ const RegistrarSidebar = ({ activePage }) => {
   return (
     <>
       {/* Desktop Sidebar - Hidden on mobile */}
-      <div className="fixed left-0 top-20 hidden lg:flex flex-col h-[calc(100vh-80px)] w-64 bg-[#F4F4F4] text-slate-600 font-sans shrink-0 z-40">
+      <div className="fixed left-0 top-0 hidden lg:flex flex-col h-screen w-64 bg-[#F4F4F4] text-slate-600 font-sans shrink-0 z-40">
         <SidebarContent mobile={false} />
       </div>
 

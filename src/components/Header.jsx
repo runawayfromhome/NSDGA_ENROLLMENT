@@ -1,14 +1,18 @@
 import React from 'react';
 import { IoSearchOutline } from "react-icons/io5";
-import { useLocation } from 'react-router-dom';
+import { useSession } from '../contexts/useSession';
+
+const ROLE_LABELS = { registrar: 'Registrar', admin: 'Admin', headadmin: 'Head Administrator', student: 'Student' };
 
 const Header = ({ showSearch = true, showProfile = true, profileName }) => {
-  const location = useLocation();
-  const isRegistrar = location.pathname.startsWith('/RegistrarPortal');
-  const isStudent = location.pathname.startsWith('/StudentPortal');
-  const roleLabel = isRegistrar ? 'Registrar' : isStudent ? 'Student' : 'Guest';
-  const displayName = profileName || (isRegistrar ? 'Nailong A. Bcdeghi' : isStudent ? 'Student User' : 'Guest User');
-  const avatarSeed = isRegistrar ? 'Nailong' : isStudent ? 'Student' : 'Guest';
+  // Show the ACTUAL logged-in user rather than a hardcoded name.
+  const { session } = useSession();
+  const roleLabel = ROLE_LABELS[session?.role] || 'Guest';
+  const displayName = profileName || session?.name || 'Guest User';
+  // Same avatar as the My Profile page: uploaded photo if any, else a stable
+  // generated avatar seeded by the user's name.
+  const avatarUrl = session?.profile?.photo
+    || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(session?.name || 'Guest')}`;
   
   return (
     /* 
@@ -46,10 +50,10 @@ const Header = ({ showSearch = true, showProfile = true, profileName }) => {
               </p>
             </div>
             <div className="relative">
-              <img 
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`} 
-                alt="Profile" 
-                className="w-10 h-10 rounded-full bg-slate-100 border border-gray-200"
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover bg-slate-100 border border-gray-200"
               />
               <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
             </div>
