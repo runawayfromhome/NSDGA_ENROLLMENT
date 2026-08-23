@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams, NavLink } from 'react-router-dom';
 import AcademyLogo from '../../../assets/nuestralogo.jpg';
 import NuestraLogoImage from '../../../assets/nuestradg.png';
 import { applyAsStudent, getMyApplication, resubmitApplication, CURRENT_SCHOOL_YEAR } from '../../../lib/student';
+import { getEnrollment } from '../../../lib/content';
 
 const LEVELS = ['Kindergarten', 'Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
@@ -37,10 +38,12 @@ const Apply = () => {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [enrollment, setEnrollment] = useState(null);
 
   // Detect resubmit mode: a logged-in student with a "needs_correction" app.
   useEffect(() => {
     (async () => {
+      getEnrollment().then(setEnrollment);
       const app = await getMyApplication();
       if (app) {
         if (app.status === 'needs_correction') {
@@ -103,6 +106,20 @@ const Apply = () => {
   };
 
   if (!ready) return <Shell><p className="text-slate-400 text-sm">Loading…</p></Shell>;
+
+  // New applications are blocked when admission is closed (resubmits still allowed).
+  if (!editMode && enrollment && !enrollment.open) {
+    return (
+      <Shell>
+        <div className="text-center py-8">
+          <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-amber-100 flex items-center justify-center text-3xl">🚫</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Admission is currently closed</h2>
+          <p className="text-gray-500 max-w-md mx-auto">{enrollment.closedMessage}</p>
+          <NavLink to="/StudentPortal/Login" className="inline-block mt-6 text-[#800000] font-bold">Already applied? Log in →</NavLink>
+        </div>
+      </Shell>
+    );
+  }
 
   return (
     <Shell steps={labels} step={step}>
@@ -254,7 +271,12 @@ const Shell = ({ children, steps, step }) => (
       </div>
     </div>
     <div className="w-full lg:w-[62%] bg-[#F9FAFB] flex flex-col justify-center px-6 md:px-16 py-10 overflow-y-auto">
-      <div className="w-full max-w-2xl mx-auto">{children}</div>
+      <div className="w-full max-w-2xl mx-auto">
+        <NavLink to="/Home" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-400 hover:text-[#800000] transition-colors mb-6">
+          ← Back to Home
+        </NavLink>
+        {children}
+      </div>
     </div>
   </div>
 );

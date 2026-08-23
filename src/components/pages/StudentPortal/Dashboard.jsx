@@ -5,7 +5,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, STATUS_LABEL, APP_STEPS } from '../../../lib/student';
-import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification } from "react-icons/hi";
+import { getAnnouncements, formatEventDate } from '../../../lib/content';
+import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone } from "react-icons/hi";
 
 const STATUS_TONE = {
   submitted: 'text-[#9A9E4C]', under_review: 'text-blue-600',
@@ -15,8 +16,9 @@ const STATUS_TONE = {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [app, setApp] = useState(undefined); // undefined = loading, null = none
+  const [announcements, setAnnouncements] = useState([]);
 
-  useEffect(() => { getMyApplication().then((a) => setApp(a)); }, []);
+  useEffect(() => { getMyApplication().then((a) => setApp(a)); getAnnouncements().then(setAnnouncements); }, []);
 
   const enrolled = app?.status === 'enrolled';
   const activeIdx = app ? APP_STEPS.findIndex((s) => s.key === (app.status === 'needs_correction' ? 'submitted' : app.status)) : -1;
@@ -34,6 +36,26 @@ const Dashboard = () => {
               {app ? `${app.grade_level} · S.Y. ${app.school_year}` : 'Student Overview'}
             </p>
           </div>
+
+          {announcements.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <HiOutlineSpeakerphone className="text-[#800000]" size={22} />
+                <h2 className="text-lg font-bold text-slate-800">Announcements</h2>
+              </div>
+              <div className="space-y-4">
+                {announcements.map((a) => (
+                  <div key={a.id} className="border-l-4 border-[#800000] pl-4 py-1">
+                    <div className="flex justify-between items-baseline gap-3">
+                      <h3 className="font-bold text-slate-800 text-sm">{a.title || 'Announcement'}</h3>
+                      <span className="text-[11px] text-slate-400 whitespace-nowrap">{a.date ? formatEventDate(a.date) : ''}</span>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{a.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {app === undefined && <p className="text-slate-400 text-sm">Loading…</p>}
 

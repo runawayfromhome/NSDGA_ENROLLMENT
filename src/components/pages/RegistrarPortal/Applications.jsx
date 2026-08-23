@@ -3,51 +3,94 @@ import { useNavigate } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
 import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
-import { IoSearchOutline, IoFilterOutline, IoCalendarOutline } from "react-icons/io5";
+import { IoSearchOutline } from "react-icons/io5";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'submitted', label: 'Pending Review' },
+  { value: 'under_review', label: 'Under Review' },
+  { value: 'needs_correction', label: 'Needs Correction' },
+  { value: 'enrolled', label: 'Enrolled' },
+  { value: 'rejected', label: 'Rejected' },
+];
+const LEVELS = ['Kindergarten', 'Elementary', 'Junior High School', 'Senior High School'];
+const selCls = 'bg-[#F1F3F6] rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 border-none outline-none';
+const PAGE_SIZE = 10;
 
 const Applications = () => {
   const navigate = useNavigate();
   const [apps, setApps] = useState(null);
   const [q, setQ] = useState('');
+  const [status, setStatus] = useState('all');
+  const [grade, setGrade] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  // Reset how many rows are shown whenever the filters change.
+  useEffect(() => { setVisible(PAGE_SIZE); }, [q, status, grade, dateFrom, dateTo]);
+
+  const anyFilter = q || status !== 'all' || grade !== 'all' || dateFrom || dateTo;
+  const clear = () => { setQ(''); setStatus('all'); setGrade('all'); setDateFrom(''); setDateTo(''); };
 
   const filtered = (apps || []).filter((a) => {
     const s = (applicantName(a) + ' ' + a.id + ' ' + (a.grade_level || '')).toLowerCase();
-    return s.includes(q.toLowerCase());
+    if (!s.includes(q.toLowerCase())) return false;
+    if (status !== 'all' && a.status !== status) return false;
+    if (grade !== 'all' && a.grade_level !== grade) return false;
+    if (dateFrom || dateTo) {
+      // Compare using the LOCAL date (matches the "Date Submitted" column).
+      const d = a.created_at ? new Date(a.created_at).toLocaleDateString('en-CA') : '';
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+    }
+    return true;
   });
+  const shown = filtered.slice(0, visible);
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <RegistrarSidebar />
       <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
-        <Header showSearch={true} />
-        <main className="p-12 max-w-[1400px]">
+        <Header showSearch={false} />
+        <main className="p-8 md:p-12 max-w-[1400px]">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-[#800000] mb-1">Student Applications</h1>
             <p className="text-slate-500 text-[14px]">Manage and review incoming admissions for Academic Year 2026-2027.</p>
           </div>
 
-          <div className="flex gap-4 mb-6">
-            <div className="relative flex-1">
+          <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5 mb-6 space-y-4">
+            <div className="relative">
               <IoSearchOutline className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input
                 type="text"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search by student name, grade, or application ID..."
-                className="w-full pl-14 pr-6 py-4 bg-white border border-gray-100 rounded-xl shadow-sm text-[14px] focus:outline-none focus:ring-1 focus:ring-[#800000]/20"
+                className="w-full pl-14 pr-6 py-3.5 bg-[#F1F3F6] border-none rounded-xl text-[14px] outline-none"
               />
             </div>
-            <button className="flex items-center gap-3 px-6 py-4 bg-white border border-gray-100 rounded-xl shadow-sm text-slate-600 text-[14px] font-medium hover:bg-gray-50 transition-colors cursor-pointer">
-              <IoFilterOutline size={20} /> Filter by Status
-            </button>
-            <button className="flex items-center gap-3 px-6 py-4 bg-white border border-gray-100 rounded-xl shadow-sm text-slate-600 text-[14px] font-medium hover:bg-gray-50 transition-colors cursor-pointer">
-              <IoCalendarOutline size={20} /> Date Range
-            </button>
+            <div className="flex flex-wrap items-end gap-4">
+              <Field label="Status">
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className={selCls}>
+                  {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+              <Field label="Grade Level">
+                <select value={grade} onChange={(e) => setGrade(e.target.value)} className={selCls}>
+                  <option value="all">All Levels</option>
+                  {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </Field>
+              <Field label="From"><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={selCls} /></Field>
+              <Field label="To"><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={selCls} /></Field>
+              {anyFilter && <button onClick={clear} className="px-4 py-2.5 text-[#800000] font-bold text-sm hover:bg-[#800000]/5 rounded-lg cursor-pointer">Clear filters</button>}
+              <div className="ml-auto self-center text-sm font-semibold text-slate-500">{apps ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}` : ''}</div>
+            </div>
           </div>
 
           <ApplicationCard>
@@ -66,9 +109,9 @@ const Applications = () => {
                     <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-sm">Loading applications…</td></tr>
                   )}
                   {apps && filtered.length === 0 && (
-                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-sm">No applications{q ? ' match your search' : ' yet'}.</td></tr>
+                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-sm">No applications{anyFilter ? ' match your filters' : ' yet'}.</td></tr>
                   )}
-                  {filtered.map((a) => (
+                  {shown.map((a) => (
                     <AppTableRow
                       key={a.id}
                       name={applicantName(a).toUpperCase()}
@@ -82,12 +125,30 @@ const Applications = () => {
                 </tbody>
               </table>
             </div>
+
+            {apps && filtered.length > 0 && (
+              <div className="flex items-center justify-between pt-6 mt-2 border-t border-gray-50">
+                <span className="text-xs font-semibold text-slate-400">Showing {shown.length} of {filtered.length}</span>
+                {visible < filtered.length && (
+                  <button onClick={() => setVisible((v) => v + PAGE_SIZE)} className="px-6 py-2.5 bg-[#800000] text-white rounded-lg font-bold text-sm hover:bg-[#600000] cursor-pointer">
+                    Load More
+                  </button>
+                )}
+              </div>
+            )}
           </ApplicationCard>
         </main>
       </div>
     </div>
   );
 };
+
+const Field = ({ label, children }) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+    {children}
+  </div>
+);
 
 const AppTableRow = ({ name, id, grade, status, date, onClick }) => {
   const style = APP_DISPLAY[status] || APP_DISPLAY.submitted;

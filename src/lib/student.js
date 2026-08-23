@@ -46,7 +46,7 @@ export async function uploadStudentDoc(appId, docKey, file) {
   if (upErr) return { ok: false, error: upErr.message };
 
   const app = await getMyApplication();
-  const documents = { ...(app?.documents || {}), [docKey]: { path, name: file.name, uploadedAt: new Date().toISOString(), status: 'uploaded' } };
+  const documents = { ...(app?.documents || {}), [docKey]: { path, name: file.name, size: file.size, uploadedAt: new Date().toISOString(), status: 'uploaded' } };
   const { error } = await supabase.from('applications').update({ documents }).eq('id', appId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, documents };
@@ -121,6 +121,22 @@ export async function resubmitApplication(id, form) {
 // Profile). Does NOT change status — the enforce trigger allows form edits.
 export async function updateMyForm(id, form) {
   const { error } = await supabase.from('applications').update({ form }).eq('id', id);
+  return { ok: !error, error: error?.message };
+}
+
+// Send a password-reset email (link back to the CreateNewPass page).
+export async function sendPasswordReset(email) {
+  const clean = (email || '').trim().toLowerCase();
+  const { error } = await supabase.auth.resetPasswordForEmail(clean, {
+    redirectTo: window.location.origin + '/StudentPortal/CreateNewPass',
+  });
+  return { ok: !error, error: error?.message };
+}
+
+// Set a new password (used on the recovery page — the reset link establishes a
+// temporary session that authorizes this).
+export async function setNewPassword(password) {
+  const { error } = await supabase.auth.updateUser({ password });
   return { ok: !error, error: error?.message };
 }
 

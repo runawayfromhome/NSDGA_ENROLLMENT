@@ -8,9 +8,11 @@ import {
   HiOutlineCalendar,
   HiOutlineUserGroup,
   HiOutlineAcademicCap,
+  HiOutlineSpeakerphone,
 } from 'react-icons/hi';
 
 const CARDS = [
+  { title: 'Enrollment & Announcements', desc: 'Open/close online admission and post announcements to students.', icon: HiOutlineSpeakerphone, path: '/AdminPortal/EditEnrollment' },
   { title: 'Contact Information', desc: 'Emails, phone numbers & office hours shown to visitors.', icon: HiOutlinePhone, path: '/AdminPortal/EditContactUs' },
   { title: 'School Events', desc: 'Announcements and events on the public calendar.', icon: HiOutlineCalendar, path: '/AdminPortal/EditSchoolEvent' },
   { title: 'Executive Board', desc: 'Officers and leadership listed on the About page.', icon: HiOutlineUserGroup, path: '/AdminPortal/EditExecutiveBoard' },

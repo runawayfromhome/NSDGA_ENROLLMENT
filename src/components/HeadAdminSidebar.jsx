@@ -8,6 +8,7 @@ import {
   HiOutlineUserGroup,
   HiOutlineClipboardList,
   HiOutlineChartBar,
+  HiOutlineServer,
   HiOutlineCog,
   HiOutlineLogout,
 } from 'react-icons/hi';
@@ -17,6 +18,7 @@ const MENU = [
   { name: 'Accounts', icon: HiOutlineUserGroup, path: '/HeadAdminPortal/Accounts' },
   { name: 'Audit Log', icon: HiOutlineClipboardList, path: '/HeadAdminPortal/AuditLog' },
   { name: 'Reports & Analytics', icon: HiOutlineChartBar, path: '/HeadAdminPortal/Reports' },
+  { name: 'System Usage', icon: HiOutlineServer, path: '/HeadAdminPortal/System' },
   { name: 'Settings', icon: HiOutlineCog, path: '/HeadAdminPortal/Settings' },
 ];
 

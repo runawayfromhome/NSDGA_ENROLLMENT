@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import NuestraLogoImage from '../../../assets/nuestradg.png'
 import AcademyLogo from '../../../assets/nuestralogo.jpg'
@@ -6,10 +6,20 @@ import ProcedureCard from '../../icons/StudentPortalIcons/ProcedureCard'
 import Input from '../../form/Input'
 import EmailIcon from '../../icons/StudentPortalIcons/EmailIcon'
 import SendIcon from '../../icons/StudentPortalIcons/SendIcon'
+import { sendPasswordReset } from '../../../lib/student'
 
 const ForgotPass = () => {
-  const handleSubmit = (e) => {
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(''); setBusy(true);
+    const fd = new FormData(e.target);
+    const res = await sendPasswordReset(fd.get('email'));
+    setBusy(false);
+    if (res.ok) setSent(true); else setError(res.error || 'Could not send the reset email.');
   };
 
   return (
@@ -42,31 +52,37 @@ const ForgotPass = () => {
         <ProcedureCard className="w-full max-w-md p-8">
           <h2 className="text-2xl font-bold text-[#800000] mb-6">Forgot password?</h2>
           
-          <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-            Enter your registered email address to receive a password reset code.
-          </p>
-          
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
-            <Input
-              name="email"
-              label="Email Address"
-              type="email"
-              placeholder="juandelacruz@gmail.com"
-              icon={<EmailIcon className="scale-50" />} 
-            />
-
-            {/* Send Button as NavLink */}
-            <div className="flex justify-end">
-              <NavLink 
-                to="/StudentPortal/ForgotPassOtp"
-                className="btn bg-[#800000] hover:bg-[#600000] text-white border-none px-6 h-12 rounded-md text-sm normal-case font-bold shadow-md cursor-pointer flex items-center gap-2"
-              >
-                Send Code
-                <SendIcon size={16} className="text-white" />
-              </NavLink>
+          {sent ? (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800 leading-relaxed">
+              📧 If an account exists for that email, we've sent a <b>password reset link</b>. Check your inbox (and spam folder), then follow the link to set a new password.
             </div>
-          </form>
+          ) : (
+            <>
+              <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                Enter your registered email address and we'll send you a link to reset your password.
+              </p>
+              {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <Input
+                  name="email"
+                  label="Email Address"
+                  type="email"
+                  placeholder="juandelacruz@gmail.com"
+                  icon={<EmailIcon className="scale-50" />}
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    className="btn bg-[#800000] hover:bg-[#600000] text-white border-none px-6 h-12 rounded-md text-sm normal-case font-bold shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {busy ? 'Sending…' : 'Send Reset Link'}
+                    <SendIcon size={16} className="text-white" />
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
 
           {/* Back to Login */}
           <p className="text-center mt-32 text-gray-500 text-sm">

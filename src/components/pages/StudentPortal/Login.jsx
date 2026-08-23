@@ -52,6 +52,9 @@ const Login = () => {
 
       {/* Right Side: Login Form */}
       <div className="w-full lg:w-[55%] bg-[#F9FAFB] flex flex-col items-center justify-center px-6 md:px-20 relative">
+        <NavLink to="/Home" className="absolute top-6 left-6 flex items-center gap-1.5 text-sm font-semibold text-gray-400 hover:text-[#800000] transition-colors">
+          ← Back to Home
+        </NavLink>
         <div className="w-full max-w-md">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Student Portal Login</h2>
           <p className="text-gray-500 mb-10">Welcome back! Please enter your details.</p>

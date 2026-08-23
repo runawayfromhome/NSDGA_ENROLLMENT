@@ -36,6 +36,7 @@ import EditContactUs from './components/pages/AdminPortal/EditContactUs';
 import EditSchoolEvent from './components/pages/AdminPortal/EditSchoolEvent';
 import EditExecutiveBoard from './components/pages/AdminPortal/EditExecutiveBoard';
 import EditAcademicSched from './components/pages/AdminPortal/EditAcademicSched';
+import EditEnrollment from './components/pages/AdminPortal/EditEnrollment';
 // Auth + staff/head-admin portals
 import ProtectedRoute from './auth/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
@@ -49,6 +50,7 @@ import HeadAdminLogin from './components/pages/HeadAdminPortal/Login';
 import HeadAdminAccounts from './components/pages/HeadAdminPortal/Accounts';
 import HeadAdminAuditLog from './components/pages/HeadAdminPortal/AuditLog';
 import HeadAdminReports from './components/pages/HeadAdminPortal/Reports';
+import HeadAdminSystem from './components/pages/HeadAdminPortal/SystemUsage';
 import HeadAdminSettings from './components/pages/HeadAdminPortal/Settings';
 
 
@@ -103,12 +105,14 @@ function App() {
       <Route path="/AdminPortal/EditSchoolEvent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditSchoolEvent /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditExecutiveBoard" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditExecutiveBoard /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditAcademicSched" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditAcademicSched /></AdminLayout></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditEnrollment" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditEnrollment /></AdminLayout></ProtectedRoute>} />
 
       {/* HeadAdmin portal — login public; management pages require the headadmin role */}
       <Route path="/HeadAdminPortal/Login" element={<HeadAdminLogin />} />
       <Route path="/HeadAdminPortal/Accounts" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminAccounts /></ProtectedRoute>} />
       <Route path="/HeadAdminPortal/AuditLog" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminAuditLog /></ProtectedRoute>} />
       <Route path="/HeadAdminPortal/Reports" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminReports /></ProtectedRoute>} />
+      <Route path="/HeadAdminPortal/System" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminSystem /></ProtectedRoute>} />
       <Route path="/HeadAdminPortal/MfaSetup" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login" skipMfaGate><MfaSetup /></ProtectedRoute>} />
       <Route path="/HeadAdminPortal/Settings" element={<ProtectedRoute allow={['headadmin']} loginPath="/HeadAdminPortal/Login"><HeadAdminSettings /></ProtectedRoute>} />
 

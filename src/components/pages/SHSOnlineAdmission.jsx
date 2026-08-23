@@ -1,4 +1,5 @@
 import React from 'react'
+import { NavLink } from 'react-router-dom'
 import MainLayout from '../../layouts/Mainlayouts'
 import RedLine from '../icons/RedLine'
 import ProcedureCard from '../icons/StudentPortalIcons/ProcedureCard'
@@ -74,9 +75,9 @@ const SHSOnlineAdmission = () => {
 
         {/* Footer Button */}
         <div className="mt-8">
-          <button className="bg-[#a32a2a] text-white px-12 py-3.5 rounded-lg font-bold hover:bg-[#800000] transition-all shadow-md cursor-pointer">
+          <NavLink to={`/StudentPortal/Apply?level=${encodeURIComponent('Senior High School')}`} className="inline-block bg-[#a32a2a] text-white px-12 py-3.5 rounded-lg font-bold hover:bg-[#800000] transition-all shadow-md cursor-pointer">
             Apply Now!
-          </button>
+          </NavLink>
         </div>
       </div>
     </MainLayout>

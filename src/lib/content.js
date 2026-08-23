@@ -57,6 +57,28 @@ export const DEFAULT_CONTACT = {
   facebookUrl: 'https://facebook.com/nsdgamarikina',
 };
 
+// --- Enrollment period + announcements (managed by Admin) -------------------
+export const DEFAULT_ENROLLMENT = {
+  open: true,
+  closedMessage: 'Online admission is currently closed. Please check back during the next enrollment period or contact the Registrar’s Office.',
+  announcements: [], // [{ id, title, body, date }]
+};
+
+export async function getEnrollment() {
+  const e = await getSection('enrollment');
+  return { ...DEFAULT_ENROLLMENT, ...e, announcements: e.announcements || [] };
+}
+
+export async function saveEnrollment(data) {
+  return saveSection('enrollment', data);
+}
+
+// Announcements sorted newest first (for the student portal / public).
+export async function getAnnouncements() {
+  const e = await getEnrollment();
+  return [...(e.announcements || [])].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
 // Returns the contact info with defaults filled in for any missing fields.
 export async function getContact() {
   const c = await getSection('contact');

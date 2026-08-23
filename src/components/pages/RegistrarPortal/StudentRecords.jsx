@@ -6,12 +6,16 @@ import Header from '../../Header';
 import { LuSearch } from "react-icons/lu";
 import { listEnrolled, applicantName } from '../../../lib/registrar';
 
+const PAGE_SIZE = 10;
+
 const StudentRecords = () => {
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
   const [grade, setGrade] = useState('All Levels');
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listEnrolled().then(setRows); }, []);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [q, grade]);
 
   const grades = useMemo(() => ['All Levels', ...Array.from(new Set((rows || []).map((r) => r.grade_level).filter(Boolean)))], [rows]);
 
@@ -20,6 +24,7 @@ const StudentRecords = () => {
     const s = (applicantName(r) + ' ' + (r.student_no || '') + ' ' + (r.form?.lrn || '')).toLowerCase();
     return s.includes(q.toLowerCase());
   });
+  const shown = filtered.slice(0, visible);
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
@@ -64,7 +69,7 @@ const StudentRecords = () => {
                 <tbody className="divide-y divide-slate-100">
                   {rows === null && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">Loading…</td></tr>}
                   {rows && filtered.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">No enrolled students{q || grade !== 'All Levels' ? ' match your filters' : ' yet'}.</td></tr>}
-                  {filtered.map((r) => (
+                  {shown.map((r) => (
                     <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-5 px-6 text-sm font-bold text-[#800000]">{r.student_no || '—'}</td>
                       <td className="py-5 px-6 text-sm font-bold text-slate-700">{applicantName(r)}</td>
@@ -76,6 +81,14 @@ const StudentRecords = () => {
                 </tbody>
               </table>
             </div>
+            {rows && filtered.length > 0 && (
+              <div className="flex items-center justify-between px-6 py-5 border-t border-gray-50">
+                <span className="text-xs font-semibold text-slate-400">Showing {shown.length} of {filtered.length}</span>
+                {visible < filtered.length && (
+                  <button onClick={() => setVisible((v) => v + PAGE_SIZE)} className="px-6 py-2.5 bg-[#800000] text-white rounded-lg font-bold text-sm hover:bg-[#600000] cursor-pointer">Load More</button>
+                )}
+              </div>
+            )}
           </div>
         </main>
       </div>

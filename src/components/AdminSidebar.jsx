@@ -10,6 +10,7 @@ import {
   HiOutlineCalendar,
   HiOutlineUserGroup,
   HiOutlineAcademicCap,
+  HiOutlineSpeakerphone,
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineLogout,
@@ -18,6 +19,7 @@ import { useSession } from '../contexts/useSession';
 
 const MENU = [
   { name: 'Dashboard', icon: HiOutlineViewGrid, path: '/AdminPortal/Dashboard' },
+  { name: 'Enrollment', icon: HiOutlineSpeakerphone, path: '/AdminPortal/EditEnrollment' },
   { name: 'Contact Info', icon: HiOutlinePhone, path: '/AdminPortal/EditContactUs' },
   { name: 'School Events', icon: HiOutlineCalendar, path: '/AdminPortal/EditSchoolEvent' },
   { name: 'Executive Board', icon: HiOutlineUserGroup, path: '/AdminPortal/EditExecutiveBoard' },
