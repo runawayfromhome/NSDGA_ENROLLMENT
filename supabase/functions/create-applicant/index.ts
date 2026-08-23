@@ -1,0 +1,63 @@
+// supabase/functions/create-applicant/index.ts
+// Creates a STUDENT applicant account + files their admission application.
+// Runs server-side with the service_role key, so:
+//   - the account is created ALREADY CONFIRMED (no confirmation email needed)
+//   - it does not depend on the "Confirm email" dashboard setting
+//   - the application is filed atomically (rolled back if it fails)
+// This is a PUBLIC endpoint (anyone applying online) — but it can ONLY ever
+// create the lowest-privilege 'student' role, never staff.
+//
+// Deploy:  supabase functions deploy create-applicant
+// (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are injected automatically.)
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+const json = (body: unknown) =>
+  new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } });
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+
+  const url = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const admin = createClient(url, serviceKey);
+
+  try {
+    const { email, password, contact, level, studentType, form } = await req.json();
+    if (!email || !password || !form) return json({ error: 'Missing required fields.' });
+    if (String(password).length < 8) return json({ error: 'Password must be at least 8 characters.' });
+
+    const clean = String(email).trim().toLowerCase();
+    const name = `${form.firstName || ''} ${form.lastName || ''}`.trim() || clean;
+
+    // 1) Create the confirmed applicant account (trigger makes a 'student' profile).
+    const { data: created, error: cErr } = await admin.auth.admin.createUser({
+      email: clean, password, email_confirm: true,
+      user_metadata: { name, role: 'student', contact },
+    });
+    if (cErr) return json({ error: cErr.message });
+    const uid = created.user.id;
+
+    // 2) File the admission application (service role bypasses RLS).
+    const { error: appErr } = await admin.from('applications').insert({
+      student_id: uid,
+      school_year: form.schoolYear || '2026-2027',
+      grade_level: level,
+      student_type: studentType,
+      status: 'submitted',
+      form: { ...form, contact },
+    });
+    if (appErr) {
+      await admin.auth.admin.deleteUser(uid); // rollback so they can retry cleanly
+      return json({ error: appErr.message });
+    }
+
+    return json({ ok: true, userId: uid });
+  } catch (e) {
+    return json({ error: String(e) });
+  }
+});

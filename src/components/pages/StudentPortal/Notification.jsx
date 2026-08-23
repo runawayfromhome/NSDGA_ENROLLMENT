@@ -1,100 +1,86 @@
-import React from 'react';
-import Sidebar from '../../Sidebar';
-import NotifCard from '../../icons/StudentPortalIcons/NotifCard';
-import Header from '../../Header'; // Ensure correct path
-import { HiOutlineExclamationCircle, HiOutlineInformationCircle } from "react-icons/hi";
+// Student Notifications — consistent portal frame; notifications are derived
+// from the student's real application status.
+import React, { useEffect, useState } from 'react';
+import StudentSidebar from '../../StudentSidebar';
+import Header from '../../Header';
+import { HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineClipboardList } from "react-icons/hi";
+import { getMyApplication, STATUS_LABEL } from '../../../lib/student';
 
-const Notification = () => {
-  return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar />
-      
-      {/* Container matches the sidebar visibility */}
-      <div className="flex-1 ml-0 lg:ml-64 flex flex-col min-h-screen">
-        
-        {/* Styled Header */}
-        <Header title="Notifications" />
+const timeAgo = (iso) => {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3.6e6), d = Math.floor(diff / 8.64e7);
+  if (d > 0) return d + (d === 1 ? ' day ago' : ' days ago');
+  if (h > 0) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  return 'just now';
+};
 
-        {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto px-10 py-8">
-          <div className="max-w-5xl mx-auto">
-            
-            <div className="flex justify-between items-end mb-8">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800">Inbox</h2>
-                <p className="text-sm text-gray-500 mt-1">You have 2 new actions required</p>
-              </div>
-              <button className="text-sm font-bold text-[#800000] hover:underline transition-all cursor-pointer">
-                Mark all as read
-              </button>
-            </div>
-
-            {/* TODAY SECTION */}
-            <div className="mb-10">
-              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-4">Today</h3>
-              <NotifCard>
-                <NotifItem 
-                  icon={<HiOutlineExclamationCircle size={22} className="text-slate-400" />}
-                  title="Action Needed: Please resubmit a clear copy of your Report Card"
-                  desc="The previous upload was blurry and unreadable. Please ensure all details are visible before uploading to avoid further delays in your processing."
-                  time="2 hours ago"
-                  isUnread={true}
-                  isFirst={true}
-                />
-                <NotifItem 
-                  icon={<HiOutlineInformationCircle size={22} className="text-slate-400" />}
-                  title="Enrollment Status: Your enrollment application is currently being reviewed"
-                  desc="Your application for the Academic Year 2024-2025 has been successfully received and is now in the verification queue. Expect an update within 3-5 working days."
-                  time="5 hours ago"
-                  isUnread={true}
-                />
-              </NotifCard>
-            </div>
-
-            {/* YESTERDAY SECTION */}
-            <div className="mb-10">
-              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-4">Yesterday</h3>
-              <NotifCard>
-                 <div className="h-32 flex items-center justify-center border border-dashed border-gray-100 rounded-lg">
-                    <p className="text-gray-300 text-sm italic">No notifications for yesterday</p>
-                 </div>
-              </NotifCard>
-            </div>
-
-            <div className="flex justify-center pb-12">
-              <button className="px-12 py-2.5 border border-gray-200 rounded-full text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer">
-                Load older notifications
-              </button>
-            </div>
-
-            <p className="text-center text-[11px] text-gray-400 tracking-wide mb-8">
-              © 2024 Nuestra Señora de Guia Academy of Marikina. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+function buildNotifications(app) {
+  if (!app) return [];
+  const list = [{
+    icon: HiOutlineClipboardList, tone: 'text-slate-400',
+    title: 'Application received',
+    desc: `Your application for ${app.grade_level} (S.Y. ${app.school_year}) was submitted successfully.`,
+    time: timeAgo(app.created_at),
+  }];
+  if (app.status !== 'submitted') {
+    const map = {
+      under_review: { icon: HiOutlineInformationCircle, tone: 'text-blue-500', title: 'Application under review', desc: 'The Registrar is now reviewing your application.' },
+      needs_correction: { icon: HiOutlineExclamationCircle, tone: 'text-amber-500', title: 'Action needed: corrections requested', desc: app.review_note || 'Please review and resubmit your application.' },
+      enrolled: { icon: HiOutlineCheckCircle, tone: 'text-emerald-500', title: `Enrolled — Student No. ${app.student_no || ''}`, desc: app.review_note || 'Congratulations! Your enrollment is confirmed.' },
+      rejected: { icon: HiOutlineXCircle, tone: 'text-red-500', title: 'Application not accepted', desc: app.review_note || 'Your application was not accepted for this school year.' },
+    };
+    const n = map[app.status];
+    if (n) list.unshift({ ...n, time: timeAgo(app.reviewed_at || app.created_at) });
+  }
+  return list;
 }
 
-const NotifItem = ({ icon, title, desc, time, isUnread, isFirst }) => (
-  <div className={`flex gap-5 p-4 -mx-4 rounded-xl hover:bg-slate-50 transition-all duration-200 cursor-pointer relative ${!isFirst ? 'mt-4 border-t border-gray-100 pt-6' : ''}`}>
-    <div className="flex-shrink-0 w-11 h-11 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm">
-      {icon}
-    </div>
-    <div className="flex-1 space-y-1">
-      <div className="flex justify-between items-start">
-        <h4 className="text-sm font-bold text-slate-800 pr-12 leading-snug">{title}</h4>
-        <span className="text-[11px] font-medium text-gray-400 whitespace-nowrap">{time}</span>
+const Notification = () => {
+  const [app, setApp] = useState(undefined);
+  useEffect(() => { getMyApplication().then(setApp); }, []);
+  const items = buildNotifications(app);
+
+  return (
+    <div className="flex min-h-screen bg-[#F8F9FA]">
+      <StudentSidebar activePage="Notifications" />
+      <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
+        <Header showSearch={false} />
+        <main className="flex-1 p-8 md:p-12">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-slate-900">Notifications</h1>
+              <p className="text-sm text-gray-500 mt-1">Updates about your admission.</p>
+            </div>
+
+            {app === undefined && <p className="text-slate-400 text-sm">Loading…</p>}
+            {app === null && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-slate-500">No notifications yet.</div>
+            )}
+
+            {app && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8 space-y-2">
+                {items.map((n, i) => (
+                  <div key={i} className={`flex gap-5 p-4 rounded-xl hover:bg-slate-50 transition-all ${i > 0 ? 'border-t border-gray-100 pt-6' : ''}`}>
+                    <div className="flex-shrink-0 w-11 h-11 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm">
+                      <n.icon size={22} className={n.tone} />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start gap-4">
+                        <h4 className="text-sm font-bold text-slate-800 leading-snug">{n.title}</h4>
+                        <span className="text-[11px] font-medium text-gray-400 whitespace-nowrap">{n.time}</span>
+                      </div>
+                      <p className="text-[13px] text-slate-500 leading-relaxed mt-1">{n.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
       </div>
-      <p className="text-[13px] text-slate-500 leading-relaxed max-w-3xl">{desc}</p>
     </div>
-    {isUnread && (
-      <div className="absolute right-4 top-1/2 -translate-y-1/2">
-        <div className="w-2.5 h-2.5 bg-blue-500 rounded-full"></div>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 export default Notification;

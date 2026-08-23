@@ -1,70 +1,100 @@
-import React from 'react'
-import Sidebar from '../../Sidebar';
+// Applicant status page — inside the student portal frame (sidebar + header).
+// Reads the signed-in student's real application and shows the tracker.
+import React, { useEffect, useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
-import StatusCard from '../../icons/StudentPortalIcons/StatusCard';
-import NotesCard from '../../icons/StudentPortalIcons/NotesCard';
-import ViewDetailsModal from '../../icons/StudentPortalIcons/ViewDetailsModal';
-import { HiOutlineInformationCircle } from "react-icons/hi";
+import { getMyApplication, APP_STEPS, STATUS_LABEL } from '../../../lib/student';
 
 const ApplicationStatus = () => {
+  const [loading, setLoading] = useState(true);
+  const [app, setApp] = useState(null);
+
+  useEffect(() => { getMyApplication().then((a) => { setApp(a); setLoading(false); }); }, []);
+
   return (
-    <div className="flex min-h-screen bg-white">    
-      <Sidebar />
-      
-      <div className="flex-1 ml-0 lg:ml-64 flex flex-col min-h-screen">
-        <Header title="Application Status" />
+    <div className="flex min-h-screen bg-[#F8F9FA]">
+      <StudentSidebar activePage="Application Status" />
+      <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
+        <Header showSearch={false} />
+        <main className="p-8 md:p-12 max-w-[1100px] w-full">
+          {loading && <p className="text-slate-400 text-sm">Loading your application…</p>}
 
-        <div className="flex-1 overflow-y-auto bg-slate-50/30 p-10">
-          <div className="max-w-5xl mx-auto">
-            
-            <div className="flex justify-between items-start mb-8">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Welcome, Nailong!</h2>
-                <p className="text-slate-500 mt-1">Track your progress and recent updates here.</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Application ID No.: 123456789</p>
-              </div>
+          {!loading && !app && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center max-w-lg">
+              <h3 className="text-xl font-bold text-slate-800 mb-2">No application yet</h3>
+              <p className="text-slate-500 mb-6">You don't have an admission application on file.</p>
+              <NavLink to="/StudentPortal/Apply" className="inline-block px-6 py-3 bg-[#800000] text-white rounded-lg font-bold">Apply Now</NavLink>
             </div>
+          )}
 
-            <StatusCard />
+          {!loading && app && <StatusBody app={app} />}
+        </main>
+      </div>
+    </div>
+  );
+};
 
-            <NotesCard>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 bg-slate-50 border border-gray-100 rounded-xl flex items-center justify-center shadow-sm">
-                    <HiOutlineInformationCircle size={28} className="text-slate-700" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800 tracking-tight">Additional Notes</h3>
-                    <p className="text-sm text-slate-500 max-w-xl leading-relaxed">
-                      Your application is currently being processed by the Registrar office. 
-                      Expect a response regarding your interview schedule within 3-5 business days.
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => document.getElementById('task_details_modal').showModal()}
-                  className="px-10 py-3 bg-[#A02E23] hover:bg-[#800000] text-white rounded-xl font-bold transition-all shadow-lg shadow-red-900/20 active:scale-95 cursor-pointer"
-                >
-                  View Details
-                </button>
-              </div>
-            </NotesCard>
+const StatusBody = ({ app }) => {
+  const rejected = app.status === 'rejected';
+  const needsFix = app.status === 'needs_correction';
+  const enrolled = app.status === 'enrolled';
+  const activeIdx = APP_STEPS.findIndex((s) => s.key === (needsFix ? 'submitted' : app.status));
+  const name = `${app.form?.firstName || ''} ${app.form?.lastName || ''}`.trim() || 'Applicant';
 
-            <footer className="mt-20 text-center">
-              <p className="text-[11px] text-gray-400 tracking-wide">
-                © 2024 Nuestra Señora de Guia Academy of Marikina. All rights reserved.
-              </p>
-            </footer>
-          </div>
+  return (
+    <>
+      <div className="flex flex-wrap justify-between items-start gap-3 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Application Status</h1>
+          <p className="text-slate-500 mt-1">{name} · {app.grade_level} · {app.student_type} · S.Y. {app.school_year}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Application ID</p>
+          <p className="text-xs font-mono text-slate-600">{app.id.slice(0, 8).toUpperCase()}</p>
         </div>
       </div>
 
-      {/* Render the Modal component at the root level of the page */}
-      <ViewDetailsModal />
-    </div>
-  )
-}
+      <div className={`rounded-2xl p-5 mb-8 border ${enrolled ? 'bg-emerald-50 border-emerald-200' : rejected ? 'bg-red-50 border-red-200' : needsFix ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Current Status</p>
+        <p className={`text-2xl font-bold ${enrolled ? 'text-emerald-700' : rejected ? 'text-red-700' : needsFix ? 'text-amber-700' : 'text-[#800000]'}`}>{STATUS_LABEL[app.status]}</p>
+        {enrolled && app.student_no && <p className="text-sm text-emerald-700 mt-1">🎓 Student Number: <b>{app.student_no}</b></p>}
+      </div>
+
+      {!rejected && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-8 mb-8">
+          <div className="flex items-center justify-between">
+            {APP_STEPS.map((s, i) => (
+              <React.Fragment key={s.key}>
+                <div className="flex flex-col items-center text-center flex-1">
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm ${i <= activeIdx ? 'bg-[#800000] text-white' : 'bg-slate-100 text-slate-400'}`}>{i < activeIdx || enrolled ? '✓' : i + 1}</div>
+                  <p className={`mt-2 text-xs font-semibold ${i <= activeIdx ? 'text-slate-800' : 'text-slate-400'}`}>{s.label}</p>
+                </div>
+                {i < APP_STEPS.length - 1 && <div className={`h-1 flex-1 rounded ${i < activeIdx ? 'bg-[#800000]' : 'bg-slate-100'}`} />}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(needsFix || rejected || app.review_note) && (
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-8">
+          <h3 className="font-bold text-slate-800 mb-2">Note from the Registrar</h3>
+          <p className="text-sm text-slate-600">{app.review_note || (needsFix ? 'Please review and resubmit your application.' : 'Thank you for applying.')}</p>
+          {needsFix && <NavLink to="/StudentPortal/Apply" className="inline-block mt-4 px-5 py-2 bg-[#800000] text-white rounded-lg text-sm font-bold">Update &amp; Resubmit</NavLink>}
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <h3 className="font-bold text-slate-800 mb-4">What happens next?</h3>
+        <ol className="space-y-2 text-sm text-slate-600 list-decimal ml-5">
+          <li>The Registrar reviews your admission form and documents.</li>
+          <li>You'll be notified here of your interview / requirements schedule.</li>
+          <li>Once accepted, your <b>student number</b> is issued and your full portal unlocks.</li>
+        </ol>
+      </div>
+    </>
+  );
+};
 
 export default ApplicationStatus;

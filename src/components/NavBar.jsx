@@ -90,7 +90,7 @@ const NavBar = () => {
             <NavLink to="/About" className={`text-xs md:text-sm transition-colors py-2 ${getLinkClassName(location.pathname === '/About')}`}>About</NavLink>
 
             <NavLink
-              to="/StudentPortal/Signup"
+              to="/StudentPortal/Apply"
               className="btn btn-sm md:btn-md rounded-lg bg-white text-[#800000] border-none hover:bg-gray-100 px-4 md:px-8 ml-2 md:ml-4 shadow-md active:scale-95 transition-all"
             >
               <span className="text-xs md:text-base font-bold">Apply Now</span>
@@ -135,7 +135,7 @@ const NavBar = () => {
             <NavLink to="/Calendar" onClick={closeMenu} className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${getLinkClassName(location.pathname === '/Calendar')}`}>Calendar</NavLink>
             <NavLink to="/About" onClick={closeMenu} className={`block px-4 py-3 rounded-lg text-sm font-medium transition-colors ${getLinkClassName(location.pathname === '/About')}`}>About</NavLink>
 
-            <NavLink to="/StudentPortal/Signup" onClick={closeMenu} className="block text-center w-full btn btn-sm rounded-lg bg-white text-[#800000] border-none hover:bg-gray-100 shadow-md active:scale-95 transition-all">
+            <NavLink to="/StudentPortal/Apply" onClick={closeMenu} className="block text-center w-full btn btn-sm rounded-lg bg-white text-[#800000] border-none hover:bg-gray-100 shadow-md active:scale-95 transition-all">
               <span className="text-xs font-bold">Apply Now</span>
             </NavLink>
           </div>

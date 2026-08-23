@@ -1,116 +1,82 @@
-import React from 'react';
+// Registrar → Student Records — real list of ENROLLED students (from
+// applications with status 'enrolled'), searchable + filterable by grade.
+import React, { useEffect, useMemo, useState } from 'react';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
-import AcadYrGreadeLvlCard from '../../icons/RegistrarIcons/AcadYrGreadeLvlCard';
-
-import RecordsTblCard from '../../icons/RegistrarIcons/RecordsTblCard';
-import { LuUserPlus, LuSearch, LuChevronDown } from "react-icons/lu";
+import { LuSearch } from "react-icons/lu";
+import { listEnrolled, applicantName } from '../../../lib/registrar';
 
 const StudentRecords = () => {
-  const students = [
-    { lrn: "136676090147", name: "Aliyah Thursday Francisco", level: "Grade 11", status: "Enrolled" },
-    { lrn: "136676090147", name: "Sean Andrei Amurao", level: "Grade 11", status: "Enrolled" },
-    { lrn: "136676090147", name: "Rafael Ryan Tilacas", level: "Grade 12", status: "Graduated" },
-    { lrn: "136676090147", name: "Teodoro Repizo III", level: "Grade 11", status: "Enrolled" },
-    { lrn: "136676090147", name: "Rheana Lyn Estero", level: "Grade 11", status: "Enrolled" },
-  ];
+  const [rows, setRows] = useState(null);
+  const [q, setQ] = useState('');
+  const [grade, setGrade] = useState('All Levels');
 
-  const gradeLevels = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`);
+  useEffect(() => { listEnrolled().then(setRows); }, []);
+
+  const grades = useMemo(() => ['All Levels', ...Array.from(new Set((rows || []).map((r) => r.grade_level).filter(Boolean)))], [rows]);
+
+  const filtered = (rows || []).filter((r) => {
+    if (grade !== 'All Levels' && r.grade_level !== grade) return false;
+    const s = (applicantName(r) + ' ' + (r.student_no || '') + ' ' + (r.form?.lrn || '')).toLowerCase();
+    return s.includes(q.toLowerCase());
+  });
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <RegistrarSidebar />
-      
       <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
         <Header showSearch={true} />
-        
-        <main className="p-12 max-w-[1400px] w-full mx-auto space-y-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-4xl font-bold text-slate-800">Student Records</h1>
-            <button className="bg-[#4A1010] text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-[#300a0a] transition-all shadow-md cursor-pointer">
-              <LuUserPlus size={20} />
-              Register Student
-            </button>
+        <main className="p-8 md:p-12 max-w-[1400px] w-full mx-auto space-y-6">
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Student Records</h1>
+            <span className="text-sm font-bold text-slate-500">{rows ? `${rows.length} enrolled` : ''}</span>
           </div>
 
-          <AcadYrGreadeLvlCard>
-            <div className="flex items-end justify-between">
-              <div className="flex gap-8">
-                {/* Academic Year Section */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Academic Year</label>
-                  <div className="dropdown dropdown-bottom w-64 z-50">
-                    <div tabIndex={0} role="button" className="bg-[#F1F3F6] p-4 pr-6 rounded-xl flex items-center justify-between text-sm font-bold text-slate-600 cursor-pointer border-none">
-                      2023 - 2024 <LuChevronDown size={18} className="ml-2 text-slate-400" />
-                    </div>
-                    <ul tabIndex={0} className="dropdown-content menu bg-white rounded-box z-[1] w-full p-2 shadow-xl border border-slate-100 mt-1">
-                      <li className="hover:text-[#800000]"><a>2024 - 2025</a></li>
-                      <li className="hover:text-[#800000]"><a>2023 - 2024</a></li>
-                      <li className="hover:text-[#800000]"><a>2022 - 2023</a></li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Grade Level Section */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Level</label>
-                  <div className="dropdown dropdown-bottom w-64 z-50">
-                    <div tabIndex={0} role="button" className="bg-[#F1F3F6] p-4 pr-6 rounded-xl flex items-center justify-between text-sm font-bold text-slate-600 cursor-pointer border-none">
-                      All Levels <LuChevronDown size={18} className="ml-2 text-slate-400" />
-                    </div>
-                    <ul tabIndex={0} className="dropdown-content menu bg-white rounded-box z-[1] w-full p-2 shadow-xl border border-slate-100 mt-1 max-h-60 overflow-y-auto custom-scrollbar">
-                      <li className="hover:text-[#800000]"><a>All Levels</a></li>
-                      {gradeLevels.map((grade) => (
-                        <li key={grade} className="hover:text-[#800000]">
-                          <a>{grade}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              <button className="bg-[#4A1010] text-white px-12 py-3 rounded-xl font-bold hover:bg-[#300a0a] transition-all shadow-md cursor-pointer">
-                Apply filter
-              </button>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-6">
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Level</label>
+              <select value={grade} onChange={(e) => setGrade(e.target.value)} className="bg-[#F1F3F6] p-3.5 pr-8 rounded-xl text-sm font-bold text-slate-600 border-none outline-none w-64">
+                {grades.map((g) => <option key={g}>{g}</option>)}
+              </select>
             </div>
-          </AcadYrGreadeLvlCard>
-
-          <RecordsTblCard>
-            <div className="space-y-6">
+            <div className="flex-1 min-w-[240px]">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-2">Search</label>
               <div className="relative">
                 <LuSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                <input 
-                  type="text" 
-                  placeholder="Search by Name or LRN No..."
-                  className="w-full bg-[#F1F3F6] border-none rounded-xl py-4 pl-14 pr-6 text-sm font-medium focus:ring-2 focus:ring-[#800000]/10 outline-none"
-                />
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-[#FAF8F6]">
-                      <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">LRN NO.</th>
-                      <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">FULL NAME</th>
-                      <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">YEAR LEVEL</th>
-                      <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">STATUS</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {students.map((student, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-5 px-6 text-sm font-bold text-slate-700">{student.lrn}</td>
-                        <td className="py-5 px-6 text-sm font-bold text-slate-700">{student.name}</td>
-                        <td className="py-5 px-6 text-sm font-bold text-slate-700">{student.level}</td>
-                        <td className="py-5 px-6 text-sm font-bold text-slate-700 text-right">{student.status}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <input value={q} onChange={(e) => setQ(e.target.value)} type="text" placeholder="Search by name, Student No., or LRN…"
+                  className="w-full bg-[#F1F3F6] border-none rounded-xl py-3.5 pl-14 pr-6 text-sm font-medium outline-none" />
               </div>
             </div>
-          </RecordsTblCard>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-[#FAF8F6]">
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student No.</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">LRN</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Grade / Program</th>
+                    <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rows === null && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">Loading…</td></tr>}
+                  {rows && filtered.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">No enrolled students{q || grade !== 'All Levels' ? ' match your filters' : ' yet'}.</td></tr>}
+                  {filtered.map((r) => (
+                    <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-5 px-6 text-sm font-bold text-[#800000]">{r.student_no || '—'}</td>
+                      <td className="py-5 px-6 text-sm font-bold text-slate-700">{applicantName(r)}</td>
+                      <td className="py-5 px-6 text-sm text-slate-500">{r.form?.lrn || '—'}</td>
+                      <td className="py-5 px-6 text-sm text-slate-700">{r.form?.strand ? `${r.grade_level} · ${r.form.strand}` : r.grade_level}</td>
+                      <td className="py-5 px-6 text-right"><span className="inline-flex px-4 py-1.5 rounded-full text-[10px] font-black bg-[#D1F7E2] text-[#48A675]">ENROLLED</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </main>
       </div>
     </div>

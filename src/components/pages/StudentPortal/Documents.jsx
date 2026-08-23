@@ -1,147 +1,84 @@
-import React from 'react';
-import Sidebar from '../../Sidebar';
+// Student Documents — upload the required admission documents (private storage),
+// see verification status, and re-view what was uploaded.
+import React, { useEffect, useRef, useState } from 'react';
+import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
-import DocCard from '../../icons/StudentPortalIcons/DocCard';
-import NotesCard from '../../icons/StudentPortalIcons/NotesCard';
-
-// Icons
-import { 
-  HiOutlinePhotograph, 
-  HiOutlineDocumentText, 
-  HiOutlineIdentification, 
-  HiOutlineShieldCheck, 
-  HiOutlineInformationCircle, 
-  HiOutlineQuestionMarkCircle, 
-  HiOutlineMail, 
-  HiOutlinePhone 
-} from "react-icons/hi";
+import { HiOutlineDocumentText, HiOutlineUpload, HiOutlineEye, HiOutlineInformationCircle } from "react-icons/hi";
+import { getMyApplication, uploadStudentDoc, signedDocUrl, REQUIRED_DOCS, DOC_STATUS_STYLE } from '../../../lib/student';
 
 const Documents = () => {
-  const docs = [
-    { name: "2x2 Picture", icon: <HiOutlinePhotograph />, status: "Verified", date: "Oct 12, 2023", color: "text-green-600 bg-green-50" },
-    { name: "Report Card (Form 138)", icon: <HiOutlineDocumentText />, status: "Under Review", date: "Jan 15, 2024", color: "text-blue-600 bg-blue-50" },
-    { name: "Form 137", icon: <HiOutlineDocumentText />, status: "Not Uploaded", date: "—", color: "text-slate-400 bg-slate-50" },
-    { name: "PSA Birth Certificate", icon: <HiOutlineIdentification />, status: "Verified", date: "Oct 12, 2023", color: "text-green-600 bg-green-50" },
-    { name: "Good Moral Certificate", icon: <HiOutlineShieldCheck />, status: "Action Needed", date: "Feb 01, 2024", color: "text-orange-600 bg-orange-50" },
-  ];
+  const [app, setApp] = useState(undefined);
+  const [busyKey, setBusyKey] = useState(null);
+  const [error, setError] = useState('');
+  const inputs = useRef({});
+
+  const load = async () => setApp(await getMyApplication());
+  useEffect(() => { load(); }, []);
+
+  const pick = (key) => inputs.current[key]?.click();
+
+  const onFile = async (key, file) => {
+    if (!file || !app) return;
+    if (file.size > 5 * 1024 * 1024) { setError('File is too large (max 5MB).'); return; }
+    setError(''); setBusyKey(key);
+    const res = await uploadStudentDoc(app.id, key, file);
+    setBusyKey(null);
+    if (!res.ok) { setError(res.error || 'Upload failed.'); return; }
+    setApp({ ...app, documents: res.documents });
+  };
+
+  const view = async (path) => { const url = await signedDocUrl(path); if (url) window.open(url, '_blank'); };
 
   return (
-    <div className="flex min-h-screen bg-white">
-      <Sidebar />
-      
+    <div className="flex min-h-screen bg-[#F8F9FA]">
+      <StudentSidebar activePage="Documents" />
       <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
-        <Header title="My Documents" showSearch={false} />
+        <Header showSearch={false} />
+        <main className="flex-1 p-8 md:p-12">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-3xl font-bold text-slate-900 mb-1">My Documents</h1>
+            <p className="text-slate-500 text-[15px] mb-6">Upload clear scans or photos (PDF/JPG/PNG, max 5MB each).</p>
 
-        <main className="flex-1 overflow-y-auto bg-slate-50/30 p-12">
-          <div className="max-w-6xl mx-auto">
-            
-            <div className="mb-8">
-              <p className="text-slate-500 text-[15px]">
-                Please upload clear scanned copies of the required documents for verification. Ensure files are in PDF or JPEG format.
-              </p>
-            </div>
+            {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>}
+            {app === undefined && <p className="text-slate-400 text-sm">Loading…</p>}
+            {app === null && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-slate-500">Apply first to upload documents.</div>}
 
-            {/* Document Status Table */}
-            <DocCard>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-gray-100">
-                      <th className="text-left pb-6 px-4">Document Name</th>
-                      <th className="text-center pb-6 px-4">Status</th>
-                      <th className="text-center pb-6 px-4">Last Updated</th>
-                      <th className="text-right pb-6 px-4">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {docs.map((doc, idx) => (
-                      <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                        <td className="py-6 px-4">
-                          <div className="flex items-center gap-4">
-                            <span className="text-slate-400 text-xl">{doc.icon}</span>
-                            <span className="font-bold text-slate-800 text-[15px]">{doc.name}</span>
+            {app && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+                <ul className="divide-y divide-gray-50">
+                  {REQUIRED_DOCS.map(({ key, label }) => {
+                    const doc = app.documents?.[key];
+                    const st = DOC_STATUS_STYLE[doc?.status || 'none'];
+                    return (
+                      <li key={key} className="flex items-center justify-between py-4 gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <span className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 shrink-0"><HiOutlineDocumentText size={20} /></span>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 text-[15px]">{label}</p>
+                            {doc?.name && <p className="text-[12px] text-slate-400 truncate">{doc.name}</p>}
                           </div>
-                        </td>
-                        <td className="py-6 px-4 text-center">
-                          <span className={`inline-flex px-4 py-1.5 rounded-full text-[11px] font-bold items-center gap-1.5 ${doc.color}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${doc.color.replace('text-', 'bg-').split(' ')[0]}`}></span>
-                            {doc.status}
-                          </span>
-                        </td>
-                        <td className="py-6 px-4 text-center">
-                          <span className="text-[13px] text-slate-500 font-medium">{doc.date}</span>
-                        </td>
-                        <td className="py-6 px-4 text-right">
-                          {doc.status === "Not Uploaded" || doc.status === "Action Needed" ? (
-                            <button className="bg-[#800000] text-white px-7 py-2 rounded-lg text-[13px] font-bold hover:bg-[#600000] transition-all cursor-pointer shadow-lg shadow-red-900/10">
-                              Upload
-                            </button>
-                          ) : (
-                            <button className="text-[#800000] font-bold text-[13px] hover:underline cursor-pointer">
-                              Update
-                            </button>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className={`inline-flex px-4 py-1.5 rounded-full text-[11px] font-bold ${st.cls}`}>{st.label}</span>
+                          {doc?.path && (
+                            <button onClick={() => view(doc.path)} className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600" title="View"><HiOutlineEye size={18} /></button>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </DocCard>
-
-            {/* Guidelines & Help Section - Adjusted for Full Color */}
-            <div className="grid grid-cols-2 gap-8 mt-10">
-              <div className="bg-[#fdf2f2] rounded-2xl border border-red-100 p-8 shadow-sm">
-                <div className="flex items-center gap-3 text-[#800000] mb-6">
-                  <HiOutlineInformationCircle size={24} />
-                  <h3 className="font-bold text-[16px]">Submission Guidelines</h3>
-                </div>
-                <ul className="space-y-4 text-[13px] text-slate-600">
-                  <li className="flex gap-3">
-                    <span className="text-[#800000] font-bold">•</span>
-                    <span>All scanned documents must be legible and in high resolution.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="text-[#800000] font-bold">•</span>
-                    <span>Maximum file size for each document is 5MB.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="text-[#800000] font-bold">•</span>
-                    <span>The Registrar's Office typically reviews documents within 3-5 working days.</span>
-                  </li>
-                  <li className="flex gap-3">
-                    <span className="text-[#800000] font-bold">•</span>
-                    <span>Ensure that PSA Birth Certificates show the registry number clearly.</span>
-                  </li>
+                          <input ref={(el) => (inputs.current[key] = el)} type="file" accept=".pdf,image/*" className="hidden" onChange={(e) => onFile(key, e.target.files?.[0])} />
+                          <button onClick={() => pick(key)} disabled={busyKey === key}
+                            className="flex items-center gap-1.5 bg-[#800000] text-white px-4 py-2 rounded-lg text-[13px] font-bold hover:bg-[#600000] disabled:opacity-60">
+                            <HiOutlineUpload size={16} />{busyKey === key ? 'Uploading…' : doc?.path ? 'Replace' : 'Upload'}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
-              </div>
-
-              <div className="bg-[#f0f7ff] rounded-2xl border border-blue-100 p-8 shadow-sm">
-                <div className="flex items-center gap-3 text-[#004a99] mb-6">
-                  <HiOutlineQuestionMarkCircle size={24} />
-                  <h3 className="font-bold text-[16px]">Need Help?</h3>
-                </div>
-                <p className="text-[14px] text-slate-600 mb-8 leading-relaxed">
-                  If you are experiencing issues with uploading your documents or have questions about the requirements, please contact the Registrar's Office.
-                </p>
-                <div className="space-y-4 text-[13px] text-slate-700">
-                  <div className="flex items-center gap-3">
-                    <HiOutlineMail className="text-blue-500" size={18} />
-                    <span className="font-medium">registrar@nsdga.edu.ph</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <HiOutlinePhone className="text-blue-500" size={18} />
-                    <span className="font-medium">+63 (2) 8123-4567</span>
-                  </div>
+                <div className="mt-6 flex items-start gap-2 text-[12px] text-slate-500">
+                  <HiOutlineInformationCircle size={18} className="text-[#800000] shrink-0 mt-0.5" />
+                  <p>Your documents are private — only you and the Registrar can view them. The Registrar will mark each as Verified once checked.</p>
                 </div>
               </div>
-            </div>
-
-            <footer className="mt-20 text-center">
-              <p className="text-[11px] text-slate-400 font-medium">
-                © 2024 Nuestra Señora de Guia Academy of Marikina. All rights reserved.
-              </p>
-            </footer>
+            )}
           </div>
         </main>
       </div>

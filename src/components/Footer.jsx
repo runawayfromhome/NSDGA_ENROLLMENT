@@ -1,12 +1,15 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import FaceBook from '../components/icons/FaceBook'
 import EmailIcon from '../components/icons/EmailIcon'
 import AcademyLogo from '../assets/nuestralogo.jpg'
 import ContactUsModal from './icons/ContactUsModal'
+import { getContact } from '../lib/content'
 
 const Footer = () => {
   const [isContactOpen, setIsContactOpen] = useState(false);
+  const [contact, setContact] = useState(null);
+  useEffect(() => { getContact().then(setContact); }, []);
 
   return (
     <>
@@ -67,11 +70,11 @@ const Footer = () => {
           </div>
           
           <div className="flex flex-col gap-3 mt-4">
-            <a href="https://facebook.com" target="_blank" className="flex items-center gap-2 link link-hover text-white">
+            <a href={contact?.facebookUrl || 'https://facebook.com'} target="_blank" rel="noreferrer" className="flex items-center gap-2 link link-hover text-white">
               <FaceBook size={20} />
               <span>Facebook</span>
             </a>
-            <a href="mailto:nsga_marikina@yahoo.com" className="flex items-center gap-2 link link-hover text-white">
+            <a href={`mailto:${contact?.generalEmail || 'nsga_marikina@yahoo.com'}`} className="flex items-center gap-2 link link-hover text-white">
               <EmailIcon size={20} color="white" />
               <span>Email Us</span>
             </a>
@@ -88,7 +91,7 @@ const Footer = () => {
       </footer>
 
       {/* Render the Separate Modal Component */}
-      <ContactUsModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
+      <ContactUsModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} contact={contact} />
     </>
   )
 }

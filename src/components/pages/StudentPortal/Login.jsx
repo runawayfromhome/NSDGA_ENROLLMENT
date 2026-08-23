@@ -1,18 +1,28 @@
 import React, { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import NuestraLogoImage from '../../../assets/nuestradg.png'
 import AcademyLogo from '../../../assets/nuestralogo.jpg'
 import Input from '../../form/Input'
-import PersonIcon from '../../icons/StudentPortalIcons/PersonIcon' 
+import PersonIcon from '../../icons/StudentPortalIcons/PersonIcon'
 import Padlock from '../../icons/StudentPortalIcons/Padlock'
 import Eye from '../../icons/StudentPortalIcons/Eye'
+import { signInStudent } from '../../../lib/student'
 
 const Login = () => {
+  const navigate = useNavigate();
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(''); setBusy(true);
+    const fd = new FormData(e.target);
+    const res = await signInStudent(fd.get('email'), fd.get('password'));
+    setBusy(false);
+    if (!res.ok) return setError(res.error);
+    navigate('/StudentPortal/Dashboard');
   };
 
   return (
@@ -95,20 +105,22 @@ const Login = () => {
               </NavLink>
             </div>
 
-            {/* Sign In Button turned into NavLink */}
-            <NavLink 
-              to="/StudentPortal/LoginOtp" 
-              className="btn w-full bg-[#800000] hover:bg-[#600000] text-white border-none h-12 rounded-lg text-lg normal-case font-bold shadow-md cursor-pointer flex items-center justify-center"
+            {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>}
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="btn w-full bg-[#800000] hover:bg-[#600000] text-white border-none h-12 rounded-lg text-lg normal-case font-bold shadow-md cursor-pointer flex items-center justify-center disabled:opacity-60"
             >
-              Sign In
-            </NavLink>
+              {busy ? 'Signing in…' : 'Sign In'}
+            </button>
           </form>
 
           {/* Updated Sign Up Link */}
           <p className="text-center mt-6 text-gray-600 text-sm">
             Don't have an account yet?{" "}
-            <NavLink to="/StudentPortal/Signup" className="text-[#800000] font-bold hover:text-[#a00000] transition-colors">
-              Sign up
+            <NavLink to="/StudentPortal/Apply" className="text-[#800000] font-bold hover:text-[#a00000] transition-colors">
+              Apply now
             </NavLink>
           </p>
         </div>

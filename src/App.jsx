@@ -16,9 +16,10 @@ import ForgotPass from './components/pages/StudentPortal/ForgotPass';
 import ForgotPassOtp from './components/pages/StudentPortal/ForgotPassOtp';
 import CreateNewPass from './components/pages/StudentPortal/CreateNewPass';
 import LoginOtp from './components/pages/StudentPortal/LoginOtp';
-import EnrollmentForm from './components/pages/StudentPortal/EnrollmentForm';
+import Apply from './components/pages/StudentPortal/Apply';
 import Notification from './components/pages/StudentPortal/Notification';
 import Application from './components/pages/StudentPortal/ApplicationStatus';
+import StudentDashboard from './components/pages/StudentPortal/Dashboard';
 import Documents from './components/pages/StudentPortal/Documents';
 import Profile from './components/pages/StudentPortal/Profile';
 import Setting from './components/pages/StudentPortal/Setting'; 
@@ -67,13 +68,14 @@ function App() {
       <Route path="/Calendar" element={<Calendar />} />
       <Route path="/About" element={<About />} />
       <Route path="/StudentPortal/Login" element={<Login />} />
+      <Route path="/StudentPortal/Apply" element={<Apply />} />
       <Route path="/StudentPortal/Signup" element={<Signup />} />
       <Route path="/StudentPortal/ForgotPass" element={<ForgotPass />} />
       <Route path="/StudentPortal/ForgotPassOtp" element={<ForgotPassOtp />} />
       <Route path="/StudentPortal/CreateNewPass" element={<CreateNewPass />} />
       <Route path="/StudentPortal/LoginOtp" element={<LoginOtp />} />
-      <Route path="/StudentPortal/EnrollmentForm" element={<EnrollmentForm />} />
       <Route path="/StudentPortal/Notifications" element={<Notification />} />
+      <Route path="/StudentPortal/Dashboard" element={<StudentDashboard />} />
       <Route path="/StudentPortal/ApplicationStatus" element={<Application />} />
       <Route path="/StudentPortal/Documents" element={<Documents />} />
       <Route path="/StudentPortal/Profile" element={<Profile />} />

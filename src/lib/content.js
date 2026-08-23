@@ -46,3 +46,25 @@ export function formatEventDate(iso) {
   const d = new Date(iso + 'T00:00:00');
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
+
+// --- Contact info (managed by Admin, shown in footer + Contact popup) --------
+export const DEFAULT_CONTACT = {
+  registrar: { email: 'registrar@nsdgamarikina.edu.ph', mobile: '+63 912 345 6789', landline: '(02) 8123 4567' },
+  finance: { email: 'billing@nsdgamarikina.edu.ph', mobile: '+63 912 345 6789', landline: '(02) 8123 4567' },
+  techSupport: { email: 'portalsupport@nsdgamarikina.edu.ph' },
+  officeHours: 'Mon – Fri: 8:00 AM – 5:00 PM\nSat: 8:00 AM – 12:00 PM',
+  generalEmail: 'nsga_marikina@yahoo.com',
+  facebookUrl: 'https://facebook.com/nsdgamarikina',
+};
+
+// Returns the contact info with defaults filled in for any missing fields.
+export async function getContact() {
+  const c = await getSection('contact');
+  return {
+    ...DEFAULT_CONTACT,
+    ...c,
+    registrar: { ...DEFAULT_CONTACT.registrar, ...(c.registrar || {}) },
+    finance: { ...DEFAULT_CONTACT.finance, ...(c.finance || {}) },
+    techSupport: { ...DEFAULT_CONTACT.techSupport, ...(c.techSupport || {}) },
+  };
+}

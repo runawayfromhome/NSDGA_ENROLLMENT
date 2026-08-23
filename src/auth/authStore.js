@@ -20,7 +20,7 @@ export const STATUS = {
 };
 
 export const ROLE_HOME = {
-  student: '/StudentPortal/ApplicationStatus',
+  student: '/StudentPortal/Dashboard',
   registrar: '/RegistrarPortal/Dashboard',
   admin: '/AdminPortal/Dashboard',
   headadmin: '/HeadAdminPortal/Accounts',
@@ -32,7 +32,8 @@ export const PROFILE_SETUP_PATH = {
 };
 
 // Roles that MUST have MFA. Set to [] to make MFA fully optional again.
-export const MFA_REQUIRED_ROLES = ['admin', 'headadmin'];
+// Temporarily turned OFF (was ['admin', 'headadmin']) — re-enable when ready.
+export const MFA_REQUIRED_ROLES = [];
 
 // Where a required-role user is sent to enroll an authenticator.
 export const MFA_SETUP_PATH = {
