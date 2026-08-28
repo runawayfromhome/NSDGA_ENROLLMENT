@@ -5,6 +5,7 @@ import Header from '../../Header';
 import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
 import { IoSearchOutline } from "react-icons/io5";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { TableSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
 
@@ -105,9 +106,7 @@ const Applications = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {apps === null && (
-                    <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-sm">Loading applications…</td></tr>
-                  )}
+                  {apps === null && <TableSkeleton rows={8} cols={4} />}
                   {apps && filtered.length === 0 && (
                     <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-sm">No applications{anyFilter ? ' match your filters' : ' yet'}.</td></tr>
                   )}

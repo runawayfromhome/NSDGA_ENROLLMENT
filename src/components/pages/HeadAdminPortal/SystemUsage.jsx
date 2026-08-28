@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import { getUsage } from '../../../lib/registrar';
+import { CardSkeleton } from '../../Skeleton';
 import {
   HiOutlineDatabase, HiOutlineUserGroup, HiOutlineDocumentText, HiOutlineMail, HiOutlineExternalLink,
 } from 'react-icons/hi';
@@ -33,7 +34,7 @@ const SystemUsage = () => {
             <p className="text-slate-500 text-sm">Your free-tier resources at a glance. Everything here is on free plans.</p>
           </div>
 
-          {!u && <p className="text-slate-400 text-sm">Loading…</p>}
+          {!u && <div className="space-y-6"><CardSkeleton lines={2} /><CardSkeleton lines={2} /><CardSkeleton lines={2} /></div>}
 
           {u && (
             <div className="space-y-6">

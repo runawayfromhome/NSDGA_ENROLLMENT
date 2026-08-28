@@ -3,6 +3,7 @@
 // applications and update them; the enforce trigger allows staff to enroll
 // (set status + student number) — a student cannot.
 import { supabase } from './supabase';
+import { levelOfGrade } from './grades';
 
 // How each DB status shows in the registrar UI.
 export const APP_DISPLAY = {
@@ -11,7 +12,14 @@ export const APP_DISPLAY = {
   needs_correction: { label: 'NEEDS CORRECTION',  bg: 'bg-[#FCE4E4]', text: 'text-[#C55A5A]' },
   enrolled:         { label: 'ENROLLED',          bg: 'bg-[#D1F7E2]', text: 'text-[#48A675]' },
   rejected:         { label: 'REJECTED',          bg: 'bg-gray-100',  text: 'text-gray-500' },
+  withdrawn:        { label: 'WITHDRAWN',         bg: 'bg-orange-50', text: 'text-orange-600' },
+  graduated:        { label: 'GRADUATED',         bg: 'bg-indigo-50', text: 'text-indigo-600' },
+  archived:         { label: 'ARCHIVED',          bg: 'bg-slate-100', text: 'text-slate-500' },
+  completed:        { label: 'COMPLETED',         bg: 'bg-teal-50',   text: 'text-teal-600' },
 };
+
+// Statuses where a student's portal access is revoked (still fully reversible).
+export const DEPROVISIONED = ['withdrawn', 'graduated', 'archived'];
 
 // Fire-and-forget email to a student via the `notify` Edge Function. Failures
 // never block the registrar's action (the DB change is what matters).
@@ -155,4 +163,73 @@ export async function listEnrolled() {
     .order('student_no', { ascending: true });
   if (error) return [];
   return data;
+}
+
+// Every yearly record for one student (newest first) — for the Student Profile.
+export async function getStudentRecord(studentId) {
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false });
+  if (error) return [];
+  return data;
+}
+
+// All students (enrolled or deprovisioned) — for Student Records with a filter.
+export async function listStudents() {
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*')
+    .in('status', ['enrolled', 'withdrawn', 'graduated', 'archived'])
+    .order('student_no', { ascending: true });
+  if (error) return [];
+  return data;
+}
+
+// Soft-deprovision: move an enrolled student to withdrawn / graduated / archived
+// (keeps the record + student number; login is revoked by the status check).
+export async function setLifecycle(id, status, note) {
+  if (!['withdrawn', 'graduated', 'archived'].includes(status)) return { ok: false, error: 'Invalid status.' };
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('applications')
+    .update({ status, review_note: note || '', reviewed_by: user?.id || null, reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+  return { ok: !error, error: error?.message };
+}
+
+// Mark an enrolled student's school year as completed — they keep the record
+// (now in history) and become eligible to re-enroll into the next grade.
+export async function markCompleted(id, note) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('applications')
+    .update({ status: 'completed', review_note: note || 'School year completed.', reviewed_by: user?.id || null, reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+  return { ok: !error, error: error?.message };
+}
+
+// Re-admit a former student (returnee / balik-aral) at a NEW grade + school year.
+// Creates a fresh enrollment record for their SAME identity — so the intervening
+// years elsewhere show as a gap, and history stays intact. The new record being
+// the latest also restores their portal login. Returns { ok, id }.
+export async function readmitStudent(prevApp, grade, schoolYear) {
+  if (!grade || !schoolYear) return { ok: false, error: 'Grade and school year are required.' };
+  const { data, error } = await supabase.from('applications').insert({
+    student_id: prevApp.student_id,
+    school_year: schoolYear,
+    grade_level: levelOfGrade(grade),
+    student_type: 'Returnee',
+    status: 'submitted',
+    form: { ...(prevApp.form || {}), grade, schoolYear },
+  }).select('id').single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+
+// Reactivate a deprovisioned student back to enrolled (restores access).
+export async function reactivateStudent(id) {
+  const { error } = await supabase.from('applications')
+    .update({ status: 'enrolled', reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+  return { ok: !error, error: error?.message };
 }

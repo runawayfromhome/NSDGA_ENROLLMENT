@@ -7,9 +7,11 @@ import { useNavigate, useSearchParams, NavLink } from 'react-router-dom';
 import AcademyLogo from '../../../assets/nuestralogo.jpg';
 import NuestraLogoImage from '../../../assets/nuestradg.png';
 import { applyAsStudent, getMyApplication, resubmitApplication, CURRENT_SCHOOL_YEAR } from '../../../lib/student';
-import { getEnrollment } from '../../../lib/content';
+import { getEnrollment, isEnrollmentOpen } from '../../../lib/content';
+import { GRADES_BY_LEVEL } from '../../../lib/grades';
 
-const LEVELS = ['Kindergarten', 'Elementary', 'Junior High School', 'Senior High School'];
+// Kindergarten is handled face-to-face by the school, not online.
+const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
 const SHS_STRANDS = ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL'];
 
@@ -21,7 +23,7 @@ const empty = {
   address: '', strand: '',
   fatherName: '', motherName: '', guardianName: '', guardianContact: '',
   lastSchool: '', lastSchoolAddress: '', lastGrade: '', gwa: '',
-  schoolYear: CURRENT_SCHOOL_YEAR,
+  grade: '', schoolYear: CURRENT_SCHOOL_YEAR,
 };
 
 const Apply = () => {
@@ -73,7 +75,10 @@ const Apply = () => {
 
   const validateStep = () => {
     setError('');
-    if (current === 'grade' && !level) return 'Please choose a grade level.';
+    if (current === 'grade') {
+      if (!level) return 'Please choose a grade level.';
+      if (!f.grade) return 'Please choose the specific grade.';
+    }
     if (current === 'account') {
       if (!acct.email || !acct.password) return 'Email and password are required.';
       if (acct.password.length < 8) return 'Password must be at least 8 characters.';
@@ -98,7 +103,7 @@ const Apply = () => {
     if (editMode) {
       res = await resubmitApplication(editId, { ...f, contact: f.contact || acct.contact });
     } else {
-      res = await applyAsStudent({ email: acct.email, password: acct.password, contact: acct.contact, level, studentType, form: f });
+      res = await applyAsStudent({ email: acct.email, password: acct.password, contact: acct.contact, level, studentType, form: { ...f, schoolYear: enrollment?.activeSchoolYear || f.schoolYear } });
     }
     setBusy(false);
     if (!res.ok) return setError(res.error || 'Could not submit your application.');
@@ -108,7 +113,7 @@ const Apply = () => {
   if (!ready) return <Shell><p className="text-slate-400 text-sm">Loading…</p></Shell>;
 
   // New applications are blocked when admission is closed (resubmits still allowed).
-  if (!editMode && enrollment && !enrollment.open) {
+  if (!editMode && enrollment && !isEnrollmentOpen(enrollment)) {
     return (
       <Shell>
         <div className="text-center py-8">
@@ -141,11 +146,19 @@ const Apply = () => {
             <Label>Grade Level</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {LEVELS.map((l) => (
-                <button key={l} type="button" onClick={() => setLevel(l)}
+                <button key={l} type="button" onClick={() => { setLevel(l); set('grade', ''); }}
                   className={`text-left px-4 py-3 rounded-xl border-2 font-semibold text-sm transition ${level === l ? 'border-[#800000] bg-[#800000]/5 text-[#800000]' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>{l}</button>
               ))}
             </div>
           </div>
+          {level && (
+            <Field label="Specific Grade">
+              <select className="ip" value={f.grade} onChange={(e) => set('grade', e.target.value)}>
+                <option value="">Select…</option>
+                {(GRADES_BY_LEVEL[level] || []).map((g) => <option key={g}>{g}</option>)}
+              </select>
+            </Field>
+          )}
           <div>
             <Label>Applying as</Label>
             <div className="flex flex-wrap gap-3">
@@ -223,7 +236,7 @@ const Apply = () => {
 
       {current === 'review' && (
         <div className="space-y-5">
-          <Summary title="Application" rows={[['Grade Level', level], ['Applying as', studentType], ['School Year', f.schoolYear]]} />
+          <Summary title="Application" rows={[['Grade', f.grade || level], ['Level', level], ['Applying as', studentType], ['School Year', enrollment?.activeSchoolYear || f.schoolYear]]} />
           <Summary title="Student" rows={[['Name', `${f.firstName} ${f.middleName} ${f.lastName} ${f.suffix}`.replace(/\s+/g, ' ').trim()], ['Sex', f.sex], ['Date of Birth', f.dob], ...(isSHS ? [['Strand', f.strand]] : [])]} />
           {!editMode && <Summary title="Account" rows={[['Email', acct.email], ['Contact', acct.contact]]} />}
           <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">

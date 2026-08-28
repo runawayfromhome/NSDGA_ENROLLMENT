@@ -5,6 +5,7 @@ import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineDocumentText, HiOutlineUpload, HiOutlineEye, HiOutlineInformationCircle } from "react-icons/hi";
 import { getMyApplication, uploadStudentDoc, signedDocUrl, REQUIRED_DOCS, DOC_STATUS_STYLE } from '../../../lib/student';
+import { CardSkeleton } from '../../Skeleton';
 
 const Documents = () => {
   const [app, setApp] = useState(undefined);
@@ -40,7 +41,7 @@ const Documents = () => {
             <p className="text-slate-500 text-[15px] mb-6">Upload clear scans or photos (PDF/JPG/PNG, max 5MB each).</p>
 
             {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>}
-            {app === undefined && <p className="text-slate-400 text-sm">Loading…</p>}
+            {app === undefined && <CardSkeleton lines={5} />}
             {app === null && <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-slate-500">Apply first to upload documents.</div>}
 
             {app && (

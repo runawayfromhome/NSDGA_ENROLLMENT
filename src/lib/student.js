@@ -2,6 +2,7 @@
 // Student self-apply data layer: create an applicant account + admission
 // application, and read/track it. Backed by Supabase Auth + `applications`.
 import { supabase } from './supabase';
+import { nextGrade, nextSchoolYear, levelOfGrade } from './grades';
 
 // The application lifecycle, in order, with friendly labels.
 export const APP_STEPS = [
@@ -15,6 +16,10 @@ export const STATUS_LABEL = {
   needs_correction: 'Needs Correction',
   enrolled: 'Enrolled',
   rejected: 'Not Accepted',
+  completed: 'Completed',
+  withdrawn: 'Withdrawn',
+  graduated: 'Graduated',
+  archived: 'Archived',
 };
 
 export const CURRENT_SCHOOL_YEAR = '2026-2027';
@@ -92,6 +97,14 @@ export async function signInStudent(email, password) {
     await supabase.auth.signOut();
     return { ok: false, error: 'This account has been disabled. Please contact the Registrar.' };
   }
+  // Deprovisioned students (withdrawn / graduated / archived) can't log in — reversible by the Registrar.
+  const { data: app } = await supabase.from('applications')
+    .select('status').eq('student_id', data.user.id)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (app && ['withdrawn', 'graduated', 'archived'].includes(app.status)) {
+    await supabase.auth.signOut();
+    return { ok: false, error: 'This student account is inactive. Please contact the Registrar.' };
+  }
   return { ok: true, userId: data.user.id };
 }
 
@@ -107,6 +120,38 @@ export async function getMyApplication() {
     .limit(1)
     .maybeSingle();
   return data;
+}
+
+// All of the student's yearly records, newest first (for enrollment history).
+export async function getMyApplications() {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u?.user) return [];
+  const { data } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('student_id', u.user.id)
+    .order('created_at', { ascending: false });
+  return data || [];
+}
+
+// Re-enroll a returning student: file a NEW yearly record for the next grade +
+// next school year (status submitted → the registrar reviews it like any apply).
+export async function reEnroll(prevApp) {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u?.user) return { ok: false, error: 'You are not signed in.' };
+  const grade = nextGrade(prevApp.form?.grade);
+  if (!grade) return { ok: false, error: 'No next grade — this student has completed the final level.' };
+  const sy = nextSchoolYear(prevApp.school_year);
+  const { data, error } = await supabase.from('applications').insert({
+    student_id: u.user.id,
+    school_year: sy,
+    grade_level: levelOfGrade(grade),
+    student_type: 'Returnee',
+    status: 'submitted',
+    form: { ...prevApp.form, grade, schoolYear: sy },
+  }).select('id').single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id, grade, schoolYear: sy };
 }
 
 // Resubmit after the registrar asked for corrections.

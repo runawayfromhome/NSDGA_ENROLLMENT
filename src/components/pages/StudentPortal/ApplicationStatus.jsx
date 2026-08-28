@@ -5,6 +5,7 @@ import { NavLink } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, APP_STEPS, STATUS_LABEL } from '../../../lib/student';
+import { CardSkeleton } from '../../Skeleton';
 
 const ApplicationStatus = () => {
   const [loading, setLoading] = useState(true);
@@ -18,7 +19,7 @@ const ApplicationStatus = () => {
       <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
         <Header showSearch={false} />
         <main className="p-8 md:p-12 max-w-[1100px] w-full">
-          {loading && <p className="text-slate-400 text-sm">Loading your application…</p>}
+          {loading && <div className="space-y-6"><CardSkeleton lines={1} /><CardSkeleton lines={3} /></div>}
 
           {!loading && !app && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center max-w-lg">

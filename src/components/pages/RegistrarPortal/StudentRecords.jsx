@@ -1,50 +1,71 @@
-// Registrar → Student Records — real list of ENROLLED students (from
-// applications with status 'enrolled'), searchable + filterable by grade.
+// Registrar → Student Records — students across the lifecycle (enrolled /
+// withdrawn / graduated / archived), searchable + filterable. Click a row to
+// open the student and manage their lifecycle.
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
 import { LuSearch } from "react-icons/lu";
-import { listEnrolled, applicantName } from '../../../lib/registrar';
+import { listStudents, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { ALL_GRADES } from '../../../lib/grades';
+import { TableSkeleton } from '../../Skeleton';
 
 const PAGE_SIZE = 10;
+const STATUS_OPTIONS = [
+  { value: 'enrolled', label: 'Enrolled' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'graduated', label: 'Graduated' },
+  { value: 'archived', label: 'Archived' },
+  { value: 'all', label: 'All' },
+];
 
 const StudentRecords = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
-  const [grade, setGrade] = useState('All Levels');
+  const [grade, setGrade] = useState('All Grades');
+  const [status, setStatus] = useState('enrolled');
   const [visible, setVisible] = useState(PAGE_SIZE);
 
-  useEffect(() => { listEnrolled().then(setRows); }, []);
-  useEffect(() => { setVisible(PAGE_SIZE); }, [q, grade]);
+  useEffect(() => { listStudents().then(setRows); }, []);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [q, grade, status]);
 
-  const grades = useMemo(() => ['All Levels', ...Array.from(new Set((rows || []).map((r) => r.grade_level).filter(Boolean)))], [rows]);
+  const grades = useMemo(() => ['All Grades', ...ALL_GRADES], []);
 
   const filtered = (rows || []).filter((r) => {
-    if (grade !== 'All Levels' && r.grade_level !== grade) return false;
+    if (status !== 'all' && r.status !== status) return false;
+    if (grade !== 'All Grades' && (r.form?.grade || '') !== grade) return false;
     const s = (applicantName(r) + ' ' + (r.student_no || '') + ' ' + (r.form?.lrn || '')).toLowerCase();
     return s.includes(q.toLowerCase());
   });
   const shown = filtered.slice(0, visible);
+  const anyFilter = q || grade !== 'All Grades' || status !== 'enrolled';
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <RegistrarSidebar />
       <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
-        <Header showSearch={true} />
+        <Header showSearch={false} />
         <main className="p-8 md:p-12 max-w-[1400px] w-full mx-auto space-y-6">
           <div className="flex flex-wrap justify-between items-center gap-3">
             <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Student Records</h1>
-            <span className="text-sm font-bold text-slate-500">{rows ? `${rows.length} enrolled` : ''}</span>
+            <span className="text-sm font-bold text-slate-500">{rows ? `${filtered.length} shown` : ''}</span>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Level</label>
-              <select value={grade} onChange={(e) => setGrade(e.target.value)} className="bg-[#F1F3F6] p-3.5 pr-8 rounded-xl text-sm font-bold text-slate-600 border-none outline-none w-64">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className="bg-[#F1F3F6] p-3.5 pr-8 rounded-xl text-sm font-bold text-slate-600 border-none outline-none w-48">
+                {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade</label>
+              <select value={grade} onChange={(e) => setGrade(e.target.value)} className="bg-[#F1F3F6] p-3.5 pr-8 rounded-xl text-sm font-bold text-slate-600 border-none outline-none w-56">
                 {grades.map((g) => <option key={g}>{g}</option>)}
               </select>
             </div>
-            <div className="flex-1 min-w-[240px]">
+            <div className="flex-1 min-w-[220px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-2">Search</label>
               <div className="relative">
                 <LuSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -67,17 +88,20 @@ const StudentRecords = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {rows === null && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">Loading…</td></tr>}
-                  {rows && filtered.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">No enrolled students{q || grade !== 'All Levels' ? ' match your filters' : ' yet'}.</td></tr>}
-                  {shown.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-5 px-6 text-sm font-bold text-[#800000]">{r.student_no || '—'}</td>
-                      <td className="py-5 px-6 text-sm font-bold text-slate-700">{applicantName(r)}</td>
-                      <td className="py-5 px-6 text-sm text-slate-500">{r.form?.lrn || '—'}</td>
-                      <td className="py-5 px-6 text-sm text-slate-700">{r.form?.strand ? `${r.grade_level} · ${r.form.strand}` : r.grade_level}</td>
-                      <td className="py-5 px-6 text-right"><span className="inline-flex px-4 py-1.5 rounded-full text-[10px] font-black bg-[#D1F7E2] text-[#48A675]">ENROLLED</span></td>
-                    </tr>
-                  ))}
+                  {rows === null && <TableSkeleton rows={8} cols={5} />}
+                  {rows && filtered.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">No students{anyFilter ? ' match your filters' : ' yet'}.</td></tr>}
+                  {shown.map((r) => {
+                    const st = APP_DISPLAY[r.status] || APP_DISPLAY.enrolled;
+                    return (
+                      <tr key={r.id} onClick={() => navigate('/RegistrarPortal/Student/' + r.student_id)} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                        <td className="py-5 px-6 text-sm font-bold text-[#800000]">{r.student_no || '—'}</td>
+                        <td className="py-5 px-6 text-sm font-bold text-slate-700">{applicantName(r)}</td>
+                        <td className="py-5 px-6 text-sm text-slate-500">{r.form?.lrn || '—'}</td>
+                        <td className="py-5 px-6 text-sm text-slate-700">{r.form?.grade || r.grade_level}{r.form?.strand ? ` · ${r.form.strand}` : ''}</td>
+                        <td className="py-5 px-6 text-right"><span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black ${st.bg} ${st.text}`}>{st.label}</span></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

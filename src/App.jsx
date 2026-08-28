@@ -30,6 +30,7 @@ import ApplicationDetails from './components/pages/RegistrarPortal/ApplicationDe
 import MyProfile from './components/pages/RegistrarPortal/MyProfile';
 import RegistrarSettings from './components/pages/RegistrarPortal/RegistrarSettings';
 import StudentRecords from './components/pages/RegistrarPortal/StudentRecords';
+import StudentProfile from './components/pages/RegistrarPortal/StudentProfile';
 import Document from './components/pages/RegistrarPortal/Documents';
 import DocuStudentProfile from './components/pages/RegistrarPortal/DocuStudentProfile';
 import EditContactUs from './components/pages/AdminPortal/EditContactUs';
@@ -91,6 +92,7 @@ function App() {
       <Route path="/RegistrarPortal/Profile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><MyProfile /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Settings" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><RegistrarSettings /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/StudentRecords" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentRecords /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Student/:studentId" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentProfile /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Documents" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Document /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/DocuStudentProfile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><DocuStudentProfile /></ProtectedRoute>} />
 

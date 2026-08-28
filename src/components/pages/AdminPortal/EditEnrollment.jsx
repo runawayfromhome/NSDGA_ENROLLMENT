@@ -2,7 +2,8 @@
 // - Enrollment open/closed gates the public Apply wizard.
 // - Announcements show in the student portal.
 import { useEffect, useState } from 'react';
-import { getEnrollment, saveEnrollment } from '../../../lib/content';
+import { getEnrollment, saveEnrollment, seasonStatus } from '../../../lib/content';
+import { CardSkeleton } from '../../Skeleton';
 
 const uid = () => Math.random().toString(16).slice(2, 10);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -28,7 +29,7 @@ const EditEnrollment = () => {
     else setError(res.error || 'Could not save. Are you an Admin?');
   };
 
-  if (!data) return <div className="min-h-screen bg-[#E5E7EB] py-12 px-6"><p className="text-slate-400 text-sm">Loading…</p></div>;
+  if (!data) return <div className="min-h-screen bg-[#E5E7EB] py-10 px-4 md:px-16"><div className="max-w-4xl mx-auto space-y-6"><CardSkeleton lines={2} /><CardSkeleton lines={3} /></div></div>;
 
   return (
     <div className="min-h-screen bg-[#E5E7EB] py-10 px-4 md:px-16">
@@ -56,6 +57,24 @@ const EditEnrollment = () => {
             <input type="checkbox" checked={data.open} onChange={(e) => set('open', e.target.checked)} className="w-5 h-5 accent-[#800000]" />
             <span className="font-semibold text-gray-700">Online admission is <b className={data.open ? 'text-emerald-600' : 'text-red-600'}>{data.open ? 'OPEN' : 'CLOSED'}</b></span>
           </label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            <label className="block">
+              <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Active School Year</span>
+              <input className="ip" value={data.activeSchoolYear} onChange={(e) => set('activeSchoolYear', e.target.value)} placeholder="2026-2027" />
+            </label>
+            <label className="block">
+              <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Season Start</span>
+              <input className="ip" type="date" value={data.seasonStart} onChange={(e) => set('seasonStart', e.target.value)} />
+            </label>
+            <label className="block">
+              <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Season End</span>
+              <input className="ip" type="date" value={data.seasonEnd} onChange={(e) => set('seasonEnd', e.target.value)} />
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 mb-5">
+            Current status: <b className={seasonStatus(data).open ? 'text-emerald-600' : 'text-red-600'}>{seasonStatus(data).label}</b>
+            <span className="text-gray-400"> — leave the dates blank to control it with the toggle only. New records use the Active School Year.</span>
+          </p>
           <label className="block">
             <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Message shown when closed</span>
             <textarea className="ip" style={{ minHeight: 80 }} value={data.closedMessage} onChange={(e) => set('closedMessage', e.target.value)} />

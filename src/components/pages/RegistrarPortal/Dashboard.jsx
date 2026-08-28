@@ -9,6 +9,7 @@ import UrgentTaskCard from '../../icons/RegistrarIcons/UrgentTaskCard';
 import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
 import { HiOutlineUserAdd, HiOutlineAcademicCap, HiOutlineExclamationCircle } from "react-icons/hi";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { TableSkeleton, StatCardsSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
 
@@ -35,23 +36,27 @@ const Dashboard = () => {
             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Academic Year 2026-2027</p>
           </div>
 
+          {apps === null ? (
+            <div className="mb-12"><StatCardsSkeleton count={3} /></div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             <NavLink to="/RegistrarPortal/Applications" className="active:scale-[0.98] transition-transform">
               <TotalPendingCard>
-                <StatBody icon={HiOutlineUserAdd} value={apps ? pending : '—'} label="Pending Applications" iconBg="bg-red-50" iconColor="text-[#800000]" />
+                <StatBody icon={HiOutlineUserAdd} value={pending} label="Pending Applications" iconBg="bg-red-50" iconColor="text-[#800000]" />
               </TotalPendingCard>
             </NavLink>
             <NavLink to="/RegistrarPortal/StudentRecords" className="active:scale-[0.98] transition-transform">
               <DocumentReviewcard>
-                <StatBody icon={HiOutlineAcademicCap} value={apps ? enrolled : '—'} label="Enrolled Students" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+                <StatBody icon={HiOutlineAcademicCap} value={enrolled} label="Enrolled Students" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
               </DocumentReviewcard>
             </NavLink>
             <NavLink to="/RegistrarPortal/Applications" className="active:scale-[0.98] transition-transform">
               <UrgentTaskCard>
-                <StatBody icon={HiOutlineExclamationCircle} value={apps ? needsAction : '—'} label="Needs Correction" iconBg="bg-amber-50" iconColor="text-amber-600" />
+                <StatBody icon={HiOutlineExclamationCircle} value={needsAction} label="Needs Correction" iconBg="bg-amber-50" iconColor="text-amber-600" />
               </UrgentTaskCard>
             </NavLink>
           </div>
+          )}
 
           <div className="flex justify-between items-end mb-6">
             <h2 className="text-2xl font-bold text-slate-800">Newest Applications</h2>
@@ -72,7 +77,7 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {apps === null && <tr><td colSpan={4} className="py-8 text-center text-slate-400 text-sm">Loading…</td></tr>}
+                  {apps === null && <TableSkeleton rows={5} cols={4} />}
                   {apps && newest.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-slate-400 text-sm">No applications yet.</td></tr>}
                   {newest.map((a) => {
                     const style = APP_DISPLAY[a.status] || APP_DISPLAY.submitted;

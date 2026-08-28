@@ -5,6 +5,7 @@ import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineClipboardList } from "react-icons/hi";
 import { getMyApplication, STATUS_LABEL } from '../../../lib/student';
+import { CardSkeleton } from '../../Skeleton';
 
 const timeAgo = (iso) => {
   if (!iso) return '';
@@ -53,7 +54,7 @@ const Notification = () => {
               <p className="text-sm text-gray-500 mt-1">Updates about your admission.</p>
             </div>
 
-            {app === undefined && <p className="text-slate-400 text-sm">Loading…</p>}
+            {app === undefined && <CardSkeleton lines={4} />}
             {app === null && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center text-slate-500">No notifications yet.</div>
             )}

@@ -9,9 +9,11 @@ import AdditionalNotesCard from '../../icons/AdditionalNotesCard';
 import {
   getApplication, applicantName, APP_DISPLAY,
   enrollApplication, returnForCorrection, rejectApplication, setUnderReview,
-  setDocumentStatus,
+  setDocumentStatus, setLifecycle, reactivateStudent, markCompleted, readmitStudent,
 } from '../../../lib/registrar';
 import { REQUIRED_DOCS, DOC_STATUS_STYLE, signedDocUrl } from '../../../lib/student';
+import { levelOfGrade, ALL_GRADES } from '../../../lib/grades';
+import { CardSkeleton } from '../../Skeleton';
 
 const ageFrom = (dob) => {
   if (!dob) return '—';
@@ -29,6 +31,8 @@ const ApplicationDetails = () => {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [readmitGrade, setReadmitGrade] = useState('');
+  const [readmitYear, setReadmitYear] = useState('');
 
   const load = async () => { const a = await getApplication(id); setApp(a); setNote(a?.review_note || ''); setLoading(false); };
   useEffect(() => { load(); }, [id]);
@@ -44,13 +48,24 @@ const ApplicationDetails = () => {
 
   const viewDoc = async (path) => { const url = await signedDocUrl(path); if (url) window.open(url, '_blank'); };
   const setDoc = async (key, status) => { const r = await setDocumentStatus(app, key, status); if (r.ok) await load(); else setMsg('⚠️ ' + (r.error || 'Failed.')); };
+  const doReadmit = async () => {
+    setBusy(true); setMsg('');
+    const r = await readmitStudent(app, readmitGrade, readmitYear);
+    setBusy(false);
+    if (!r.ok) { setMsg('⚠️ ' + (r.error || 'Re-admit failed.')); return; }
+    navigate('/RegistrarPortal/Applications/' + r.id);
+  };
 
-  if (loading) return <Frame><p className="text-slate-400 text-sm p-12">Loading application…</p></Frame>;
+  if (loading) return <Frame><div className="p-8 md:p-12 max-w-[1200px] mx-auto w-full space-y-6"><CardSkeleton lines={4} /><CardSkeleton lines={3} /></div></Frame>;
   if (!app) return <Frame><div className="p-12"><p className="text-slate-500">Application not found.</p><button onClick={() => navigate('/RegistrarPortal/Applications')} className="mt-4 text-[#800000] font-bold">← Back to Applications</button></div></Frame>;
 
   const f = app.form || {};
   const style = APP_DISPLAY[app.status] || APP_DISPLAY.submitted;
-  const closed = app.status === 'enrolled' || app.status === 'rejected';
+  const isEnrolled = app.status === 'enrolled';
+  const isDeprov = ['withdrawn', 'graduated', 'archived'].includes(app.status);
+  const isCompleted = app.status === 'completed';
+  const gradLevel = levelOfGrade(app.form?.grade);
+  const closed = isEnrolled || isDeprov || isCompleted || app.status === 'rejected';
   const fullName = applicantName(app);
 
   return (
@@ -171,6 +186,59 @@ const ApplicationDetails = () => {
           <div className="rounded-2xl bg-white border border-slate-100 p-6 shadow-sm">
             <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-2">Decision</h2>
             <p className="text-sm text-slate-600">{app.review_note || '—'}</p>
+          </div>
+        )}
+
+        {/* Lifecycle actions live on the Student Profile page (they act on the current record). */}
+        {false && (
+          <div className="rounded-2xl bg-white border border-slate-100 p-6 md:p-8 shadow-sm">
+            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-2">Student Lifecycle</h2>
+            <p className="text-sm text-slate-500 mb-5">
+              Current: <b>{style.label}</b>.{' '}
+              {isEnrolled && 'Mark the year completed at year-end, or deprovision (revokes login, keeps the record — reversible).'}
+              {isCompleted && 'This year is finished. The student re-enrolls into the next grade during the enrollment season.'}
+              {isDeprov && 'Login is revoked but the full record is kept — reactivate anytime.'}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {isEnrolled && (
+                <>
+                  <button disabled={busy} onClick={() => run(() => markCompleted(app.id, 'School year completed. You may re-enroll for the next grade during the enrollment season.'), 'Year marked completed.')} className="px-6 py-3 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">✓ Mark Year Completed</button>
+                  <button disabled={busy} onClick={() => run(() => setLifecycle(app.id, 'graduated', `Graduated${gradLevel ? ' from ' + gradLevel : ''}. Congratulations!`), 'Marked as graduated.')} className="px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Graduate{gradLevel ? ` (${gradLevel})` : ''}</button>
+                  <button disabled={busy} onClick={() => run(() => setLifecycle(app.id, 'withdrawn', 'Student marked as withdrawn.'), 'Student withdrawn.')} className="px-6 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Withdraw</button>
+                  <button disabled={busy} onClick={() => run(() => setLifecycle(app.id, 'archived', 'Record archived.'), 'Student archived.')} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Archive</button>
+                </>
+              )}
+              {isCompleted && (
+                <>
+                  <button disabled={busy} onClick={() => run(() => setLifecycle(app.id, 'withdrawn', 'Did not re-enroll — transferred / withdrawn.'), 'Marked as withdrawn.')} className="px-6 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Mark Transferred / Withdrawn</button>
+                  <button disabled={busy} onClick={() => run(() => setLifecycle(app.id, 'archived', 'Record archived.'), 'Student archived.')} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Archive</button>
+                </>
+              )}
+              {isDeprov && (
+                <button disabled={busy} onClick={() => run(() => reactivateStudent(app.id), 'Student reactivated.')} className="px-6 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold shadow-md cursor-pointer disabled:opacity-60">↩ Reactivate (same grade)</button>
+              )}
+            </div>
+
+            {isDeprov && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                <h3 className="text-sm font-bold text-slate-700 mb-1">Re-admit (returning student)</h3>
+                <p className="text-xs text-slate-500 mb-4 max-w-xl">For a former student coming back at a <b>new grade</b> — e.g. they graduated Elementary here, did a year at another school, and return for JHS. Creates a new enrollment for their same record and restores access.</p>
+                <div className="flex flex-wrap gap-3 items-end">
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Returning grade</span>
+                    <select value={readmitGrade} onChange={(e) => setReadmitGrade(e.target.value)} className="bg-[#F1F3F6] rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 border-none outline-none">
+                      <option value="">Select…</option>
+                      {ALL_GRADES.map((g) => <option key={g}>{g}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">School year</span>
+                    <input value={readmitYear} onChange={(e) => setReadmitYear(e.target.value)} placeholder="2027-2028" className="bg-[#F1F3F6] rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 border-none outline-none w-40" />
+                  </label>
+                  <button disabled={busy || !readmitGrade || !readmitYear} onClick={doReadmit} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-50">Re-admit →</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

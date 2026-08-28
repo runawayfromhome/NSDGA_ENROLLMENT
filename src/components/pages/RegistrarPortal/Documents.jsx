@@ -8,6 +8,7 @@ import RegistrarSidebar from '../../RegistrarSidebar';
 import { LuSearch } from "react-icons/lu";
 import { listApplications, applicantName } from '../../../lib/registrar';
 import { REQUIRED_DOCS } from '../../../lib/student';
+import { TableSkeleton } from '../../Skeleton';
 
 const STATUS_STYLE = {
   'Complete': 'bg-emerald-50 text-emerald-600',
@@ -88,7 +89,7 @@ const Documents = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {apps === null && <tr><td colSpan={6} className="py-10 text-center text-slate-400 text-sm">Loading…</td></tr>}
+                  {apps === null && <TableSkeleton rows={8} cols={6} />}
                   {apps && filtered.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-slate-400 text-sm">No applications match.</td></tr>}
                   {shown.map(({ app, sum }) => (
                     <tr key={app.id} className="hover:bg-slate-50 transition-colors">

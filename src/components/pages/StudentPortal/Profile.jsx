@@ -7,6 +7,7 @@ import { HiSave } from "react-icons/hi";
 import { useSession } from '../../../contexts/useSession';
 import { getMyApplication, updateMyForm } from '../../../lib/student';
 import { formatEventDate } from '../../../lib/content';
+import { CardSkeleton } from '../../Skeleton';
 
 const Profile = () => {
   const { session } = useSession();
@@ -45,7 +46,7 @@ const Profile = () => {
           <div className="max-w-5xl mx-auto space-y-6">
             <h1 className="text-3xl font-bold text-slate-900">My Profile</h1>
 
-            {app === undefined && <p className="text-slate-400 text-sm">Loading…</p>}
+            {app === undefined && <div className="space-y-6"><CardSkeleton lines={1} /><CardSkeleton lines={3} /></div>}
             {app === null && <p className="text-slate-500">No application on file yet.</p>}
 
             {app && (

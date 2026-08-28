@@ -2,6 +2,7 @@
 // (site_content.contact); shown in the public footer + "Contact Us" popup.
 import { useEffect, useState } from 'react';
 import { getContact, saveSection } from '../../../lib/content';
+import { CardSkeleton } from '../../Skeleton';
 
 const EditContactUs = () => {
   const [form, setForm] = useState(null);
@@ -22,7 +23,7 @@ const EditContactUs = () => {
     else setError(res.error || 'Could not save. Are you an Admin?');
   };
 
-  if (!form) return <div className="min-h-screen bg-[#E5E7EB] py-12 px-6"><p className="text-slate-400 text-sm">Loading…</p></div>;
+  if (!form) return <div className="min-h-screen bg-[#E5E7EB] py-10 px-4 md:px-16"><div className="max-w-5xl mx-auto space-y-6"><CardSkeleton lines={3} /><CardSkeleton lines={3} /></div></div>;
 
   return (
     <div className="min-h-screen bg-[#E5E7EB] py-10 px-4 md:px-16">

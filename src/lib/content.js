@@ -62,11 +62,38 @@ export const DEFAULT_ENROLLMENT = {
   open: true,
   closedMessage: 'Online admission is currently closed. Please check back during the next enrollment period or contact the Registrar’s Office.',
   announcements: [], // [{ id, title, body, date }]
+  activeSchoolYear: '2026-2027',
+  seasonStart: '', // YYYY-MM-DD (optional dated window)
+  seasonEnd: '',
 };
 
 export async function getEnrollment() {
   const e = await getSection('enrollment');
   return { ...DEFAULT_ENROLLMENT, ...e, announcements: e.announcements || [] };
+}
+
+// Enrollment is open when the master switch is ON and — if a dated window is
+// set — today falls inside it.
+export function isEnrollmentOpen(e) {
+  if (!e || !e.open) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  if (e.seasonStart && today < e.seasonStart) return false;
+  if (e.seasonEnd && today > e.seasonEnd) return false;
+  return true;
+}
+
+// A human summary of the season status.
+export function seasonStatus(e) {
+  if (!e || !e.open) return { label: 'Closed', open: false };
+  const today = new Date().toISOString().slice(0, 10);
+  if (e.seasonStart && today < e.seasonStart) return { label: `Opens on ${e.seasonStart}`, open: false };
+  if (e.seasonEnd && today > e.seasonEnd) return { label: `Closed (ended ${e.seasonEnd})`, open: false };
+  return { label: e.seasonEnd ? `Open until ${e.seasonEnd}` : 'Open', open: true };
+}
+
+export async function getActiveSchoolYear() {
+  const e = await getEnrollment();
+  return e.activeSchoolYear || '2026-2027';
 }
 
 export async function saveEnrollment(data) {
