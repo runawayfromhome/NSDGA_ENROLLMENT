@@ -75,6 +75,19 @@ export default function SessionProvider({ children }) {
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [loadFrom]);
 
+  // Presence heartbeat: while someone is logged in, quietly stamp their
+  // `last_seen` now and every ~90s, so Head Admin can see who's online. Best
+  // effort — failures are ignored (e.g. before presence.sql is run).
+  useEffect(() => {
+    const uid = session?.id;
+    if (!uid) return;
+    let alive = true;
+    const beat = () => { if (alive) supabase.from('presence').upsert({ id: uid, last_seen: new Date().toISOString() }).then(() => {}, () => {}); };
+    beat();
+    const iv = setInterval(beat, 90000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [session?.id]);
+
   const login = useCallback(async (email, password, expectedRole = null) => {
     const result = await storeSignIn(email, password, expectedRole);
     if (result.ok) {

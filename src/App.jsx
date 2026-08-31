@@ -31,6 +31,7 @@ import MyProfile from './components/pages/RegistrarPortal/MyProfile';
 import RegistrarSettings from './components/pages/RegistrarPortal/RegistrarSettings';
 import StudentRecords from './components/pages/RegistrarPortal/StudentRecords';
 import StudentProfile from './components/pages/RegistrarPortal/StudentProfile';
+import Sections from './components/pages/RegistrarPortal/Sections';
 import Document from './components/pages/RegistrarPortal/Documents';
 import DocuStudentProfile from './components/pages/RegistrarPortal/DocuStudentProfile';
 import EditContactUs from './components/pages/AdminPortal/EditContactUs';
@@ -38,6 +39,7 @@ import EditSchoolEvent from './components/pages/AdminPortal/EditSchoolEvent';
 import EditExecutiveBoard from './components/pages/AdminPortal/EditExecutiveBoard';
 import EditAcademicSched from './components/pages/AdminPortal/EditAcademicSched';
 import EditEnrollment from './components/pages/AdminPortal/EditEnrollment';
+import SectionApprovals from './components/pages/AdminPortal/SectionApprovals';
 // Auth + staff/head-admin portals
 import ProtectedRoute from './auth/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
@@ -93,6 +95,7 @@ function App() {
       <Route path="/RegistrarPortal/Settings" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><RegistrarSettings /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/StudentRecords" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentRecords /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Student/:studentId" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentProfile /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/Sections" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Sections /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Documents" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Document /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/DocuStudentProfile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><DocuStudentProfile /></ProtectedRoute>} />
 
@@ -102,6 +105,7 @@ function App() {
       <Route path="/AdminPortal/Dashboard" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminDashboard /></ProtectedRoute>} />
       <Route path="/AdminPortal/Profile" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminProfile /></ProtectedRoute>} />
       <Route path="/AdminPortal/Settings" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminSettings /></ProtectedRoute>} />
+      <Route path="/AdminPortal/SectionApprovals" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><SectionApprovals /></ProtectedRoute>} />
       <Route path="/AdminPortal/MfaSetup" element={<ProtectedRoute allow={['admin']} loginPath="/AdminPortal/Login" requireVerified skipMfaGate><MfaSetup /></ProtectedRoute>} />
       <Route path="/AdminPortal/EditContactUs" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditContactUs /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditSchoolEvent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditSchoolEvent /></AdminLayout></ProtectedRoute>} />

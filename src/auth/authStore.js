@@ -74,27 +74,37 @@ export async function createAccount({ name, email, password, role }) {
     return { ok: false, error: (data && data.error) || error.message || 'Create failed — is the create-staff Edge Function deployed?' };
   }
   if (data && data.error) return { ok: false, error: data.error };
+  logAction('ACCOUNT_CREATE', `Created ${role} account: ${name} (${email})`);
   return { ok: true, account: data };
+}
+
+// Name of a target account, for readable audit detail. Never throws.
+async function targetName(id) {
+  try { const p = await fetchProfileById(id); return p?.name || p?.email || id; } catch { return id; }
 }
 
 // HeadAdmin actions (RLS + the enforce trigger allow these only for HeadAdmin).
 export async function setDisabled(id, disabled) {
   const { error } = await supabase.from('profiles').update({ disabled }).eq('id', id);
+  if (!error) logAction(disabled ? 'ACCOUNT_DISABLE' : 'ACCOUNT_ENABLE', `${disabled ? 'Disabled' : 'Enabled'} account: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
 }
 export async function updateRole(id, role) {
   const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
+  if (!error) logAction('ROLE_CHANGE', `Changed role to ${role}: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
 }
 export async function verifyAccount(id) {
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.VERIFIED, verified_at: new Date().toISOString() }).eq('id', id);
+  if (!error) logAction('ACCOUNT_VERIFY', `Verified account: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
 }
 export async function returnProfile(id, note) {
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.PENDING_PROFILE, return_note: note || 'Please review and resubmit your profile.' })
     .eq('id', id);
+  if (!error) logAction('PROFILE_RETURN', `Returned profile for revision: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
 }
 
@@ -127,6 +137,27 @@ export async function getAuditLog() {
 }
 export async function recordAudit(entry) {
   await supabase.from('audit_log').insert({ device: shortDevice(), ...entry });
+}
+
+// Record an ACTION the current staff member performed (enroll, reject, etc.).
+// Fire-and-forget — never blocks the action it accompanies.
+export async function logAction(action, detail) {
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u?.user) return;
+    const p = await fetchProfileById(u.user.id);
+    if (!p) return;
+    await recordAudit({ email: p.email, name: p.name, role: p.role, action, status: 'SUCCESS', reason: detail || '' });
+  } catch { /* logging must never break the action */ }
+}
+
+// Map of userId -> last_seen ISO string (for the presence column).
+export async function getPresence() {
+  const { data, error } = await supabase.from('presence').select('id, last_seen');
+  if (error) return {};
+  const map = {};
+  (data || []).forEach((r) => { map[r.id] = r.last_seen; });
+  return map;
 }
 function shortDevice() {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';

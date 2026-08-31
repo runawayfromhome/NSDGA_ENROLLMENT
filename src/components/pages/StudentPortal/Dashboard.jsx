@@ -8,7 +8,7 @@ import Header from '../../Header';
 import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS } from '../../../lib/student';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
 import { nextGrade, nextSchoolYear } from '../../../lib/grades';
-import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock } from "react-icons/hi";
+import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup } from "react-icons/hi";
 import { StatCardsSkeleton, CardSkeleton } from '../../Skeleton';
 
 const STATUS_TONE = {
@@ -63,7 +63,7 @@ const Dashboard = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Welcome{app ? `, ${name}` : ''}!</h1>
             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
-              {app ? `${gradeText} · S.Y. ${app.school_year}` : 'Student Overview'}
+              {app ? `${gradeText}${app.form?.sectionApproved && app.form?.section ? ` · Section ${app.form.section}` : ''} · S.Y. ${app.school_year}` : 'Student Overview'}
             </p>
           </div>
 
@@ -145,6 +145,25 @@ const Dashboard = () => {
                     {app.review_note && <p className="mt-6 text-sm text-slate-500 border-t border-gray-100 pt-4"><b>Note from the Registrar:</b> {app.review_note}</p>}
                   </div>
                 </>
+              )}
+
+              {/* My class (once the section is approved) */}
+              {app.form?.sectionApproved && app.form?.section && (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <HiOutlineUserGroup className="text-[#800000]" size={22} />
+                    <h2 className="text-lg font-bold text-slate-800">My Class — {app.form.section}</h2>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-4">Adviser: <b className="text-slate-700">{app.form.adviser || '—'}</b></p>
+                  {app.form.classmates?.length > 0 && (
+                    <>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Classmates ({app.form.classmates.length})</p>
+                      <div className="flex flex-wrap gap-2">
+                        {app.form.classmates.map((n, i) => <span key={i} className="text-xs font-semibold bg-slate-100 text-slate-600 rounded-full px-3 py-1.5">{n}</span>)}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
 
               {/* Enrollment history */}

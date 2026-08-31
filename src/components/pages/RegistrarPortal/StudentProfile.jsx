@@ -126,6 +126,7 @@ const StudentProfile = () => {
             <D label="LRN" v={f.lrn} /><D label="Sex" v={f.sex} /><D label="Age" v={ageFrom(f.dob)} />
             <D label="Date of Birth" v={f.dob} /><D label="Birthplace" v={f.birthplace} /><D label="Religion" v={f.religion} />
             <D label="Grade" v={f.grade || va.grade_level} /><D label="Student Type" v={va.student_type} /><D label="Contact" v={f.contact} />
+            <D label="Section" v={f.section} /><D label="Adviser" v={f.adviser} />
           </div>
           <div className="mt-5"><D label="Home Address" v={f.address} /></div>
           <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mt-8 mb-6">Parent / Guardian &amp; Academic</h2>

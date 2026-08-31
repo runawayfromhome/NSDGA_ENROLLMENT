@@ -11,6 +11,7 @@ import {
   HiOutlineUserGroup,
   HiOutlineAcademicCap,
   HiOutlineSpeakerphone,
+  HiOutlineClipboardCheck,
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineLogout,
@@ -24,6 +25,7 @@ const MENU = [
   { name: 'School Events', icon: HiOutlineCalendar, path: '/AdminPortal/EditSchoolEvent' },
   { name: 'Executive Board', icon: HiOutlineUserGroup, path: '/AdminPortal/EditExecutiveBoard' },
   { name: 'Academic Schedule', icon: HiOutlineAcademicCap, path: '/AdminPortal/EditAcademicSched' },
+  { name: 'Section Approvals', icon: HiOutlineClipboardCheck, path: '/AdminPortal/SectionApprovals' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/AdminPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/AdminPortal/Settings' },
 ];

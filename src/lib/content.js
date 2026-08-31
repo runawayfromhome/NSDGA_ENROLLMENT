@@ -3,6 +3,12 @@
 // Content lives in the `site_content` table (one JSON row per section); images
 // go in the public `site-images` Storage bucket.
 import { supabase } from './supabase';
+import { logAction } from '../auth/authStore';
+
+const SECTION_LABEL = {
+  enrollment: 'Enrollment & Announcements', contact: 'Contact Info',
+  events: 'School Events', board: 'Executive Board', hero: 'Homepage', about: 'About Page',
+};
 
 // Read a section's JSON (public — anyone can read).
 export async function getSection(section) {
@@ -17,6 +23,7 @@ export async function saveSection(section, content) {
   const { error } = await supabase.from('site_content').upsert({
     section, content, updated_at: new Date().toISOString(), updated_by: u?.user?.id || null,
   });
+  if (!error) logAction('CONTENT_EDIT', `Updated content: ${SECTION_LABEL[section] || section}`);
   return { ok: !error, error: error?.message };
 }
 

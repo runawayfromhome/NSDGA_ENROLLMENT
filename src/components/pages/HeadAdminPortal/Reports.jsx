@@ -56,13 +56,6 @@ const Reports = () => {
   const maxLevel = Math.max(1, ...byLevelApps.map((b) => b.count));
   const byLevelEnrolled = LEVELS.map((label) => ({ label: LEVEL_SHORT[label], value: pct(enrolled.filter((a) => a.grade_level === label).length, enrolled.length) }));
 
-  // Document storage usage (global — not year-filtered). 1 GB free tier.
-  const FREE_BYTES = 1024 * 1024 * 1024;
-  let docFiles = 0, docBytes = 0;
-  (apps || []).forEach((a) => Object.values(a.documents || {}).forEach((d) => { if (d?.path) { docFiles++; docBytes += d.size || 0; } }));
-  const usedMB = docBytes / (1024 * 1024);
-  const storagePct = Math.min(100, (docBytes / FREE_BYTES) * 100);
-
   const exportCsv = () => {
     const header = ['Application ID', 'Name', 'Grade Level', 'Student Type', 'Status', 'Student No.', 'School Year', 'Submitted'];
     const lines = all.map((a) => [
@@ -168,19 +161,6 @@ const Reports = () => {
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 md:p-8 mt-6">
-            <div className="flex justify-between items-end mb-4 flex-wrap gap-2">
-              <h2 className="text-lg font-bold text-slate-800">Document Storage</h2>
-              <span className="text-sm font-bold text-slate-500">{docFiles} file{docFiles === 1 ? '' : 's'} · ≈ {usedMB.toFixed(1)} MB of 1 GB</span>
-            </div>
-            <div className="h-3 rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${storagePct}%`, backgroundColor: storagePct < 80 ? '#800000' : '#C55A5A' }} />
-            </div>
-            <p className="text-[12px] text-slate-400 mt-2">
-              {storagePct < 1 ? 'Plenty of room' : `${storagePct.toFixed(1)}% used`} — the free tier includes 1 GB of student-document storage.
-              {storagePct >= 80 && ' Approaching the limit — consider archiving old files or upgrading.'}
-            </p>
-          </div>
         </main>
       </div>
     </div>

@@ -11,8 +11,36 @@ import {
   updateRole,
   verifyAccount,
   returnProfile,
+  getPresence,
   STATUS,
 } from '../../../auth/authStore';
+
+const ONLINE_MS = 5 * 60 * 1000; // "online" if seen within the last 5 minutes.
+
+// Human "last seen" label from an ISO timestamp.
+function agoLabel(iso) {
+  if (!iso) return 'Never signed in';
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (secs < 60) return 'moments ago';
+  const m = Math.floor(secs / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60), rm = m % 60;
+  if (h < 24) return `${h}h ${rm}m ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+const PresenceCell = ({ iso }) => {
+  const online = iso && (Date.now() - new Date(iso).getTime()) < ONLINE_MS;
+  return (
+    <div className="flex items-center gap-2 whitespace-nowrap">
+      <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-[#48A675]' : 'bg-slate-300'}`} />
+      {online
+        ? <span className="text-[12px] font-bold text-[#48A675]">Online</span>
+        : <span className="text-[12px] text-slate-400">{agoLabel(iso)}</span>}
+    </div>
+  );
+};
 
 const ROLE_BADGE = {
   registrar: 'bg-[#E7EEFC] text-[#3B67B8]',
@@ -52,9 +80,17 @@ const Accounts = () => {
   const [creating, setCreating] = useState(false);
   const [review, setReview] = useState(null); // account being reviewed
   const [note, setNote] = useState('');
+  const [presence, setPresence] = useState({}); // userId -> last_seen ISO
 
   const refresh = async () => setAccounts(await getStaffAccounts());
   useEffect(() => { refresh(); }, []);
+  // Poll presence so the Online/last-seen column stays fresh while the page is open.
+  useEffect(() => {
+    const load = async () => setPresence(await getPresence());
+    load();
+    const iv = setInterval(load, 60000);
+    return () => clearInterval(iv);
+  }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -141,13 +177,13 @@ const Accounts = () => {
             <table className="w-full text-left min-w-[820px]">
               <thead>
                 <tr className="border-b border-gray-100">
-                  {['Name', 'Email', 'Role', 'Verification', 'Created', 'Action'].map((h) => (
+                  {['Name', 'Email', 'Role', 'Verification', 'Presence', 'Created', 'Action'].map((h) => (
                     <th key={h} className="pb-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {rows.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-slate-400 text-sm">No accounts in this view.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-slate-400 text-sm">No accounts in this view.</td></tr>}
                 {rows.map((acc) => {
                   const badge = STATUS_BADGE[acc.status] || STATUS_BADGE[STATUS.PENDING_PROFILE];
                   return (
@@ -165,6 +201,7 @@ const Accounts = () => {
                           ? <span className="px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide bg-[#FCE4E4] text-[#C55A5A]">DISABLED</span>
                           : <span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${badge.cls}`}>{badge.label}</span>}
                       </td>
+                      <td className="py-4"><PresenceCell iso={presence[acc.id]} /></td>
                       <td className="py-4 text-[12px] text-slate-400">{new Date(acc.created_at).toLocaleDateString()}</td>
                       <td className="py-4">
                         <div className="flex gap-2">

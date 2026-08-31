@@ -4,6 +4,7 @@
 // (set status + student number) — a student cannot.
 import { supabase } from './supabase';
 import { levelOfGrade } from './grades';
+import { logAction } from '../auth/authStore';
 
 // How each DB status shows in the registrar UI.
 export const APP_DISPLAY = {
@@ -78,6 +79,7 @@ export async function returnForCorrection(id, note) {
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   const app = await getApplication(id);
+  logAction('RETURN', `Returned for correction: ${app ? applicantName(app) : id}`);
   if (app) notifyStudent(app.student_id, 'Action needed on your NSDGA application',
     emailShell('Corrections Requested', `<p>Hi ${applicantName(app)},</p><p>The Registrar reviewed your application and needs a few corrections:</p><blockquote style="border-left:3px solid #800000;padding-left:12px;color:#555">${msg}</blockquote><p>Please log in to your portal, update your application, and resubmit.</p>`));
   return { ok: true };
@@ -90,6 +92,7 @@ export async function rejectApplication(id, note) {
     .eq('id', id);
   if (error) return { ok: false, error: error.message };
   const app = await getApplication(id);
+  logAction('REJECT', `Rejected application: ${app ? applicantName(app) : id}`);
   if (app) notifyStudent(app.student_id, 'Update on your NSDGA application',
     emailShell('Application Update', `<p>Hi ${applicantName(app)},</p><p>Thank you for your interest in Nuestra Señora de Guia Academy. After careful review, we're unable to offer admission at this time.</p><p>${msg}</p>`));
   return { ok: true };
@@ -110,6 +113,7 @@ export async function enrollApplication(id, note) {
     review_note: msg,
   }).eq('id', id);
   if (error) return { ok: false, error: error.message };
+  logAction('ENROLL', `Enrolled ${app.form?.grade || app.grade_level} · ${applicantName(app)} (${student_no})`);
   notifyStudent(app.student_id, `You're enrolled at NSDGA — Student No. ${student_no}`,
     emailShell('Enrollment Confirmed 🎓', `<p>Congratulations, ${applicantName(app)}!</p><p>Your application for <b>${app.grade_level}</b> (S.Y. ${app.school_year}) has been <b>accepted</b>. Your student number is <b>${student_no}</b>.</p><p>${msg}</p><p>Log in to your Student Portal to view the details.</p>`));
   return { ok: true, student_no };
@@ -165,6 +169,93 @@ export async function listEnrolled() {
   return data;
 }
 
+// --- Class sections ----------------------------------------------------------
+export async function listSections(schoolYear, grade) {
+  let q = supabase.from('sections').select('*').order('name', { ascending: true });
+  if (schoolYear) q = q.eq('school_year', schoolYear);
+  if (grade) q = q.eq('grade', grade);
+  const { data, error } = await q;
+  if (error) return [];
+  return data;
+}
+
+// Every section (for the Admin approvals overview).
+export async function listAllSections() {
+  const { data, error } = await supabase.from('sections').select('*')
+    .order('school_year', { ascending: false }).order('grade', { ascending: true }).order('name', { ascending: true });
+  if (error) return [];
+  return data;
+}
+
+// Admin approves a section → marks it approved AND writes the roster (classmate
+// names + adviser) onto each member's own record, so students can see their class.
+export async function approveSection(section) {
+  const members = (await listEnrolledInGrade(section.school_year, section.grade))
+    .filter((a) => a.form?.section === section.name);
+  const roster = members.map((m) => applicantName(m)).sort();
+  const { error } = await supabase.from('sections').update({ status: 'approved' }).eq('id', section.id);
+  if (error) return { ok: false, error: error.message };
+  for (const m of members) {
+    const form = { ...(m.form || {}), sectionApproved: true, adviser: section.adviser, classmates: roster };
+    await supabase.from('applications').update({ form }).eq('id', m.id);
+  }
+  logAction('SECTION_APPROVE', `Approved section ${section.grade} · ${section.name} (${members.length} students)`);
+  return { ok: true, count: members.length };
+}
+
+// Admin un-approves (back to pending) → clears the roster flag on each member.
+export async function unapproveSection(section) {
+  const members = (await listEnrolledInGrade(section.school_year, section.grade))
+    .filter((a) => a.form?.section === section.name);
+  const { error } = await supabase.from('sections').update({ status: 'pending' }).eq('id', section.id);
+  if (error) return { ok: false, error: error.message };
+  for (const m of members) {
+    const form = { ...(m.form || {}), sectionApproved: false, classmates: [] };
+    await supabase.from('applications').update({ form }).eq('id', m.id);
+  }
+  logAction('SECTION_UNAPPROVE', `Un-approved section ${section.grade} · ${section.name}`);
+  return { ok: true };
+}
+
+export async function createSection({ schoolYear, grade, name, adviser, capacity }) {
+  if (!schoolYear || !grade || !name) return { ok: false, error: 'School year, grade, and name are required.' };
+  const { data, error } = await supabase.from('sections')
+    .insert({ school_year: schoolYear, grade, name, adviser: adviser || '', capacity: capacity || null })
+    .select('id').single();
+  return { ok: !error, error: error?.message, id: data?.id };
+}
+
+export async function updateSection(id, fields) {
+  const { error } = await supabase.from('sections').update(fields).eq('id', id);
+  return { ok: !error, error: error?.message };
+}
+
+export async function deleteSection(id) {
+  const { error } = await supabase.from('sections').delete().eq('id', id);
+  return { ok: !error, error: error?.message };
+}
+
+// Enrolled students in a grade + school year (the assignment pool).
+export async function listEnrolledInGrade(schoolYear, grade) {
+  const { data, error } = await supabase.from('applications')
+    .select('*').eq('status', 'enrolled').eq('school_year', schoolYear)
+    .filter('form->>grade', 'eq', grade)
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return data;
+}
+
+// Assign a list of enrolled applications to a section (writes section + adviser
+// onto each student's enrollment record). Pass adviser='' + name='' to unassign.
+export async function assignToSection(apps, sectionName, adviser) {
+  for (const app of apps) {
+    const form = { ...(app.form || {}), section: sectionName || null, adviser: adviser || null };
+    const { error } = await supabase.from('applications').update({ form }).eq('id', app.id);
+    if (error) return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
 // Every yearly record for one student (newest first) — for the Student Profile.
 export async function getStudentRecord(studentId) {
   const { data, error } = await supabase
@@ -192,9 +283,11 @@ export async function listStudents() {
 export async function setLifecycle(id, status, note) {
   if (!['withdrawn', 'graduated', 'archived'].includes(status)) return { ok: false, error: 'Invalid status.' };
   const { data: { user } } = await supabase.auth.getUser();
+  const app = await getApplication(id);
   const { error } = await supabase.from('applications')
     .update({ status, review_note: note || '', reviewed_by: user?.id || null, reviewed_at: new Date().toISOString() })
     .eq('id', id);
+  if (!error) logAction(status.toUpperCase(), `Set ${status}: ${app ? applicantName(app) : id}${app?.student_no ? ' (' + app.student_no + ')' : ''}`);
   return { ok: !error, error: error?.message };
 }
 
@@ -202,9 +295,11 @@ export async function setLifecycle(id, status, note) {
 // (now in history) and become eligible to re-enroll into the next grade.
 export async function markCompleted(id, note) {
   const { data: { user } } = await supabase.auth.getUser();
+  const app = await getApplication(id);
   const { error } = await supabase.from('applications')
     .update({ status: 'completed', review_note: note || 'School year completed.', reviewed_by: user?.id || null, reviewed_at: new Date().toISOString() })
     .eq('id', id);
+  if (!error) logAction('COMPLETE', `Marked year completed: ${app ? applicantName(app) : id}${app?.form?.grade ? ' · ' + app.form.grade : ''}`);
   return { ok: !error, error: error?.message };
 }
 
@@ -223,13 +318,16 @@ export async function readmitStudent(prevApp, grade, schoolYear) {
     form: { ...(prevApp.form || {}), grade, schoolYear },
   }).select('id').single();
   if (error) return { ok: false, error: error.message };
+  logAction('READMIT', `Re-admitted ${grade} (S.Y. ${schoolYear}): ${applicantName(prevApp)}`);
   return { ok: true, id: data.id };
 }
 
 // Reactivate a deprovisioned student back to enrolled (restores access).
 export async function reactivateStudent(id) {
+  const app = await getApplication(id);
   const { error } = await supabase.from('applications')
     .update({ status: 'enrolled', reviewed_at: new Date().toISOString() })
     .eq('id', id);
+  if (!error) logAction('REACTIVATE', `Reactivated student: ${app ? applicantName(app) : id}${app?.student_no ? ' (' + app.student_no + ')' : ''}`);
   return { ok: !error, error: error?.message };
 }
