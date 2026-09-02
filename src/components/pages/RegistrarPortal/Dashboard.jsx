@@ -66,7 +66,7 @@ const Dashboard = () => {
           </div>
 
           <ApplicationCard>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-gray-100">
@@ -92,6 +92,26 @@ const Dashboard = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {apps && newest.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No applications yet.</p>}
+              {newest.map((a) => {
+                const style = APP_DISPLAY[a.status] || APP_DISPLAY.submitted;
+                return (
+                  <div key={a.id} onClick={() => navigate('/RegistrarPortal/Applications/' + a.id)} className="border border-gray-100 rounded-xl p-4 cursor-pointer active:scale-[0.99] transition-transform">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-slate-700 truncate">{applicantName(a).toUpperCase()}</p>
+                        <p className="text-[11px] text-slate-400">{a.grade_level}</p>
+                      </div>
+                      <span className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black tracking-tighter ${style.bg} ${style.text}`}>{style.label}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-2">ID {a.id.slice(0, 8).toUpperCase()} · {fmtDate(a.created_at)}</p>
+                  </div>
+                );
+              })}
             </div>
           </ApplicationCard>
         </main>

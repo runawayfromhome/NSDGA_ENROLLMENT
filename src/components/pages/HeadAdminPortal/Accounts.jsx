@@ -174,8 +174,9 @@ const Accounts = () => {
             ))}
           </div>
 
-          {/* Table */}
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 md:p-6 overflow-x-auto">
+          {/* Table (desktop) + cards (mobile) */}
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 md:p-6">
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left min-w-[820px]">
               <thead>
                 <tr className="border-b border-gray-100">
@@ -222,6 +223,45 @@ const Accounts = () => {
                 })}
               </tbody>
             </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {rows.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No accounts in this view.</p>}
+              {rows.map((acc) => {
+                const badge = STATUS_BADGE[acc.status] || STATUS_BADGE[STATUS.PENDING_PROFILE];
+                return (
+                  <div key={acc.id} className="border border-gray-100 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-bold text-slate-700 truncate">{acc.name}</p>
+                        <p className="text-[12px] text-slate-500 truncate">{acc.email}</p>
+                      </div>
+                      {acc.disabled
+                        ? <span className="shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide bg-[#FCE4E4] text-[#C55A5A]">DISABLED</span>
+                        : <span className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide ${badge.cls}`}>{badge.label}</span>}
+                    </div>
+                    <div className="flex items-center justify-between gap-3 mt-3">
+                      <select value={acc.role} onChange={async (e) => { await updateRole(acc.id, e.target.value); await refresh(); }}
+                        className={`text-[11px] font-bold rounded-full px-3 py-1.5 border-none cursor-pointer ${ROLE_BADGE[acc.role] || 'bg-gray-100 text-gray-500'}`}>
+                        <option value="registrar">Registrar</option><option value="admin">Admin</option>
+                      </select>
+                      <div className="text-[11px]"><PresenceCell iso={presence[acc.id]} now={now} /></div>
+                    </div>
+                    <div className="flex gap-2 mt-3">
+                      {acc.status === STATUS.PENDING_VERIFICATION && !acc.disabled && (
+                        <button onClick={() => { setReview(acc); setNote(''); }}
+                          className="flex-1 py-2 rounded-lg text-[12px] font-bold bg-[#FDF3D8] text-[#B58B1F] hover:bg-[#f7e9bf] cursor-pointer">Review &amp; Verify</button>
+                      )}
+                      <button onClick={async () => { await setDisabled(acc.id, !acc.disabled); await refresh(); }}
+                        className={`flex-1 py-2 rounded-lg text-[12px] font-bold cursor-pointer ${acc.disabled ? 'bg-green-50 text-[#48A675] hover:bg-green-100' : 'bg-red-50 text-[#C55A5A] hover:bg-red-100'}`}>
+                        {acc.disabled ? 'Enable' : 'Disable'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </main>
       </div>

@@ -16,6 +16,7 @@ const ACTION_LABEL = {
   ACCOUNT_CREATE: 'Create account', ACCOUNT_DISABLE: 'Disable account', ACCOUNT_ENABLE: 'Enable account',
   ROLE_CHANGE: 'Change role', ACCOUNT_VERIFY: 'Verify account', PROFILE_RETURN: 'Return profile',
   CONTENT_EDIT: 'Edit content',
+  BILLING_UPDATE: 'Update billing',
 };
 
 // Which actions belong to each activity group (for the Activity-type filter).
@@ -27,6 +28,7 @@ const CATEGORIES = {
   sections: ['SECTION_APPROVE', 'SECTION_UNAPPROVE'],
   accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN'],
   content: ['CONTENT_EDIT'],
+  billing: ['BILLING_UPDATE'],
 };
 Object.entries(CATEGORIES).forEach(([cat, actions]) => actions.forEach((a) => { CATEGORY_OF[a] = cat; }));
 
@@ -38,6 +40,7 @@ const ACTIVITY = [
   { value: 'sections', label: 'Sections' },
   { value: 'accounts', label: 'Accounts' },
   { value: 'content', label: 'Content' },
+  { value: 'billing', label: 'Billing' },
 ];
 
 // Small colour accent per activity group for the Action cell.
@@ -48,6 +51,7 @@ const ACTION_TINT = {
   sections: 'bg-blue-50 text-blue-600',
   accounts: 'bg-[#F2F6D0] text-[#9A9E4C]',
   content: 'bg-orange-50 text-orange-600',
+  billing: 'bg-teal-50 text-teal-600',
 };
 
 const PAGE = 25;
@@ -149,7 +153,8 @@ const AuditLog = () => {
             </select>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 md:p-6 overflow-x-auto">
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 md:p-6">
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left min-w-[920px]">
               <thead>
                 <tr className="border-b border-gray-100">
@@ -178,6 +183,29 @@ const AuditLog = () => {
                 ))}
               </tbody>
             </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {rows.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No events for these filters.</p>}
+              {shown.map((r) => (
+                <div key={r.id} className={`border rounded-xl p-4 ${r.status === 'FAILED' ? 'border-red-100 bg-red-50/40' : 'border-gray-100'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-slate-700 truncate">{r.name}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{r.email}</p>
+                    </div>
+                    <span className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide ${r.status === 'SUCCESS' ? 'bg-[#D1F7E2] text-[#48A675]' : 'bg-[#FCE4E4] text-[#C55A5A]'}`}>{r.status}</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${ACTION_TINT[CATEGORY_OF[r.action]] || 'bg-slate-100 text-slate-600'}`}>{ACTION_LABEL[r.action] || r.action}</span>
+                    <span className="text-[11px] text-slate-400 capitalize">{r.role}</span>
+                  </div>
+                  {!isAuthEvent(r) && r.reason && <p className="text-[12px] text-slate-500 mt-2">{r.reason}</p>}
+                  <p className="text-[11px] text-slate-400 mt-2">{new Date(r.created_at).toLocaleString()} · {r.device}</p>
+                </div>
+              ))}
+            </div>
 
             {rows.length > 0 && (
               <div className="flex items-center justify-between pt-5 mt-2 border-t border-gray-50">

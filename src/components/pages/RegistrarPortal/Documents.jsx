@@ -76,7 +76,7 @@ const Documents = () => {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-[#FAF8F6]">
@@ -108,6 +108,25 @@ const Documents = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {apps && filtered.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No applications match.</p>}
+              {shown.map(({ app, sum }) => (
+                <div key={app.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-700 text-sm truncate">{applicantName(app)}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase">{app.form?.lrn ? `LRN: ${app.form.lrn}` : app.grade_level} · {app.student_type}</p>
+                    </div>
+                    <span className={`shrink-0 inline-flex px-3 py-1.5 rounded-full text-[9px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span>
+                  </div>
+                  <p className="text-[12px] text-slate-600 mt-2">{sum.uploaded} / {sum.total} uploaded · <span className="text-emerald-600 font-semibold">{sum.verified} verified</span></p>
+                  {sum.missing.length > 0 && <p className="text-[11px] text-slate-400 mt-0.5">Missing: {sum.missing.join(', ')}</p>}
+                  <button onClick={() => navigate('/RegistrarPortal/Applications/' + app.id)} className="mt-3 w-full py-2 bg-[#800000] text-white rounded-lg text-[11px] font-black hover:bg-[#600000] cursor-pointer">View / Verify</button>
+                </div>
+              ))}
             </div>
             {apps && filtered.length > 0 && (
               <div className="flex items-center justify-between px-6 py-5 border-t border-gray-50">

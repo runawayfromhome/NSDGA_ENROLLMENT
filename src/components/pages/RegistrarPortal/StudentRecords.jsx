@@ -76,7 +76,7 @@ const StudentRecords = () => {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-[#FAF8F6]">
@@ -104,6 +104,26 @@ const StudentRecords = () => {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {rows && filtered.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No students{anyFilter ? ' match your filters' : ' yet'}.</p>}
+              {shown.map((r) => {
+                const st = APP_DISPLAY[r.status] || APP_DISPLAY.enrolled;
+                return (
+                  <div key={r.id} onClick={() => navigate('/RegistrarPortal/Student/' + r.student_id)} className="p-4 active:bg-slate-50 cursor-pointer">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-700 truncate">{applicantName(r)}</p>
+                        <p className="text-[12px] font-bold text-[#800000]">{r.student_no || '—'}</p>
+                      </div>
+                      <span className={`shrink-0 inline-flex px-3 py-1.5 rounded-full text-[9px] font-black ${st.bg} ${st.text}`}>{st.label}</span>
+                    </div>
+                    <p className="text-[12px] text-slate-500 mt-1.5">{r.form?.grade || r.grade_level}{r.form?.strand ? ` · ${r.form.strand}` : ''}{r.form?.lrn ? ` · LRN ${r.form.lrn}` : ''}</p>
+                  </div>
+                );
+              })}
             </div>
             {rows && filtered.length > 0 && (
               <div className="flex items-center justify-between px-6 py-5 border-t border-gray-50">

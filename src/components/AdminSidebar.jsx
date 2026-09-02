@@ -12,6 +12,7 @@ import {
   HiOutlineAcademicCap,
   HiOutlineSpeakerphone,
   HiOutlineClipboardCheck,
+  HiOutlineCurrencyDollar,
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineLogout,
@@ -26,6 +27,7 @@ const MENU = [
   { name: 'Executive Board', icon: HiOutlineUserGroup, path: '/AdminPortal/EditExecutiveBoard' },
   { name: 'Academic Schedule', icon: HiOutlineAcademicCap, path: '/AdminPortal/EditAcademicSched' },
   { name: 'Section Approvals', icon: HiOutlineClipboardCheck, path: '/AdminPortal/SectionApprovals' },
+  { name: 'Billing & Finance', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/AdminPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/AdminPortal/Settings' },
 ];
@@ -42,7 +44,7 @@ const AdminSidebar = () => {
 
   const Content = ({ mobile = false }) => (
     <>
-      <div className={`${mobile ? 'p-4' : 'p-8 pb-10'} flex items-center gap-3`}>
+      <div className={`${mobile ? 'p-4' : 'p-8 pb-6'} flex items-center gap-3`}>
         <img src={AcademyLogo} alt="Academy Logo" className="w-12 h-12 rounded-full object-cover" />
         <div className="flex flex-col">
           <h1 className="text-[11px] font-black leading-[1.1] tracking-tight uppercase text-[#800000]">
@@ -52,7 +54,7 @@ const AdminSidebar = () => {
         </div>
       </div>
 
-      <nav className="space-y-0.5 flex-1">
+      <nav className="space-y-0.5 flex-1 overflow-y-auto">
         {MENU.map((item) => (
           <NavLink
             key={item.name}
@@ -72,24 +74,25 @@ const AdminSidebar = () => {
             )}
           </NavLink>
         ))}
+
+        {/* User + Logout at the bottom, below Settings (scrolls with the menu) */}
+        <div className="px-6 md:px-8 pt-5 mt-3 border-t border-gray-200">
+          {session && (
+            <div className="mb-3">
+              <p className="text-[13px] font-bold text-slate-700 truncate">{session.name}</p>
+              <p className="text-[11px] text-slate-400 truncate">{session.email}</p>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-3 w-full py-3 bg-[#E2E4E7] hover:bg-gray-300 text-slate-500 rounded-xl text-[14px] font-bold transition-all active:scale-95 cursor-pointer"
+          >
+            <HiOutlineLogout size={18} />
+            <span>Logout</span>
+          </button>
+        </div>
       </nav>
 
-      <div className="p-6 mt-auto">
-        {session && (
-          <div className="mb-4 px-2">
-            <p className="text-[13px] font-bold text-slate-700 truncate">{session.name}</p>
-            <p className="text-[11px] text-slate-400 truncate">{session.email}</p>
-          </div>
-        )}
-        <div className="w-[85%] h-[1px] bg-gray-200 mb-6 mx-auto" />
-        <button
-          onClick={handleLogout}
-          className="flex items-center justify-center gap-3 w-full py-3 bg-[#E2E4E7] hover:bg-gray-300 text-slate-500 rounded-xl text-[14px] font-bold transition-all active:scale-95 cursor-pointer"
-        >
-          <HiOutlineLogout size={18} />
-          <span>Logout</span>
-        </button>
-      </div>
     </>
   );
 

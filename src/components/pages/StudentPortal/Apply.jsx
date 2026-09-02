@@ -21,6 +21,7 @@ const empty = {
   lastName: '', firstName: '', middleName: '', suffix: '',
   lrn: '', sex: '', dob: '', birthplace: '', religion: '', nationality: 'Filipino',
   address: '', strand: '',
+  voucherApplicant: '', voucherType: '', voucherId: '',
   fatherName: '', motherName: '', guardianName: '', guardianContact: '',
   lastSchool: '', lastSchoolAddress: '', lastGrade: '', gwa: '',
   grade: '', schoolYear: CURRENT_SCHOOL_YEAR,
@@ -205,9 +206,28 @@ const Apply = () => {
             <Field label="Nationality"><input className="ip" value={f.nationality} onChange={(e) => set('nationality', e.target.value)} /></Field>
           </div>
           {isSHS && (
-            <Field label="Senior High Strand">
-              <select className="ip" value={f.strand} onChange={(e) => set('strand', e.target.value)}><option value="">Select…</option>{SHS_STRANDS.map((s) => <option key={s}>{s}</option>)}</select>
-            </Field>
+            <>
+              <Field label="Senior High Strand">
+                <select className="ip" value={f.strand} onChange={(e) => set('strand', e.target.value)}><option value="">Select…</option>{SHS_STRANDS.map((s) => <option key={s}>{s}</option>)}</select>
+              </Field>
+              <div className="rounded-xl border border-teal-200 bg-teal-50/50 p-4 space-y-4">
+                <p className="text-[13px] font-bold text-teal-700">DepEd SHS Voucher (optional)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Applying with a voucher?">
+                    <select className="ip" value={f.voucherApplicant} onChange={(e) => set('voucherApplicant', e.target.value)}><option value="">Select…</option><option>Yes</option><option>No</option></select>
+                  </Field>
+                  {f.voucherApplicant === 'Yes' && (
+                    <Field label="Voucher Type">
+                      <select className="ip" value={f.voucherType} onChange={(e) => set('voucherType', e.target.value)}><option value="">Select…</option><option value="QVR">QVR (from private JHS / ESC grantee)</option><option value="Non-QVR">Non-QVR (public JHS / applied)</option></select>
+                    </Field>
+                  )}
+                </div>
+                {f.voucherApplicant === 'Yes' && (
+                  <Field label="Voucher ID / Reference No. (if any)"><input className="ip" value={f.voucherId} onChange={(e) => set('voucherId', e.target.value)} placeholder="e.g. VR-2026-000000" /></Field>
+                )}
+                <p className="text-[11px] text-teal-700/70">The Registrar &amp; Finance office will verify your voucher eligibility.</p>
+              </div>
+            </>
           )}
           <Field label="Home Address"><textarea className="ip" style={{ minHeight: 70 }} value={f.address} onChange={(e) => set('address', e.target.value)} /></Field>
         </div>
@@ -237,7 +257,7 @@ const Apply = () => {
       {current === 'review' && (
         <div className="space-y-5">
           <Summary title="Application" rows={[['Grade', f.grade || level], ['Level', level], ['Applying as', studentType], ['School Year', enrollment?.activeSchoolYear || f.schoolYear]]} />
-          <Summary title="Student" rows={[['Name', `${f.firstName} ${f.middleName} ${f.lastName} ${f.suffix}`.replace(/\s+/g, ' ').trim()], ['Sex', f.sex], ['Date of Birth', f.dob], ...(isSHS ? [['Strand', f.strand]] : [])]} />
+          <Summary title="Student" rows={[['Name', `${f.firstName} ${f.middleName} ${f.lastName} ${f.suffix}`.replace(/\s+/g, ' ').trim()], ['Sex', f.sex], ['Date of Birth', f.dob], ...(isSHS ? [['Strand', f.strand]] : []), ...(isSHS && f.voucherApplicant === 'Yes' ? [['Voucher', `${f.voucherType || 'Yes'}${f.voucherId ? ' · ' + f.voucherId : ''}`]] : [])]} />
           {!editMode && <Summary title="Account" rows={[['Email', acct.email], ['Contact', acct.contact]]} />}
           <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-1 accent-[#800000] w-4 h-4" />
