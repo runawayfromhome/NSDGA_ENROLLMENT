@@ -1,4 +1,3 @@
-import React from 'react'
 import { GiBookmarklet } from "react-icons/gi";
 
 

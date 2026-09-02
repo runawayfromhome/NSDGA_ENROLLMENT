@@ -1,4 +1,3 @@
-import React from 'react'
 import { TbCircleNumber3Filled } from "react-icons/tb";
 
 const ThreeIcon = ({ className }) => {

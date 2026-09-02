@@ -1,7 +1,7 @@
 // Registrar → Student Records — students across the lifecycle (enrolled /
 // withdrawn / graduated / archived), searchable + filterable. Click a row to
 // open the student and manage their lifecycle.
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';

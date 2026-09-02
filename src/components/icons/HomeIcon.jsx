@@ -1,4 +1,3 @@
-import React from 'react'
 import { TiHomeOutline } from "react-icons/ti";
 
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import NuestraLogoImage from '../../../assets/nuestradg.png'
 import AcademyLogo from "../../../assets/nuestralogo.jpg"
 import ProcedureCard from "../../icons/StudentPortalIcons/ProcedureCard"

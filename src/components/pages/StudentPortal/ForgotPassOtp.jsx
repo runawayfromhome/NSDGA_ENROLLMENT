@@ -1,5 +1,3 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
 import NuestraLogoImage from '../../../assets/nuestradg.png'
 import AcademyLogo from '../../../assets/nuestralogo.jpg'
 import ProcedureCard from '../../icons/StudentPortalIcons/ProcedureCard'

@@ -1,6 +1,6 @@
 // Student Settings — consistent portal frame + real change-password
 // (verifies the current password, then updates it via Supabase Auth).
-import React, { useState } from 'react';
+import { useState } from 'react';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineEye, HiOutlineEyeOff, HiSave } from "react-icons/hi";

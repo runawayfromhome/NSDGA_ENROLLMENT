@@ -1,4 +1,3 @@
-import React from 'react'
 import MainLayout from '../../layouts/Mainlayouts'
 import RedLine from '../icons/RedLine'
 import ProcedureCard from '../icons/StudentPortalIcons/ProcedureCard'

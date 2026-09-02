@@ -2,7 +2,7 @@
 // identity, the selected year's full details + documents, the year-by-year
 // history (switch years inline — never bounces to Applications), and the
 // student-level lifecycle actions (complete / graduate / withdraw / re-admit).
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';

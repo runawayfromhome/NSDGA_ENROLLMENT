@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import MainLayout from '../../layouts/Mainlayouts'
 import { getPublishedEvents, formatEventDate, getSection } from '../../lib/content'
 import SchoolEventCard from '../icons/SchoolEventCard'
@@ -61,8 +61,8 @@ const Calendar = () => {
         {/* EVENT MODAL (MATCHES SCREENSHOT) */}
         <dialog id="event_modal" className="modal backdrop:backdrop-blur-sm">
           <div className="modal-box max-w-2xl p-0 overflow-hidden bg-white rounded-xl shadow-2xl border-none">
-            <div className="relative h-64 w-full">
-              <img src={selectedEvent?.image} className="w-full h-full object-cover" alt="" />
+            <div className="relative h-64 w-full bg-[#800000]">
+              {selectedEvent?.image && <img src={selectedEvent.image} className="w-full h-full object-cover" alt="" />}
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
                 <p className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em] mb-1">
                   {selectedEvent?.category}

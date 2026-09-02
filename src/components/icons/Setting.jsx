@@ -1,4 +1,3 @@
-import React from 'react'
 import { SlSettings } from "react-icons/sl";
 
 

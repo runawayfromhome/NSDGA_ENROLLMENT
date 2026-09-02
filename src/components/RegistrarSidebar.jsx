@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import AcademyLogo from '../assets/nuestralogo.jpg';
 import { useSession } from '../contexts/useSession';
 import { 
@@ -15,7 +15,6 @@ import {
 
 const RegistrarSidebar = ({ activePage }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
   const { session, logout } = useSession();
 

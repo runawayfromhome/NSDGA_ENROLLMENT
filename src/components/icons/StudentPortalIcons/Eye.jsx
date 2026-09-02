@@ -1,4 +1,3 @@
-import React from 'react'
 import { MdOutlineRemoveRedEye, MdOutlineVisibilityOff } from "react-icons/md";
 
 const Eye = ({ visible }) => {

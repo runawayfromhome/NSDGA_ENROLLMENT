@@ -1,6 +1,6 @@
 // Student "My Profile" — consistent portal frame (sidebar + header), real data
 // from the student's application. Contact fields are editable + saved.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiSave } from "react-icons/hi";

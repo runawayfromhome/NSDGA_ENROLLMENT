@@ -1,4 +1,3 @@
-import React from 'react'
 import { IoMdExit } from "react-icons/io";
 
 

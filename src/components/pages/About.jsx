@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import MainLayout from '../../layouts/Mainlayouts'
 import AboutImage from '../../assets/About.png'
 import NuestraLogoImage from '../../assets/nuestralogo.jpg'

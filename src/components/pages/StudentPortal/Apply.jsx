@@ -2,7 +2,7 @@
 //  • CREATE (public): grade → account → form → review → creates account + application
 //  • EDIT/RESUBMIT: a logged-in student whose application was "needs_correction"
 //    edits it (no account step) and resubmits.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, NavLink } from 'react-router-dom';
 import AcademyLogo from '../../../assets/nuestralogo.jpg';
 import NuestraLogoImage from '../../../assets/nuestradg.png';

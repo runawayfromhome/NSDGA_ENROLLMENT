@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react'
+import { forwardRef } from 'react'
 
 const EventsCard = forwardRef(({ events, onCardClick }, ref) => {
   return (
@@ -15,8 +15,10 @@ const EventsCard = forwardRef(({ events, onCardClick }, ref) => {
         >
           {/* Added h-[480px] to make the card height smaller and consistent */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col w-[320px] md:w-[350px] h-[480px]">
-            <div className="w-full h-44 rounded-lg overflow-hidden mb-4 flex-shrink-0">
-              <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
+            <div className="w-full h-44 rounded-lg overflow-hidden mb-4 flex-shrink-0 bg-gradient-to-br from-[#800000] to-[#b34747] flex items-center justify-center">
+              {event.image
+                ? <img src={event.image} alt={event.title} className="w-full h-full object-cover" />
+                : <span className="text-white/70 text-3xl font-black">NSDGA</span>}
             </div>
             <p className="text-[11px] font-bold text-gray-400 mb-3 tracking-wide">{event.date}</p>
             <div className="w-full h-[1px] bg-gray-100 mb-4"></div>

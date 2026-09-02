@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import AcademyLogo from '../assets/nuestralogo.jpg';
 import { useSession } from '../contexts/useSession';

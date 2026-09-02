@@ -1,4 +1,3 @@
-import React from 'react'
 import { IoNotificationsOutline } from "react-icons/io5";
 
 

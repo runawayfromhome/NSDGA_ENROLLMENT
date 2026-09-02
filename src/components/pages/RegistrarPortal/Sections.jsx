@@ -1,11 +1,11 @@
 // Registrar → Sections — create class sections per grade (Grade 1–12, many per
 // grade), set an adviser, and assign enrolled students (sortable by GWA so you
 // can build a top-GPA section) to each.
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
 import {
-  listSections, createSection, updateSection, deleteSection,
+  listSections, createSection, deleteSection,
   listEnrolledInGrade, assignToSection, applicantName,
 } from '../../../lib/registrar';
 import { getActiveSchoolYear } from '../../../lib/content';

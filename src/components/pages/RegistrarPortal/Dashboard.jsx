@@ -1,5 +1,5 @@
 // Registrar dashboard — real counts + newest applications from Supabase.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';

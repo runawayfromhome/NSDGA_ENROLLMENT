@@ -1,5 +1,3 @@
-import React from 'react'
-
 const RecordsTblCard = ({ children }) => {
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-8 shadow-sm">

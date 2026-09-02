@@ -1,4 +1,3 @@
-import React from 'react'
 import { IoEyeOutline, IoTrashOutline, IoAddOutline } from "react-icons/io5";
 import Input from '../form/Input'
 

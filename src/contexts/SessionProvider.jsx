@@ -32,8 +32,10 @@ export default function SessionProvider({ children }) {
     sessionStorage.setItem('nsdga_mfa_bypass', '1');
     setMfaBypass(true);
   }, []);
+  // Keep a ref to the latest session so logout() can read it without being
+  // re-created on every session change. Updated in an effect (not during render).
   const sessionRef = useRef(null);
-  sessionRef.current = session;
+  useEffect(() => { sessionRef.current = session; }, [session]);
 
   const loadFrom = useCallback(async (sbSession) => {
     if (!sbSession?.user) { setSession(null); return null; }

@@ -1,7 +1,5 @@
 // Reusable loading skeletons (shimmer via Tailwind's animate-pulse).
 // Use in place of "Loading…" text so pages feel instant and don't jump.
-import React from 'react';
-
 export const Skeleton = ({ className = '' }) => (
   <div className={`animate-pulse bg-slate-200/80 rounded ${className}`} />
 );

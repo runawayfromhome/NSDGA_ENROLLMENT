@@ -1,9 +1,7 @@
-import React from 'react'
-import { NavLink } from 'react-router-dom'
 import NuestraLogoImage from '../../../assets/nuestradg.png'
 import AcademyLogo from '../../../assets/nuestralogo.jpg'
 import ProcedureCard from '../../icons/StudentPortalIcons/ProcedureCard'
-import { useState, useRef } from 'react'; // Added useRef here
+import { useRef } from 'react';
 
 const LoginOtp = () => {
   // Create an array of refs to control the focus of each input

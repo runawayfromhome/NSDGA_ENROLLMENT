@@ -1,5 +1,3 @@
-import React from 'react'
-
 const ProfileOverviewCard = () => {
   const infoData = [
     { label: "Birthplace", value: "Marikina City, Philippines" },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import RegistrarSidebar from '../../RegistrarSidebar'
 import ProfileOverviewCard from '../../icons/RegistrarIcons/ProfileOverviewCard'
 import AcadHistoryCard from '../../icons/RegistrarIcons/AcadHistoryCard'     

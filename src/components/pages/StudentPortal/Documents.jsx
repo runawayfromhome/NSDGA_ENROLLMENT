@@ -1,6 +1,6 @@
 // Student Documents — upload the required admission documents (private storage),
 // see verification status, and re-view what was uploaded.
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineDocumentText, HiOutlineUpload, HiOutlineEye, HiOutlineInformationCircle } from "react-icons/hi";

@@ -1,4 +1,3 @@
-import React from 'react'
 import { IoMdSend } from "react-icons/io";
 
 

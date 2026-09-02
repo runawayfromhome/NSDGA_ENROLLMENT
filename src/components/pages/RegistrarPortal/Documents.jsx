@@ -1,7 +1,7 @@
 // Registrar → Documents — real document-submission tracking across all
 // applications. Shows how many required docs each applicant uploaded, what's
 // missing, and links to the application to view/verify them.
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../Header';
 import RegistrarSidebar from '../../RegistrarSidebar';

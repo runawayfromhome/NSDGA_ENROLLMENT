@@ -1,5 +1,3 @@
-import React from 'react'
-
 const RegistrarPassInfoCard = ({ children }) => (
     <div className="w-full">
         {children}

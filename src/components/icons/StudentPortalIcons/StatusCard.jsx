@@ -1,6 +1,4 @@
-import React from 'react';
-
-const StatusCard = ({ children }) => {
+const StatusCard = () => {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-12 mb-6 shadow-sm flex flex-col justify-center min-h-[220px]">
       <div className="relative w-full px-4">

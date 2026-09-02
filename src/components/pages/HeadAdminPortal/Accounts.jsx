@@ -17,10 +17,11 @@ import {
 
 const ONLINE_MS = 5 * 60 * 1000; // "online" if seen within the last 5 minutes.
 
-// Human "last seen" label from an ISO timestamp.
-function agoLabel(iso) {
+// Human "last seen" label from an ISO timestamp, relative to `now` (a value the
+// page refreshes on its poll, so it's not read from the clock during render).
+function agoLabel(iso, now) {
   if (!iso) return 'Never signed in';
-  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  const secs = Math.floor((now - new Date(iso).getTime()) / 1000);
   if (secs < 60) return 'moments ago';
   const m = Math.floor(secs / 60);
   if (m < 60) return `${m}m ago`;
@@ -30,8 +31,8 @@ function agoLabel(iso) {
   return `${d}d ago`;
 }
 
-const PresenceCell = ({ iso }) => {
-  const online = iso && (Date.now() - new Date(iso).getTime()) < ONLINE_MS;
+const PresenceCell = ({ iso, now }) => {
+  const online = iso && (now - new Date(iso).getTime()) < ONLINE_MS;
   return (
     <div className="flex items-center gap-2 whitespace-nowrap">
       <span className={`w-2.5 h-2.5 rounded-full ${online ? 'bg-[#48A675]' : 'bg-slate-300'}`} />
@@ -81,12 +82,13 @@ const Accounts = () => {
   const [review, setReview] = useState(null); // account being reviewed
   const [note, setNote] = useState('');
   const [presence, setPresence] = useState({}); // userId -> last_seen ISO
+  const [now, setNow] = useState(() => Date.now()); // "clock" refreshed on each poll
 
   const refresh = async () => setAccounts(await getStaffAccounts());
   useEffect(() => { refresh(); }, []);
   // Poll presence so the Online/last-seen column stays fresh while the page is open.
   useEffect(() => {
-    const load = async () => setPresence(await getPresence());
+    const load = async () => { setPresence(await getPresence()); setNow(Date.now()); };
     load();
     const iv = setInterval(load, 60000);
     return () => clearInterval(iv);
@@ -201,7 +203,7 @@ const Accounts = () => {
                           ? <span className="px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide bg-[#FCE4E4] text-[#C55A5A]">DISABLED</span>
                           : <span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${badge.cls}`}>{badge.label}</span>}
                       </td>
-                      <td className="py-4"><PresenceCell iso={presence[acc.id]} /></td>
+                      <td className="py-4"><PresenceCell iso={presence[acc.id]} now={now} /></td>
                       <td className="py-4 text-[12px] text-slate-400">{new Date(acc.created_at).toLocaleDateString()}</td>
                       <td className="py-4">
                         <div className="flex gap-2">

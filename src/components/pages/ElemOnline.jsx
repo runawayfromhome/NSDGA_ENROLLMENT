@@ -1,4 +1,3 @@
-import React from 'react'
 import { NavLink } from 'react-router-dom'
 import MainLayout from '../../layouts/Mainlayouts'
 import RedLine from '../icons/RedLine'

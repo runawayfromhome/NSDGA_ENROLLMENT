@@ -1,5 +1,3 @@
-import React from 'react'
-
 const AcadSchedEventCard = ({ children }) => {
   return (
     <div className="bg-[#F9F9F9] border border-gray-200 rounded-2xl p-8 shadow-sm">

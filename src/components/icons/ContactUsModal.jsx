@@ -1,4 +1,3 @@
-import React from 'react'
 import { IoClose, IoSchool } from "react-icons/io5";
 import { DEFAULT_CONTACT } from '../../lib/content';
 

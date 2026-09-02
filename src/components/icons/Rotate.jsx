@@ -1,4 +1,3 @@
-import React from 'react'
 import { FiRotateCcw } from "react-icons/fi";
 
 const Rotate = ({ className }) => {

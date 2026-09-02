@@ -1,4 +1,3 @@
-import React from 'react'
 import { TbLockPassword } from "react-icons/tb";
 
 const Padlock = ({ className }) => {

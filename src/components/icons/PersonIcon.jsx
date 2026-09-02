@@ -1,4 +1,3 @@
-import React from 'react'
 import { MdOutlinePerson } from "react-icons/md";
 
 const PersonIcon = ({ className, color, size = 32 }) => {

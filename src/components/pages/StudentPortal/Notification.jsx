@@ -1,10 +1,10 @@
 // Student Notifications — consistent portal frame; notifications are derived
 // from the student's real application status.
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineClipboardList } from "react-icons/hi";
-import { getMyApplication, STATUS_LABEL } from '../../../lib/student';
+import { getMyApplication } from '../../../lib/student';
 import { CardSkeleton } from '../../Skeleton';
 
 const timeAgo = (iso) => {
