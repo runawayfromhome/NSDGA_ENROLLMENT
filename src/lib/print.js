@@ -35,17 +35,17 @@ function openPrint(html) {
 }
 
 // One section's class list.
-export function printClassList({ grade, section, adviser, schoolYear, students }) {
+export function printClassList({ grade, section, schoolYear, students }) {
   const rows = students.map((a, i) =>
     `<tr><td class="n">${i + 1}</td><td>${esc(a.student_no || '')}</td><td>${esc(nameOf(a))}</td><td>${esc(a.form?.sex || '')}</td><td>${esc(a.form?.gwa || '')}</td></tr>`
   ).join('');
   const body = `
     <h1>Nuestra Señora de Guia Academy of Marikina</h1>
     <div class="sub">Official Class List</div>
-    <div class="meta"><span><b>Grade:</b> ${esc(grade)}</span><span><b>Section:</b> ${esc(section)}</span><span><b>Adviser:</b> ${esc(adviser || '—')}</span><span><b>S.Y.:</b> ${esc(schoolYear)}</span><span><b>Total:</b> ${students.length}</span></div>
+    <div class="meta"><span><b>Grade:</b> ${esc(grade)}</span><span><b>Section:</b> ${esc(section)}</span><span><b>S.Y.:</b> ${esc(schoolYear)}</span><span><b>Total:</b> ${students.length}</span></div>
     <table><thead><tr><th class="n">No.</th><th>Student No.</th><th>Name (Last, First, M.I.)</th><th>Sex</th><th>GWA</th></tr></thead>
     <tbody>${rows || '<tr><td colspan="5" class="empty">No students in this section</td></tr>'}</tbody></table>
-    <div class="sign"><div><div class="line"></div>Prepared by · Registrar</div><div><div class="line"></div>${esc(adviser || 'Adviser')}</div></div>`;
+    <div class="sign"><div><div class="line"></div>Prepared by · Registrar</div><div><div class="line"></div>Noted by · Admin</div></div>`;
   openPrint(shell(`Class List — ${grade} ${section}`, body));
 }
 
@@ -54,7 +54,7 @@ export function printGradeList({ grade, schoolYear, sections, students }) {
   const blocks = sections.map((s) => {
     const mem = students.filter((a) => a.form?.section === s.name);
     const rows = mem.map((a, i) => `<tr><td class="n">${i + 1}</td><td>${esc(a.student_no || '')}</td><td>${esc(nameOf(a))}</td><td>${esc(a.form?.gwa || '')}</td></tr>`).join('');
-    return `<div class="sec-title">${esc(s.name)} — Adviser: ${esc(s.adviser || '—')} (${mem.length})</div>
+    return `<div class="sec-title">${esc(s.name)} (${mem.length})</div>
       <table><thead><tr><th class="n">No.</th><th>Student No.</th><th>Name</th><th>GWA</th></tr></thead>
       <tbody>${rows || '<tr><td colspan="4" class="empty">—</td></tr>'}</tbody></table>`;
   }).join('');

@@ -14,7 +14,7 @@ const ACTION_LABEL = {
   REACTIVATE: 'Reactivate', READMIT: 'Re-admit',
   SECTION_APPROVE: 'Approve section', SECTION_UNAPPROVE: 'Un-approve section',
   ACCOUNT_CREATE: 'Create account', ACCOUNT_DISABLE: 'Disable account', ACCOUNT_ENABLE: 'Enable account',
-  ROLE_CHANGE: 'Change role', ACCOUNT_VERIFY: 'Verify account', PROFILE_RETURN: 'Return profile',
+  ROLE_CHANGE: 'Change role', HEADADMIN_PROMOTE: 'Promote to HeadAdmin', ACCOUNT_VERIFY: 'Verify account', PROFILE_RETURN: 'Return profile',
   CONTENT_EDIT: 'Edit content',
   BILLING_UPDATE: 'Update billing',
 };
@@ -26,7 +26,7 @@ const CATEGORIES = {
   enrollment: ['ENROLL', 'REJECT', 'RETURN'],
   lifecycle: ['COMPLETE', 'GRADUATED', 'WITHDRAWN', 'ARCHIVED', 'REACTIVATE', 'READMIT'],
   sections: ['SECTION_APPROVE', 'SECTION_UNAPPROVE'],
-  accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN'],
+  accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'HEADADMIN_PROMOTE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN'],
   content: ['CONTENT_EDIT'],
   billing: ['BILLING_UPDATE'],
 };

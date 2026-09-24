@@ -7,9 +7,11 @@ import PersonIcon from '../../icons/StudentPortalIcons/PersonIcon'
 import Padlock from '../../icons/StudentPortalIcons/Padlock'
 import Eye from '../../icons/StudentPortalIcons/Eye'
 import { signInStudent } from '../../../lib/student'
+import { useSession } from '../../../contexts/useSession'
 
 const Login = () => {
   const navigate = useNavigate();
+  const { refresh } = useSession();
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -20,9 +22,11 @@ const Login = () => {
     setError(''); setBusy(true);
     const fd = new FormData(e.target);
     const res = await signInStudent(fd.get('email'), fd.get('password'));
+    if (!res.ok) { setBusy(false); return setError(res.error); }
+    const s = await refresh(); // load session (incl. enrollment status) before routing
     setBusy(false);
-    if (!res.ok) return setError(res.error);
-    navigate('/StudentPortal/Dashboard');
+    // Enrolled → full portal; applicant → applicant dashboard.
+    navigate(s?.isEnrolled ? '/StudentPortal/Dashboard' : '/StudentPortal/ApplicationStatus');
   };
 
   return (

@@ -188,7 +188,7 @@ export async function listAllSections() {
 }
 
 // Admin approves a section → marks it approved AND writes the roster (classmate
-// names + adviser) onto each member's own record, so students can see their class.
+// names) onto each member's own record, so students can see their class.
 export async function approveSection(section) {
   const members = (await listEnrolledInGrade(section.school_year, section.grade))
     .filter((a) => a.form?.section === section.name);
@@ -196,7 +196,7 @@ export async function approveSection(section) {
   const { error } = await supabase.from('sections').update({ status: 'approved' }).eq('id', section.id);
   if (error) return { ok: false, error: error.message };
   for (const m of members) {
-    const form = { ...(m.form || {}), sectionApproved: true, adviser: section.adviser, classmates: roster };
+    const form = { ...(m.form || {}), sectionApproved: true, classmates: roster };
     await supabase.from('applications').update({ form }).eq('id', m.id);
   }
   logAction('SECTION_APPROVE', `Approved section ${section.grade} · ${section.name} (${members.length} students)`);
@@ -245,11 +245,11 @@ export async function listEnrolledInGrade(schoolYear, grade) {
   return data;
 }
 
-// Assign a list of enrolled applications to a section (writes section + adviser
-// onto each student's enrollment record). Pass adviser='' + name='' to unassign.
-export async function assignToSection(apps, sectionName, adviser) {
+// Assign a list of enrolled applications to a section (writes the section name
+// onto each student's enrollment record). Pass sectionName=null to unassign.
+export async function assignToSection(apps, sectionName) {
   for (const app of apps) {
-    const form = { ...(app.form || {}), section: sectionName || null, adviser: adviser || null };
+    const form = { ...(app.form || {}), section: sectionName || null };
     const { error } = await supabase.from('applications').update({ form }).eq('id', app.id);
     if (error) return { ok: false, error: error.message };
   }

@@ -5,6 +5,7 @@ import { useSession } from '../contexts/useSession';
 import {
   HiOutlineViewGrid,
   HiOutlineClipboardCheck,
+  HiOutlineDocumentText,
   HiOutlineFolder,
   HiOutlineBell,
   HiOutlineUser,
@@ -12,9 +13,16 @@ import {
   HiOutlineLogout,
 } from "react-icons/hi";
 
-const menuItems = [
+// Applicants (not yet enrolled) only see these two.
+const APPLICANT_MENU = [
+  { name: 'Application Status', icon: HiOutlineClipboardCheck, path: '/StudentPortal/ApplicationStatus' },
+  { name: 'Enrollment Form', icon: HiOutlineDocumentText, path: '/StudentPortal/EnrollmentForm' },
+];
+// Enrolled students get the full portal.
+const FULL_MENU = [
   { name: 'Dashboard', icon: HiOutlineViewGrid, path: '/StudentPortal/Dashboard' },
   { name: 'Application Status', icon: HiOutlineClipboardCheck, path: '/StudentPortal/ApplicationStatus' },
+  { name: 'Enrollment Form', icon: HiOutlineDocumentText, path: '/StudentPortal/EnrollmentForm' },
   { name: 'Documents', icon: HiOutlineFolder, path: '/StudentPortal/Documents' },
   { name: 'Notifications', icon: HiOutlineBell, path: '/StudentPortal/Notifications' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/StudentPortal/Profile' },
@@ -25,6 +33,9 @@ const StudentSidebar = ({ activePage }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const { session, logout } = useSession();
+  const enrolled = !!session?.isEnrolled;
+  const menuItems = enrolled ? FULL_MENU : APPLICANT_MENU;
+  const portalLabel = enrolled ? 'Student Portal' : 'Applicant Portal';
 
   const handleLogout = async () => {
     await logout();
@@ -40,7 +51,7 @@ const StudentSidebar = ({ activePage }) => {
           <h1 className={`${mobile ? 'text-[10px]' : 'text-[11px]'} font-black leading-[1.1] tracking-tight uppercase text-[#800000]`}>
             Nuestra Señora de Guia Academy of Marikina
           </h1>
-          <span className={`${mobile ? 'text-[8px]' : 'text-[9px]'} text-slate-400 font-bold uppercase tracking-[1px] mt-1`}>Student Portal</span>
+          <span className={`${mobile ? 'text-[8px]' : 'text-[9px]'} text-slate-400 font-bold uppercase tracking-[1px] mt-1`}>{portalLabel}</span>
         </div>
       </div>
 

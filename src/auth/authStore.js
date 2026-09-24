@@ -94,6 +94,24 @@ export async function updateRole(id, role) {
   if (!error) logAction('ROLE_CHANGE', `Changed role to ${role}: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
 }
+
+// Step-up security for role changes: email a 6-digit code to the acting
+// HeadAdmin, then apply the change only after they verify it. Enforced by the
+// admin-role-change Edge Function (HeadAdmin-only + OTP).
+export async function requestAdminOtp() {
+  const { data, error } = await supabase.functions.invoke('admin-role-change', { body: {} });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true, sentTo: data.sentTo };
+}
+export async function changeRoleWithOtp(targetUserId, newRole, code, targetName) {
+  const { data, error } = await supabase.functions.invoke('admin-role-change', { body: { targetUserId, newRole, code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Role change failed.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  logAction(newRole === 'headadmin' ? 'HEADADMIN_PROMOTE' : 'ROLE_CHANGE',
+    `${newRole === 'headadmin' ? 'Promoted to HeadAdmin' : 'Changed role to ' + newRole}: ${targetName || targetUserId}`);
+  return { ok: true };
+}
 export async function verifyAccount(id) {
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.VERIFIED, verified_at: new Date().toISOString() }).eq('id', id);

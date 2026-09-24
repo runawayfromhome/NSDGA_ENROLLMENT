@@ -1,19 +1,23 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import NuestraLogoImage from '../../../assets/nuestradg.png'
 import AcademyLogo from "../../../assets/nuestralogo.jpg"
 import ProcedureCard from "../../icons/StudentPortalIcons/ProcedureCard"
 import Input from "../../form/Input"
 import Padlock from "../../icons/StudentPortalIcons/Padlock"
 import Eye from "../../icons/StudentPortalIcons/Eye"
-import { setNewPassword } from '../../../lib/student'
+import { resetPasswordWithOtp } from '../../../lib/student'
 
 const CreateNewPass = () => {
   const navigate = useNavigate();
+  const { email, code } = useLocation().state || {};
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+
+  // Reachable only from the verified OTP step — bounce back otherwise.
+  useEffect(() => { if (!email || !code) navigate('/StudentPortal/ForgotPass', { replace: true }); }, [email, code, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,9 +27,9 @@ const CreateNewPass = () => {
     if ((pw || '').length < 8) return setError('Password must be at least 8 characters.');
     if (pw !== cf) return setError('Passwords do not match.');
     setBusy(true);
-    const res = await setNewPassword(pw);
+    const res = await resetPasswordWithOtp(email, code, pw);
     setBusy(false);
-    if (!res.ok) return setError(res.error || 'Reset failed. Your link may have expired — request a new one.');
+    if (!res.ok) return setError(res.error || 'Reset failed. Your code may have expired — request a new one.');
     setDone(true);
     setTimeout(() => navigate('/StudentPortal/Login'), 1800);
   };

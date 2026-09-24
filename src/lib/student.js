@@ -24,6 +24,11 @@ export const STATUS_LABEL = {
 
 export const CURRENT_SCHOOL_YEAR = '2026-2027';
 
+// A student unlocks the FULL portal only once the Registrar enrolls them.
+// Before that they are an "applicant" (draft/submitted/under_review/etc.).
+export const ENROLLED_STATUSES = ['enrolled', 'completed'];
+export const isEnrolledStatus = (s) => ENROLLED_STATUSES.includes(s);
+
 // Admission documents the student must submit.
 export const REQUIRED_DOCS = [
   { key: 'photo', label: '2x2 Picture' },
@@ -81,6 +86,48 @@ export async function applyAsStudent({ email, password, contact, level, studentT
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
   return { ok: true, userId: data.userId };
+}
+
+// --- New account-first signup flow ------------------------------------------
+// Step 1: create the account + a DRAFT application, then sign in so the rest of
+// the wizard (and document uploads) run authenticated. Returns { ok, appId }.
+export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password }) {
+  const clean = (email || '').trim().toLowerCase();
+  const form = { firstName, middleName, lastName, suffix, lrn, contact: phone, schoolYear: CURRENT_SCHOOL_YEAR };
+  const { data, error } = await supabase.functions.invoke('create-applicant', {
+    body: { email: clean, password, contact: phone, level: null, studentType: null, form },
+  });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not create your account — is create-applicant deployed?' };
+  if (data && data.error) return { ok: false, error: data.error };
+  const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
+  if (sErr) return { ok: false, error: sErr.message };
+  return { ok: true, appId: data.appId, userId: data.userId };
+}
+
+// Steps 2–5: save wizard progress onto the draft (form + grade/type columns).
+export async function saveApplicationDraft(id, { form, grade_level, student_type }) {
+  const patch = {};
+  if (form !== undefined) patch.form = form;
+  if (grade_level !== undefined) patch.grade_level = grade_level;
+  if (student_type !== undefined) patch.student_type = student_type;
+  const { error } = await supabase.from('applications').update(patch).eq('id', id);
+  return { ok: !error, error: error?.message };
+}
+
+// Email a 6-digit code to the signed-in applicant.
+export async function requestSignupOtp() {
+  const { data, error } = await supabase.functions.invoke('send-otp', { body: {} });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true, sentTo: data.sentTo };
+}
+
+// Verify the code → completes registration (draft becomes submitted).
+export async function verifySignupOtp(code) {
+  const { data, error } = await supabase.functions.invoke('verify-otp', { body: { code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Verification failed.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true };
 }
 
 // Sign in an existing student (rejects non-student accounts).
@@ -154,10 +201,13 @@ export async function reEnroll(prevApp) {
   return { ok: true, id: data.id, grade, schoolYear: sy };
 }
 
-// Resubmit after the registrar asked for corrections.
+// Resubmit after the registrar asked for corrections. Flags the record so the
+// Registrar can tell a corrected-and-resubmitted application apart from a
+// brand-new one (they both go back to status 'submitted').
 export async function resubmitApplication(id, form) {
+  const merged = { ...form, resubmitted: true, resubmittedAt: new Date().toISOString() };
   const { error } = await supabase.from('applications')
-    .update({ form, status: 'submitted', submitted_at: new Date().toISOString() })
+    .update({ form: merged, status: 'submitted', submitted_at: new Date().toISOString() })
     .eq('id', id);
   return { ok: !error, error: error?.message };
 }
@@ -183,6 +233,32 @@ export async function sendPasswordReset(email) {
 export async function setNewPassword(password) {
   const { error } = await supabase.auth.updateUser({ password });
   return { ok: !error, error: error?.message };
+}
+
+// --- Forgot-password via email OTP (student, no session) --------------------
+// Step 1: email a 6-digit reset code. Always resolves ok (server never reveals
+// whether the account exists).
+export async function sendResetOtp(email) {
+  const { data, error } = await supabase.functions.invoke('send-reset-otp', { body: { email: (email || '').trim().toLowerCase() } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true };
+}
+
+// Step 2: verify the code (does NOT consume it — the final step re-checks).
+export async function verifyResetOtp(email, code) {
+  const { data, error } = await supabase.functions.invoke('reset-password', { body: { email: (email || '').trim().toLowerCase(), code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Verification failed.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true };
+}
+
+// Step 3: set the new password using the verified code.
+export async function resetPasswordWithOtp(email, code, newPassword) {
+  const { data, error } = await supabase.functions.invoke('reset-password', { body: { email: (email || '').trim().toLowerCase(), code, newPassword } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Reset failed.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true };
 }
 
 export async function studentSignOut() {

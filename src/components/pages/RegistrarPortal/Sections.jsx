@@ -1,6 +1,7 @@
 // Registrar → Sections — create class sections per grade (Grade 1–12, many per
-// grade), set an adviser, and assign enrolled students (sortable by GWA so you
-// can build a top-GPA section) to each.
+// grade) and assign enrolled students to each. Assignment is first-come,
+// first-served: the unassigned list is ordered by enrollment date (earliest
+// first). Sections stay editable; only Admin can print the lists.
 import { useEffect, useMemo, useState } from 'react';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
@@ -10,8 +11,9 @@ import {
 } from '../../../lib/registrar';
 import { getActiveSchoolYear } from '../../../lib/content';
 import { ALL_GRADES } from '../../../lib/grades';
-import { printClassList, printGradeList } from '../../../lib/print';
-import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePrinter } from "react-icons/hi";
+import { HiOutlineUserGroup, HiOutlineTrash } from "react-icons/hi";
+
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
 
 const Sections = () => {
   const [schoolYear, setSchoolYear] = useState('');
@@ -20,11 +22,11 @@ const Sections = () => {
   const [pool, setPool] = useState([]); // enrolled students in this grade/year
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null); // section being managed
-  const [sort, setSort] = useState('gwa'); // gwa | name
+  const [sort, setSort] = useState('fcfs'); // fcfs (earliest enrolled) | name
   const [picked, setPicked] = useState({}); // { appId: true }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  const [form, setForm] = useState({ name: '', adviser: '', capacity: '' });
+  const [form, setForm] = useState({ name: '', capacity: '' });
 
   useEffect(() => { getActiveSchoolYear().then(setSchoolYear); }, []);
 
@@ -42,31 +44,31 @@ const Sections = () => {
   const members = selected ? pool.filter((a) => a.form?.section === selected.name) : [];
   const unassigned = useMemo(() => {
     const list = pool.filter((a) => !a.form?.section);
-    return [...list].sort((a, b) => sort === 'gwa'
-      ? (parseFloat(b.form?.gwa) || 0) - (parseFloat(a.form?.gwa) || 0)
+    return [...list].sort((a, b) => sort === 'fcfs'
+      ? new Date(a.created_at) - new Date(b.created_at) // first come, first served
       : applicantName(a).localeCompare(applicantName(b)));
   }, [pool, sort]);
 
   const addSection = async () => {
     if (!form.name.trim()) return setMsg('⚠️ Section name is required.');
     setBusy(true); setMsg('');
-    const r = await createSection({ schoolYear, grade, name: form.name.trim(), adviser: form.adviser.trim(), capacity: form.capacity ? +form.capacity : null });
+    const r = await createSection({ schoolYear, grade, name: form.name.trim(), capacity: form.capacity ? +form.capacity : null });
     setBusy(false);
     if (!r.ok) return setMsg('⚠️ ' + r.error);
-    setForm({ name: '', adviser: '', capacity: '' }); await load();
+    setForm({ name: '', capacity: '' }); await load();
   };
 
   const assignPicked = async () => {
     const apps = unassigned.filter((a) => picked[a.id]);
     if (!apps.length) return;
     setBusy(true); setMsg('');
-    const r = await assignToSection(apps, selected.name, selected.adviser);
+    const r = await assignToSection(apps, selected.name);
     setBusy(false);
     if (!r.ok) return setMsg('⚠️ ' + r.error);
     setMsg(`✓ Assigned ${apps.length} student${apps.length === 1 ? '' : 's'} to ${selected.name}.`);
     await load();
   };
-  const removeStudent = async (app) => { setBusy(true); await assignToSection([app], null, null); setBusy(false); await load(); };
+  const removeStudent = async (app) => { setBusy(true); await assignToSection([app], null); setBusy(false); await load(); };
   const removeSection = async (s) => { if (countIn(s.name)) return setMsg('⚠️ Remove students from this section first.'); await deleteSection(s.id); if (selected?.id === s.id) setSelected(null); await load(); };
 
   return (
@@ -87,7 +89,6 @@ const Sections = () => {
             </Field>
             <div className="h-8 w-px bg-gray-200 mx-1" />
             <Field label="New section name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="sel w-44" placeholder="St. Peter" /></Field>
-            <Field label="Adviser"><input value={form.adviser} onChange={(e) => setForm({ ...form, adviser: e.target.value })} className="sel w-44" placeholder="Ms. Cruz" /></Field>
             <Field label="Capacity"><input value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className="sel w-24" placeholder="40" /></Field>
             <button disabled={busy} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
           </div>
@@ -97,21 +98,13 @@ const Sections = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* section list */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">{grade} · {schoolYear} — {sections.length} section{sections.length === 1 ? '' : 's'}</h2>
-                {sections.length > 0 && (
-                  <button onClick={() => printGradeList({ grade, schoolYear, sections, students: pool })} className="flex items-center gap-1.5 text-[12px] font-bold text-[#800000] hover:underline"><HiOutlinePrinter size={15} /> Grade master list</button>
-                )}
-              </div>
+              <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">{grade} · {schoolYear} — {sections.length} section{sections.length === 1 ? '' : 's'}</h2>
               {loading && <p className="text-slate-400 text-sm">Loading…</p>}
               {!loading && sections.length === 0 && <div className="bg-white rounded-2xl border border-gray-100 p-6 text-slate-400 text-sm">No sections yet for {grade}. Add one above.</div>}
               {sections.map((s) => (
                 <div key={s.id} onClick={() => setSelected(s)} className={`bg-white rounded-2xl border shadow-sm p-5 cursor-pointer transition ${selected?.id === s.id ? 'border-[#800000]' : 'border-gray-100 hover:border-gray-200'}`}>
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-slate-800">{s.name}</p>
-                      <p className="text-[12px] text-slate-400">Adviser: {s.adviser || '—'}</p>
-                    </div>
+                    <p className="font-bold text-slate-800">{s.name}</p>
                     <div className="flex items-center gap-3">
                       <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600"><HiOutlineUserGroup size={18} />{countIn(s.name)}{s.capacity ? `/${s.capacity}` : ''}</span>
                       <button onClick={(e) => { e.stopPropagation(); removeSection(s); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Delete section"><HiOutlineTrash size={16} /></button>
@@ -127,12 +120,9 @@ const Sections = () => {
                 <p className="text-slate-400 text-sm py-8 text-center">Select a section to manage its students.</p>
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800">{selected.name}</h3>
-                      <p className="text-[12px] text-slate-400">Adviser: {selected.adviser || '—'} · {members.length}{selected.capacity ? `/${selected.capacity}` : ''} students</p>
-                    </div>
-                    <button onClick={() => printClassList({ grade, section: selected.name, adviser: selected.adviser, schoolYear, students: members })} className="flex items-center gap-1.5 text-sm font-bold text-[#800000] hover:bg-[#800000]/5 px-3 py-2 rounded-lg"><HiOutlinePrinter size={16} /> Print class list</button>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-slate-800">{selected.name}</h3>
+                    <p className="text-[12px] text-slate-400">{members.length}{selected.capacity ? `/${selected.capacity}` : ''} students</p>
                   </div>
 
                   {/* members */}
@@ -141,7 +131,7 @@ const Sections = () => {
                   <div className="space-y-1.5 mb-6 max-h-52 overflow-y-auto">
                     {members.map((a) => (
                       <div key={a.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
-                        <span className="text-sm font-semibold text-slate-700">{applicantName(a)} <span className="text-slate-400 font-normal">· GWA {a.form?.gwa || '—'}</span></span>
+                        <span className="text-sm font-semibold text-slate-700">{applicantName(a)} <span className="text-slate-400 font-normal">· enrolled {fmtDate(a.created_at)}</span></span>
                         <button disabled={busy} onClick={() => removeStudent(a)} className="text-[11px] font-bold text-red-600 hover:underline">Remove</button>
                       </div>
                     ))}
@@ -151,7 +141,7 @@ const Sections = () => {
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Add students ({unassigned.length} unassigned)</p>
                     <select value={sort} onChange={(e) => setSort(e.target.value)} className="text-xs font-bold text-slate-500 bg-slate-100 rounded-lg px-2 py-1 outline-none">
-                      <option value="gwa">Sort: Highest GWA</option>
+                      <option value="fcfs">Sort: Earliest enrolled</option>
                       <option value="name">Sort: Name</option>
                     </select>
                   </div>
@@ -161,7 +151,7 @@ const Sections = () => {
                       <label key={a.id} className="flex items-center gap-3 bg-white border border-slate-100 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50">
                         <input type="checkbox" checked={!!picked[a.id]} onChange={(e) => setPicked({ ...picked, [a.id]: e.target.checked })} className="accent-[#800000] w-4 h-4" />
                         <span className="text-sm font-semibold text-slate-700 flex-1">{applicantName(a)}</span>
-                        <span className="text-xs font-bold text-slate-500">GWA {a.form?.gwa || '—'}</span>
+                        <span className="text-xs font-bold text-slate-500">enrolled {fmtDate(a.created_at)}</span>
                       </label>
                     ))}
                   </div>

@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
-import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS } from '../../../lib/student';
+import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus } from '../../../lib/student';
 import { BILLING_STATUS, billingBalance } from '../../../lib/billing';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
 import { nextGrade, nextSchoolYear } from '../../../lib/grades';
@@ -33,7 +33,12 @@ const Dashboard = () => {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    getMyApplication().then(setApp);
+    // Defense-in-depth: the full dashboard is enrolled-only. An applicant who
+    // somehow reaches this page is bounced to their applicant dashboard.
+    getMyApplication().then((a) => {
+      if (a && !isEnrolledStatus(a.status)) { navigate('/StudentPortal/ApplicationStatus', { replace: true }); return; }
+      setApp(a);
+    });
     getMyApplications().then(setHistory);
     getAnnouncements().then(setAnnouncements);
     getEnrollment().then(setEnr);
@@ -158,7 +163,6 @@ const Dashboard = () => {
                     <HiOutlineUserGroup className="text-[#800000]" size={22} />
                     <h2 className="text-lg font-bold text-slate-800">My Class — {app.form.section}</h2>
                   </div>
-                  <p className="text-sm text-slate-500 mb-4">Adviser: <b className="text-slate-700">{app.form.adviser || '—'}</b></p>
                   {app.form.classmates?.length > 0 && (
                     <>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Classmates ({app.form.classmates.length})</p>

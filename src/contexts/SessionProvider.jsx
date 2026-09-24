@@ -41,6 +41,15 @@ export default function SessionProvider({ children }) {
     if (!sbSession?.user) { setSession(null); return null; }
     const profile = await fetchProfileById(sbSession.user.id);
     const combined = combine(sbSession.user, profile);
+    // A student's portal access depends on whether the Registrar has enrolled
+    // them. Applicants (not yet enrolled) only get the applicant dashboard.
+    if (combined && profile?.role === 'student') {
+      const { data: app } = await supabase.from('applications')
+        .select('status').eq('student_id', sbSession.user.id)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      combined.appStatus = app?.status || null;
+      combined.isEnrolled = ['enrolled', 'completed'].includes(app?.status);
+    }
     // Flag whether the user still owes an MFA code (has an authenticator but is
     // only at AAL1). ProtectedRoute uses this to hold them at the login step.
     if (combined) {
