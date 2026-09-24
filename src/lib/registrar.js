@@ -170,6 +170,23 @@ export async function listEnrolled() {
 }
 
 // --- Class sections ----------------------------------------------------------
+// Every section holds at most this many students; enforced on assignment.
+export const SECTION_CAPACITY = 45;
+
+// Section lifecycle: 'draft' (registrar still editing) → 'pending' (submitted to
+// Admin) → 'approved' (Admin released the roster to students). Editing an
+// approved/pending section (rename or roster change) sends it back to 'draft',
+// so it must be re-submitted and re-approved. Legacy rows default to 'pending'.
+export const sectionStatus = (s) => s?.status || 'pending';
+
+// True if another section in the same grade + year already uses this name.
+async function sectionNameTaken(schoolYear, grade, name, exceptId) {
+  const { data } = await supabase.from('sections')
+    .select('id, name').eq('school_year', schoolYear).eq('grade', grade);
+  const norm = String(name).trim().toLowerCase();
+  return (data || []).some((s) => s.id !== exceptId && String(s.name).trim().toLowerCase() === norm);
+}
+
 export async function listSections(schoolYear, grade) {
   let q = supabase.from('sections').select('*').order('name', { ascending: true });
   if (schoolYear) q = q.eq('school_year', schoolYear);
@@ -217,17 +234,58 @@ export async function unapproveSection(section) {
   return { ok: true };
 }
 
-export async function createSection({ schoolYear, grade, name, adviser, capacity }) {
+export async function createSection({ schoolYear, grade, name }) {
   if (!schoolYear || !grade || !name) return { ok: false, error: 'School year, grade, and name are required.' };
+  const clean = String(name).trim();
+  if (await sectionNameTaken(schoolYear, grade, clean))
+    return { ok: false, error: `A section named "${clean}" already exists for ${grade}.` };
   const { data, error } = await supabase.from('sections')
-    .insert({ school_year: schoolYear, grade, name, adviser: adviser || '', capacity: capacity || null })
+    .insert({ school_year: schoolYear, grade, name: clean, capacity: SECTION_CAPACITY, status: 'draft' })
     .select('id').single();
+  if (!error) logAction('SECTION_CREATE', `Created section ${grade} · ${clean}`);
   return { ok: !error, error: error?.message, id: data?.id };
 }
 
-export async function updateSection(id, fields) {
-  const { error } = await supabase.from('sections').update(fields).eq('id', id);
-  return { ok: !error, error: error?.message };
+// Rename a section (registrar). Enforces unique names, moves members to the new
+// name, and sends the section back to 'draft' for re-submission + re-approval.
+export async function renameSection(section, newName) {
+  const clean = String(newName || '').trim();
+  if (!clean) return { ok: false, error: 'Section name is required.' };
+  if (clean === section.name) return { ok: true };
+  if (await sectionNameTaken(section.school_year, section.grade, clean, section.id))
+    return { ok: false, error: `A section named "${clean}" already exists for ${section.grade}.` };
+  const members = (await listEnrolledInGrade(section.school_year, section.grade))
+    .filter((a) => a.form?.section === section.name);
+  for (const m of members) {
+    const form = { ...(m.form || {}), section: clean, sectionApproved: false, classmates: [] };
+    await supabase.from('applications').update({ form }).eq('id', m.id);
+  }
+  const { error } = await supabase.from('sections').update({ name: clean, status: 'draft' }).eq('id', section.id);
+  if (error) return { ok: false, error: error.message };
+  logAction('SECTION_RENAME', `Renamed section ${section.grade} · ${section.name} → ${clean}`);
+  return { ok: true };
+}
+
+// Registrar submits (or re-submits) a section to Admin for approval.
+export async function submitSection(section) {
+  const { error } = await supabase.from('sections').update({ status: 'pending' }).eq('id', section.id);
+  if (error) return { ok: false, error: error.message };
+  logAction('SECTION_SUBMIT', `Submitted for approval: ${section.grade} · ${section.name}`);
+  return { ok: true };
+}
+
+// Send an approved/pending section back to 'draft' after its roster or name
+// changes, clearing any roster already released to students.
+async function revertSectionToDraft(section) {
+  if (sectionStatus(section) === 'approved') {
+    const members = (await listEnrolledInGrade(section.school_year, section.grade))
+      .filter((a) => a.form?.section === section.name);
+    for (const m of members) {
+      const form = { ...(m.form || {}), sectionApproved: false, classmates: [] };
+      await supabase.from('applications').update({ form }).eq('id', m.id);
+    }
+  }
+  await supabase.from('sections').update({ status: 'draft' }).eq('id', section.id);
 }
 
 export async function deleteSection(id) {
@@ -247,12 +305,24 @@ export async function listEnrolledInGrade(schoolYear, grade) {
 
 // Assign a list of enrolled applications to a section (writes the section name
 // onto each student's enrollment record). Pass sectionName=null to unassign.
-export async function assignToSection(apps, sectionName) {
+// Pass `section` so the 45-student cap is enforced and the section is sent back
+// to 'draft' (needs re-approval) whenever its roster changes.
+export async function assignToSection(apps, sectionName, section) {
+  if (sectionName && section) {
+    const current = (await listEnrolledInGrade(section.school_year, section.grade))
+      .filter((a) => a.form?.section === sectionName);
+    const adding = apps.filter((a) => a.form?.section !== sectionName).length;
+    if (current.length + adding > SECTION_CAPACITY) {
+      const room = Math.max(0, SECTION_CAPACITY - current.length);
+      return { ok: false, error: `Section is full (${SECTION_CAPACITY} max) — room for ${room} more.` };
+    }
+  }
   for (const app of apps) {
     const form = { ...(app.form || {}), section: sectionName || null };
     const { error } = await supabase.from('applications').update({ form }).eq('id', app.id);
     if (error) return { ok: false, error: error.message };
   }
+  if (section && sectionStatus(section) !== 'draft') await revertSectionToDraft(section);
   return { ok: true };
 }
 

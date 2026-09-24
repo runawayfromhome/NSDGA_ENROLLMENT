@@ -1,19 +1,27 @@
 // Registrar → Sections — create class sections per grade (Grade 1–12, many per
 // grade) and assign enrolled students to each. Assignment is first-come,
 // first-served: the unassigned list is ordered by enrollment date (earliest
-// first). Sections stay editable; only Admin can print the lists.
+// first). Rules: section names are unique per grade, each section holds at most
+// 45 students, and every section can be edited then (re)submitted to Admin —
+// only Admin approves. Editing a section sends it back to draft for re-approval.
 import { useEffect, useMemo, useState } from 'react';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
 import {
-  listSections, createSection, deleteSection,
-  listEnrolledInGrade, assignToSection, applicantName,
+  listSections, createSection, deleteSection, renameSection, submitSection,
+  listEnrolledInGrade, assignToSection, applicantName, sectionStatus, SECTION_CAPACITY,
 } from '../../../lib/registrar';
 import { getActiveSchoolYear } from '../../../lib/content';
 import { ALL_GRADES } from '../../../lib/grades';
-import { HiOutlineUserGroup, HiOutlineTrash } from "react-icons/hi";
+import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePencil, HiOutlinePaperAirplane } from "react-icons/hi";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
+
+const STATUS = {
+  draft:    { label: 'DRAFT',    cls: 'bg-slate-100 text-slate-500' },
+  pending:  { label: 'PENDING',  cls: 'bg-amber-50 text-amber-700' },
+  approved: { label: 'APPROVED', cls: 'bg-emerald-50 text-emerald-600' },
+};
 
 const Sections = () => {
   const [schoolYear, setSchoolYear] = useState('');
@@ -26,7 +34,9 @@ const Sections = () => {
   const [picked, setPicked] = useState({}); // { appId: true }
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  const [form, setForm] = useState({ name: '', capacity: '' });
+  const [name, setName] = useState('');
+  const [editId, setEditId] = useState(null); // section being renamed
+  const [editName, setEditName] = useState('');
 
   useEffect(() => { getActiveSchoolYear().then(setSchoolYear); }, []);
 
@@ -40,8 +50,10 @@ const Sections = () => {
   };
   useEffect(() => { load(); }, [schoolYear, grade]);
 
-  const countIn = (name) => pool.filter((a) => a.form?.section === name).length;
+  const countIn = (nm) => pool.filter((a) => a.form?.section === nm).length;
   const members = selected ? pool.filter((a) => a.form?.section === selected.name) : [];
+  const room = selected ? Math.max(0, SECTION_CAPACITY - members.length) : 0;
+  const pickedCount = Object.values(picked).filter(Boolean).length;
   const unassigned = useMemo(() => {
     const list = pool.filter((a) => !a.form?.section);
     return [...list].sort((a, b) => sort === 'fcfs'
@@ -50,25 +62,42 @@ const Sections = () => {
   }, [pool, sort]);
 
   const addSection = async () => {
-    if (!form.name.trim()) return setMsg('⚠️ Section name is required.');
+    if (!name.trim()) return setMsg('⚠️ Section name is required.');
     setBusy(true); setMsg('');
-    const r = await createSection({ schoolYear, grade, name: form.name.trim(), capacity: form.capacity ? +form.capacity : null });
+    const r = await createSection({ schoolYear, grade, name: name.trim() });
     setBusy(false);
     if (!r.ok) return setMsg('⚠️ ' + r.error);
-    setForm({ name: '', capacity: '' }); await load();
+    setName(''); await load();
+  };
+
+  const saveRename = async (s) => {
+    setBusy(true); setMsg('');
+    const r = await renameSection(s, editName);
+    setBusy(false);
+    if (!r.ok) return setMsg('⚠️ ' + r.error);
+    setEditId(null); setEditName(''); await load();
+  };
+
+  const submit = async (s) => {
+    if (!countIn(s.name)) return setMsg('⚠️ Add at least one student before submitting.');
+    setBusy(true); setMsg('');
+    const r = await submitSection(s);
+    setBusy(false);
+    if (!r.ok) return setMsg('⚠️ ' + r.error);
+    setMsg(`✓ Submitted ${s.name} to Admin for approval.`); await load();
   };
 
   const assignPicked = async () => {
     const apps = unassigned.filter((a) => picked[a.id]);
     if (!apps.length) return;
     setBusy(true); setMsg('');
-    const r = await assignToSection(apps, selected.name);
+    const r = await assignToSection(apps, selected.name, selected);
     setBusy(false);
     if (!r.ok) return setMsg('⚠️ ' + r.error);
     setMsg(`✓ Assigned ${apps.length} student${apps.length === 1 ? '' : 's'} to ${selected.name}.`);
     await load();
   };
-  const removeStudent = async (app) => { setBusy(true); await assignToSection([app], null); setBusy(false); await load(); };
+  const removeStudent = async (app) => { setBusy(true); await assignToSection([app], null, selected); setBusy(false); await load(); };
   const removeSection = async (s) => { if (countIn(s.name)) return setMsg('⚠️ Remove students from this section first.'); await deleteSection(s.id); if (selected?.id === s.id) setSelected(null); await load(); };
 
   return (
@@ -78,6 +107,7 @@ const Sections = () => {
         <Header showSearch={false} />
         <main className="p-8 md:p-12 max-w-[1400px] w-full mx-auto space-y-6">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Class Sections</h1>
+          <p className="text-slate-500 text-sm -mt-4">Section names are unique per grade · up to {SECTION_CAPACITY} students each · edit anytime, then submit to Admin for approval.</p>
 
           {/* filters + add */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-4">
@@ -88,8 +118,7 @@ const Sections = () => {
               </select>
             </Field>
             <div className="h-8 w-px bg-gray-200 mx-1" />
-            <Field label="New section name"><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="sel w-44" placeholder="St. Peter" /></Field>
-            <Field label="Capacity"><input value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className="sel w-24" placeholder="40" /></Field>
+            <Field label="New section name"><input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSection()} className="sel w-44" placeholder="St. Peter" /></Field>
             <button disabled={busy} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
           </div>
 
@@ -101,17 +130,46 @@ const Sections = () => {
               <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wide">{grade} · {schoolYear} — {sections.length} section{sections.length === 1 ? '' : 's'}</h2>
               {loading && <p className="text-slate-400 text-sm">Loading…</p>}
               {!loading && sections.length === 0 && <div className="bg-white rounded-2xl border border-gray-100 p-6 text-slate-400 text-sm">No sections yet for {grade}. Add one above.</div>}
-              {sections.map((s) => (
-                <div key={s.id} onClick={() => setSelected(s)} className={`bg-white rounded-2xl border shadow-sm p-5 cursor-pointer transition ${selected?.id === s.id ? 'border-[#800000]' : 'border-gray-100 hover:border-gray-200'}`}>
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold text-slate-800">{s.name}</p>
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600"><HiOutlineUserGroup size={18} />{countIn(s.name)}{s.capacity ? `/${s.capacity}` : ''}</span>
-                      <button onClick={(e) => { e.stopPropagation(); removeSection(s); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Delete section"><HiOutlineTrash size={16} /></button>
+              {sections.map((s) => {
+                const st = STATUS[sectionStatus(s)] || STATUS.pending;
+                const count = countIn(s.name);
+                const full = count >= SECTION_CAPACITY;
+                return (
+                  <div key={s.id} onClick={() => setSelected(s)} className={`bg-white rounded-2xl border shadow-sm p-5 cursor-pointer transition ${selected?.id === s.id ? 'border-[#800000]' : 'border-gray-100 hover:border-gray-200'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      {editId === s.id ? (
+                        <input autoFocus value={editName} onClick={(e) => e.stopPropagation()} onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') saveRename(s); if (e.key === 'Escape') setEditId(null); }}
+                          className="sel flex-1 min-w-0" placeholder="Section name" />
+                      ) : (
+                        <p className="font-bold text-slate-800 truncate">{s.name}</p>
+                      )}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide ${st.cls}`}>{st.label}</span>
+                        <span className={`inline-flex items-center gap-1.5 text-sm font-bold ${full ? 'text-red-600' : 'text-slate-600'}`}><HiOutlineUserGroup size={18} />{count}/{SECTION_CAPACITY}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+                      {editId === s.id ? (
+                        <>
+                          <button disabled={busy} onClick={() => saveRename(s)} className="px-3 py-1.5 text-xs font-bold bg-[#800000] text-white rounded-lg disabled:opacity-60">Save</button>
+                          <button onClick={() => { setEditId(null); setEditName(''); }} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => { setEditId(s.id); setEditName(s.name); }} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"><HiOutlinePencil size={14} /> Edit</button>
+                          {sectionStatus(s) === 'approved'
+                            ? <span className="text-xs font-bold text-emerald-600">✓ Approved by Admin</span>
+                            : sectionStatus(s) === 'pending'
+                              ? <span className="text-xs font-semibold text-amber-600">Awaiting Admin approval</span>
+                              : <button disabled={busy} onClick={() => submit(s)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-60"><HiOutlinePaperAirplane size={13} /> Submit to Admin</button>}
+                          <button onClick={() => removeSection(s)} className="ml-auto p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete section"><HiOutlineTrash size={16} /></button>
+                        </>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* manage selected */}
@@ -122,7 +180,7 @@ const Sections = () => {
                 <>
                   <div className="mb-4">
                     <h3 className="text-lg font-bold text-slate-800">{selected.name}</h3>
-                    <p className="text-[12px] text-slate-400">{members.length}{selected.capacity ? `/${selected.capacity}` : ''} students</p>
+                    <p className="text-[12px] text-slate-400">{members.length}/{SECTION_CAPACITY} students · {room} slot{room === 1 ? '' : 's'} left</p>
                   </div>
 
                   {/* members */}
@@ -145,17 +203,23 @@ const Sections = () => {
                       <option value="name">Sort: Name</option>
                     </select>
                   </div>
+                  {room === 0 && <p className="text-xs font-bold text-red-600 mb-2">Section is full ({SECTION_CAPACITY} students).</p>}
                   <div className="space-y-1.5 max-h-52 overflow-y-auto mb-4">
                     {unassigned.length === 0 && <p className="text-slate-400 text-sm">All enrolled students are sectioned.</p>}
-                    {unassigned.map((a) => (
-                      <label key={a.id} className="flex items-center gap-3 bg-white border border-slate-100 rounded-lg px-3 py-2 cursor-pointer hover:bg-slate-50">
-                        <input type="checkbox" checked={!!picked[a.id]} onChange={(e) => setPicked({ ...picked, [a.id]: e.target.checked })} className="accent-[#800000] w-4 h-4" />
-                        <span className="text-sm font-semibold text-slate-700 flex-1">{applicantName(a)}</span>
-                        <span className="text-xs font-bold text-slate-500">enrolled {fmtDate(a.created_at)}</span>
-                      </label>
-                    ))}
+                    {unassigned.map((a) => {
+                      const checked = !!picked[a.id];
+                      const capReached = !checked && pickedCount >= room;
+                      return (
+                        <label key={a.id} className={`flex items-center gap-3 bg-white border border-slate-100 rounded-lg px-3 py-2 ${capReached ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50'}`}>
+                          <input type="checkbox" checked={checked} disabled={capReached} onChange={(e) => setPicked({ ...picked, [a.id]: e.target.checked })} className="accent-[#800000] w-4 h-4" />
+                          <span className="text-sm font-semibold text-slate-700 flex-1">{applicantName(a)}</span>
+                          <span className="text-xs font-bold text-slate-500">enrolled {fmtDate(a.created_at)}</span>
+                        </label>
+                      );
+                    })}
                   </div>
-                  <button disabled={busy || !Object.values(picked).some(Boolean)} onClick={assignPicked} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold disabled:opacity-50">Assign selected to {selected.name}</button>
+                  <button disabled={busy || pickedCount === 0} onClick={assignPicked} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold disabled:opacity-50">Assign {pickedCount || ''} to {selected.name}</button>
+                  <p className="text-[11px] text-slate-400 mt-2">Editing a section sends it back to Admin for re-approval.</p>
                 </>
               )}
             </div>

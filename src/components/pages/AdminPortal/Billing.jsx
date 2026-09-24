@@ -1,8 +1,9 @@
 // src/components/pages/AdminPortal/Billing.jsx
-// Admin → Billing. The bridge to Finance (the school's finance is handled
-// off-system). Lists enrolled students, EXPORTS them to a CSV for Finance, and
+// Admin → Finance Status. The bridge to Finance (the school does NOT hold the
+// finance side). Lists enrolled students, EXPORTS them to a CSV for Finance, and
 // IMPORTS the returned CSV to update payment statuses automatically. Statuses
-// can also be edited inline. Everything here is a record only — no money moves.
+// can also be edited inline. This is a status record only — no money is tracked
+// or processed here (only status, OR number, remarks, and voucher tag).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminSidebar from '../../AdminSidebar';
 import { CardSkeleton } from '../../Skeleton';
@@ -10,10 +11,8 @@ import { useSession } from '../../../contexts/useSession';
 import { applicantName } from '../../../lib/registrar';
 import {
   listBillingRows, updateBilling, downloadBillingCsv, importBillingCsv,
-  BILLING_STATUS, BILLING_ORDER, billingBalance,
+  BILLING_STATUS, BILLING_ORDER,
 } from '../../../lib/billing';
-
-const peso = (v) => { const n = Number(v); return isNaN(n) || v === '' || v == null ? '—' : `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 
 const Billing = () => {
   const { session } = useSession();
@@ -70,12 +69,13 @@ const Billing = () => {
         <main className="p-6 md:p-12 max-w-[1400px] w-full">
           <div className="flex items-center gap-4 mb-2">
             <div className="w-2 h-10 bg-[#800000]" />
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Billing &amp; Finance</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Finance Status</h1>
           </div>
           <p className="text-gray-500 text-sm ml-6 mb-8 max-w-3xl">
-            Hand off enrolled students to Finance. <b>Export</b> the list, let Finance assess and collect
-            payment offline, then <b>Import</b> their returned CSV to update payment statuses. Payments are
-            recorded here — no money is processed in the system.
+            The school does not hold the finance side — this only tracks each student's payment <b>status</b>.
+            <b> Export</b> the enrolled list, let Finance assess and collect payment offline, then <b>Import</b>
+            their returned CSV to update statuses automatically. No amounts are stored here — only status,
+            OR number, and remarks.
           </p>
 
           {msg && <div className={`mb-5 rounded-lg px-4 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
@@ -110,16 +110,15 @@ const Billing = () => {
                 <table className="w-full text-left min-w-[880px]">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      {['Student No', 'Name', 'Grade / Strand', 'Voucher', 'Status', 'Balance', 'OR No.', ''].map((h) => (
+                      {['Student No', 'Name', 'Grade / Strand', 'Voucher', 'Status', 'OR No.', ''].map((h) => (
                         <th key={h} className="pb-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filtered.length === 0 && <tr><td colSpan={8} className="py-10 text-center text-slate-400 text-sm">No enrolled students match these filters.</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-slate-400 text-sm">No enrolled students match these filters.</td></tr>}
                     {filtered.map((r) => {
                       const b = r.billing || {}, st = BILLING_STATUS[b.status] || BILLING_STATUS.not_assessed;
-                      const bal = billingBalance(b);
                       const voucher = r.form?.voucherApplicant === 'Yes';
                       return (
                         <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
@@ -128,7 +127,6 @@ const Billing = () => {
                           <td className="py-3.5 text-[12px] text-slate-600">{r.form?.grade || r.grade_level}{r.form?.strand ? ` · ${r.form.strand}` : ''}</td>
                           <td className="py-3.5">{voucher ? <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-teal-50 text-teal-600">{r.form?.voucherType || 'Voucher'}</span> : <span className="text-slate-300 text-xs">—</span>}</td>
                           <td className="py-3.5"><span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${st.cls}`}>{st.label.toUpperCase()}</span></td>
-                          <td className="py-3.5 text-[12px] font-semibold text-slate-700">{bal == null ? '—' : peso(bal)}</td>
                           <td className="py-3.5 text-[12px] text-slate-500">{b.orNumber || '—'}</td>
                           <td className="py-3.5 text-right"><button onClick={() => setEdit(r)} className="px-4 py-2 rounded-lg text-[12px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Edit</button></td>
                         </tr>
@@ -143,7 +141,6 @@ const Billing = () => {
                 {filtered.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No enrolled students match these filters.</p>}
                 {filtered.map((r) => {
                   const b = r.billing || {}, st = BILLING_STATUS[b.status] || BILLING_STATUS.not_assessed;
-                  const bal = billingBalance(b);
                   const voucher = r.form?.voucherApplicant === 'Yes';
                   return (
                     <div key={r.id} className="border border-gray-100 rounded-xl p-4">
@@ -155,7 +152,6 @@ const Billing = () => {
                         <span className={`shrink-0 px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide ${st.cls}`}>{st.label.toUpperCase()}</span>
                       </div>
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[12px] text-slate-600">
-                        <span>Balance: <b className="text-slate-800">{bal == null ? '—' : peso(bal)}</b></span>
                         <span>OR: {b.orNumber || '—'}</span>
                         {voucher && <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-600">🎟️ {r.form?.voucherType || 'Voucher'}</span>}
                       </div>
@@ -181,15 +177,13 @@ const Billing = () => {
 const EditModal = ({ app, staffName, onClose, onSaved }) => {
   const b = app.billing || {};
   const [status, setStatus] = useState(b.status || 'not_assessed');
-  const [amountDue, setAmountDue] = useState(b.amountDue ?? '');
-  const [amountPaid, setAmountPaid] = useState(b.amountPaid ?? '');
   const [orNumber, setOrNumber] = useState(b.orNumber || '');
   const [remarks, setRemarks] = useState(b.remarks || '');
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
-    const res = await updateBilling(app.id, { status, amountDue, amountPaid, orNumber, remarks, updatedByName: staffName }, applicantName(app));
+    const res = await updateBilling(app.id, { status, orNumber, remarks, updatedByName: staffName }, applicantName(app));
     setBusy(false);
     if (res.ok) onSaved();
   };
@@ -208,12 +202,6 @@ const EditModal = ({ app, staffName, onClose, onSaved }) => {
               {BILLING_ORDER.map((k) => <option key={k} value={k}>{BILLING_STATUS[k].label}</option>)}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-4">
-            <label className="block"><span className="block font-semibold text-xs text-gray-600 mb-1.5">Amount Due (₱)</span>
-              <input className="ip" inputMode="decimal" value={amountDue} onChange={(e) => setAmountDue(e.target.value)} placeholder="0.00" /></label>
-            <label className="block"><span className="block font-semibold text-xs text-gray-600 mb-1.5">Amount Paid (₱)</span>
-              <input className="ip" inputMode="decimal" value={amountPaid} onChange={(e) => setAmountPaid(e.target.value)} placeholder="0.00" /></label>
-          </div>
           <label className="block"><span className="block font-semibold text-xs text-gray-600 mb-1.5">OR Number</span>
             <input className="ip" value={orNumber} onChange={(e) => setOrNumber(e.target.value)} placeholder="Official Receipt no." /></label>
           <label className="block"><span className="block font-semibold text-xs text-gray-600 mb-1.5">Remarks</span>

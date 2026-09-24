@@ -6,7 +6,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus } from '../../../lib/student';
-import { BILLING_STATUS, billingBalance } from '../../../lib/billing';
+import { BILLING_STATUS } from '../../../lib/billing';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
 import { nextGrade, nextSchoolYear } from '../../../lib/grades';
 import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup } from "react-icons/hi";
@@ -195,23 +195,18 @@ const Dashboard = () => {
   );
 };
 
-const peso = (v) => { const n = Number(v); return isNaN(n) || v === '' || v == null ? null : `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
-
 const PaymentCard = ({ billing, form }) => {
   const b = billing || {};
   const st = BILLING_STATUS[b.status] || BILLING_STATUS.not_assessed;
-  const bal = billingBalance(b);
   const isVoucher = form?.voucherApplicant === 'Yes';
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-10">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-lg font-bold text-slate-800">Tuition &amp; Payment</h2>
+        <h2 className="text-lg font-bold text-slate-800">Tuition Status</h2>
         <span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${st.cls}`}>{st.label.toUpperCase()}</span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Info label="Amount Due" value={peso(b.amountDue) || '—'} />
-        <Info label="Amount Paid" value={peso(b.amountPaid) || '—'} />
-        <Info label="Balance" value={bal == null ? '—' : (peso(bal) || '—')} tone={bal === 0 ? 'text-emerald-600' : 'text-slate-800'} />
+      <div className="grid grid-cols-2 gap-4">
+        <Info label="Payment Status" value={st.label} />
         <Info label="OR Number" value={b.orNumber || '—'} />
       </div>
       {isVoucher && <p className="text-[12px] text-teal-700 bg-teal-50 rounded-lg px-3 py-2 mt-4">🎟️ DepEd SHS Voucher applicant{form?.voucherType ? ` (${form.voucherType})` : ''} — tuition may be partly or fully covered, subject to verification.</p>}

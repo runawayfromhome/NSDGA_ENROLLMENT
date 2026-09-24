@@ -4,7 +4,7 @@
 // PRINT the class lists and grade master lists.
 import { useEffect, useMemo, useState } from 'react';
 import AdminSidebar from '../../AdminSidebar';
-import { listAllSections, listEnrolled, approveSection, unapproveSection, applicantName } from '../../../lib/registrar';
+import { listAllSections, listEnrolled, approveSection, unapproveSection, applicantName, sectionStatus } from '../../../lib/registrar';
 import { printClassList, printGradeList } from '../../../lib/print';
 import { ALL_GRADES } from '../../../lib/grades';
 import { CardSkeleton } from '../../Skeleton';
@@ -75,9 +75,12 @@ const SectionApprovals = () => {
           <div className="space-y-3">
             {(sections || []).map((s) => {
               const mem = membersOf(s);
-              const approved = s.status === 'approved';
+              const status = sectionStatus(s);
+              const approved = status === 'approved';
+              const isDraft = status === 'draft';
+              const badge = approved ? 'bg-emerald-50 text-emerald-600' : isDraft ? 'bg-slate-100 text-slate-500' : 'bg-amber-50 text-amber-700';
               return (
-                <div key={s.id} className="bg-white rounded-2xl shadow-sm p-5">
+                <div key={s.id} className={`bg-white rounded-2xl shadow-sm p-5 ${isDraft ? 'opacity-75' : ''}`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-bold text-slate-800">{s.grade} · {s.name} <span className="text-slate-400 font-normal text-sm">· S.Y. {s.school_year}</span></p>
@@ -85,10 +88,12 @@ const SectionApprovals = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       <button onClick={() => printClassList({ grade: s.grade, section: s.name, schoolYear: s.school_year, students: mem })} disabled={mem.length === 0} className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm disabled:opacity-50" title="Print class list"><HiOutlinePrinter size={15} /> Class list</button>
-                      <span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black ${approved ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-700'}`}>{approved ? 'APPROVED' : 'PENDING'}</span>
+                      <span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black ${badge}`}>{isDraft ? 'DRAFT' : approved ? 'APPROVED' : 'PENDING'}</span>
                       {approved
                         ? <button disabled={busy === s.id} onClick={() => doUnapprove(s)} className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm disabled:opacity-60">Unapprove</button>
-                        : <button disabled={busy === s.id || mem.length === 0} onClick={() => doApprove(s)} className="px-5 py-2 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold text-sm disabled:opacity-50">{busy === s.id ? 'Approving…' : '✓ Approve'}</button>}
+                        : isDraft
+                          ? <span className="px-4 py-2 text-slate-400 text-sm font-semibold">Not submitted yet</span>
+                          : <button disabled={busy === s.id || mem.length === 0} onClick={() => doApprove(s)} className="px-5 py-2 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold text-sm disabled:opacity-50">{busy === s.id ? 'Approving…' : '✓ Approve'}</button>}
                     </div>
                   </div>
                   {open === s.id && (
