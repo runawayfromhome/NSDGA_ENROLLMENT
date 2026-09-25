@@ -83,7 +83,7 @@ const SectionApprovals = () => {
                 <div key={s.id} className={`bg-white rounded-2xl shadow-sm p-5 ${isDraft ? 'opacity-75' : ''}`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="font-bold text-slate-800">{s.grade} · {s.name} <span className="text-slate-400 font-normal text-sm">· S.Y. {s.school_year}</span></p>
+                      <p className="font-bold text-slate-800">{s.grade} · {s.name} {s.strand ? <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-violet-50 text-violet-600">{s.strand}</span> : ''} <span className="text-slate-400 font-normal text-sm">· S.Y. {s.school_year}</span></p>
                       <p className="text-[12px] text-slate-400">{mem.length} student{mem.length === 1 ? '' : 's'} · <button onClick={() => setOpen(open === s.id ? null : s.id)} className="text-[#800000] font-bold hover:underline">{open === s.id ? 'hide' : 'view'} members</button></p>
                     </div>
                     <div className="flex items-center gap-2">

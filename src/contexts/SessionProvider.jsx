@@ -44,11 +44,17 @@ export default function SessionProvider({ children }) {
     // A student's portal access depends on whether the Registrar has enrolled
     // them. Applicants (not yet enrolled) only get the applicant dashboard.
     if (combined && profile?.role === 'student') {
-      const { data: app } = await supabase.from('applications')
-        .select('status').eq('student_id', sbSession.user.id)
-        .order('created_at', { ascending: false }).limit(1).maybeSingle();
-      combined.appStatus = app?.status || null;
-      combined.isEnrolled = ['enrolled', 'completed'].includes(app?.status);
+      const { data: apps } = await supabase.from('applications')
+        .select('status, created_at').eq('student_id', sbSession.user.id)
+        .order('created_at', { ascending: false });
+      const latest = apps?.[0]?.status || null;
+      // A continuing/returning student keeps full-portal access while their
+      // re-enrollment is under review — they don't drop back to "applicant".
+      const hasEnrollmentHistory = (apps || []).some((a) => ['enrolled', 'completed'].includes(a.status));
+      const inReview = ['submitted', 'under_review', 'needs_correction'].includes(latest);
+      combined.appStatus = latest;
+      combined.isEnrolled = ['enrolled', 'completed'].includes(latest) || (inReview && hasEnrollmentHistory);
+      combined.reenrolling = inReview && hasEnrollmentHistory;
     }
     // Flag whether the user still owes an MFA code (has an authenticator but is
     // only at AAL1). ProtectedRoute uses this to hold them at the login step.

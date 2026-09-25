@@ -14,9 +14,10 @@ const STATUS_STYLE = {
   'Complete': 'bg-emerald-50 text-emerald-600',
   'Pending Review': 'bg-blue-50 text-blue-600',
   'Incomplete': 'bg-amber-50 text-amber-700',
+  'Enrolled - Incomplete': 'bg-rose-100 text-rose-700',
   'No Documents': 'bg-slate-100 text-slate-400',
 };
-const FILTERS = ['All', 'Complete', 'Pending Review', 'Incomplete', 'No Documents'];
+const FILTERS = ['All', 'Complete', 'Pending Review', 'Incomplete', 'Enrolled - Incomplete', 'No Documents'];
 const PAGE_SIZE = 10;
 
 function summarize(app) {
@@ -24,8 +25,12 @@ function summarize(app) {
   const uploaded = REQUIRED_DOCS.filter((d) => docs[d.key]?.path).length;
   const verified = REQUIRED_DOCS.filter((d) => docs[d.key]?.status === 'verified').length;
   const missing = REQUIRED_DOCS.filter((d) => !docs[d.key]?.path).map((d) => d.label);
+  const enrolled = app.status === 'enrolled';
   let status;
-  if (uploaded === 0) status = 'No Documents';
+  // An already-enrolled student who still owes documents is flagged distinctly
+  // so the registrar can follow up — this outranks the plain doc-only statuses.
+  if (enrolled && missing.length) status = 'Enrolled - Incomplete';
+  else if (uploaded === 0) status = 'No Documents';
   else if (missing.length) status = 'Incomplete';
   else if (verified === REQUIRED_DOCS.length) status = 'Complete';
   else status = 'Pending Review';
@@ -100,7 +105,7 @@ const Documents = () => {
                       <td className="py-5 px-6 text-sm font-medium text-slate-600">{app.student_type}</td>
                       <td className="py-5 px-6 text-sm font-bold text-slate-700">{sum.uploaded} / {sum.total}<span className="text-[11px] font-medium text-emerald-600 ml-2">{sum.verified} verified</span></td>
                       <td className="py-5 px-6 text-[12px] text-slate-500 max-w-[220px]">{sum.missing.length ? sum.missing.join(', ') : '—'}</td>
-                      <td className="py-5 px-6"><span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span></td>
+                      <td className="py-5 px-6"><span className={`inline-flex whitespace-nowrap px-4 py-1.5 rounded-full text-[10px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span></td>
                       <td className="py-5 px-6 text-right">
                         <button onClick={() => navigate('/RegistrarPortal/Applications/' + app.id)} className="px-4 py-2 bg-[#800000] text-white rounded-lg text-[11px] font-black hover:bg-[#600000] transition-all cursor-pointer">View / Verify</button>
                       </td>
@@ -120,7 +125,7 @@ const Documents = () => {
                       <p className="font-bold text-slate-700 text-sm truncate">{applicantName(app)}</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">{app.form?.lrn ? `LRN: ${app.form.lrn}` : app.grade_level} · {app.student_type}</p>
                     </div>
-                    <span className={`shrink-0 inline-flex px-3 py-1.5 rounded-full text-[9px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span>
+                    <span className={`shrink-0 inline-flex whitespace-nowrap px-3 py-1.5 rounded-full text-[9px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span>
                   </div>
                   <p className="text-[12px] text-slate-600 mt-2">{sum.uploaded} / {sum.total} uploaded · <span className="text-emerald-600 font-semibold">{sum.verified} verified</span></p>
                   {sum.missing.length > 0 && <p className="text-[11px] text-slate-400 mt-0.5">Missing: {sum.missing.join(', ')}</p>}

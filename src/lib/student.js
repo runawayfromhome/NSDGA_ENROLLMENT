@@ -2,7 +2,7 @@
 // Student self-apply data layer: create an applicant account + admission
 // application, and read/track it. Backed by Supabase Auth + `applications`.
 import { supabase } from './supabase';
-import { nextGrade, nextSchoolYear, levelOfGrade } from './grades';
+import { nextGrade, nextSchoolYear, levelOfGrade, isSHSGrade } from './grades';
 
 // The application lifecycle, in order, with friendly labels.
 export const APP_STEPS = [
@@ -91,9 +91,9 @@ export async function applyAsStudent({ email, password, contact, level, studentT
 // --- New account-first signup flow ------------------------------------------
 // Step 1: create the account + a DRAFT application, then sign in so the rest of
 // the wizard (and document uploads) run authenticated. Returns { ok, appId }.
-export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password }) {
+export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password, schoolYear }) {
   const clean = (email || '').trim().toLowerCase();
-  const form = { firstName, middleName, lastName, suffix, lrn, contact: phone, schoolYear: CURRENT_SCHOOL_YEAR };
+  const form = { firstName, middleName, lastName, suffix, lrn, contact: phone, schoolYear: schoolYear || CURRENT_SCHOOL_YEAR };
   const { data, error } = await supabase.functions.invoke('create-applicant', {
     body: { email: clean, password, contact: phone, level: null, studentType: null, form },
   });
@@ -183,19 +183,23 @@ export async function getMyApplications() {
 
 // Re-enroll a returning student: file a NEW yearly record for the next grade +
 // next school year (status submitted → the registrar reviews it like any apply).
-export async function reEnroll(prevApp) {
+// Moving into Senior High (Grade 11) requires choosing a strand; it then carries
+// over to Grade 12 automatically.
+export async function reEnroll(prevApp, strand) {
   const { data: u } = await supabase.auth.getUser();
   if (!u?.user) return { ok: false, error: 'You are not signed in.' };
   const grade = nextGrade(prevApp.form?.grade);
   if (!grade) return { ok: false, error: 'No next grade — this student has completed the final level.' };
   const sy = nextSchoolYear(prevApp.school_year);
+  const nextStrand = isSHSGrade(grade) ? (strand || prevApp.form?.strand || '') : '';
+  if (isSHSGrade(grade) && !nextStrand) return { ok: false, error: 'Please choose a Senior High strand.' };
   const { data, error } = await supabase.from('applications').insert({
     student_id: u.user.id,
     school_year: sy,
     grade_level: levelOfGrade(grade),
     student_type: 'Returnee',
     status: 'submitted',
-    form: { ...prevApp.form, grade, schoolYear: sy },
+    form: { ...prevApp.form, grade, schoolYear: sy, strand: nextStrand },
   }).select('id').single();
   if (error) return { ok: false, error: error.message };
   return { ok: true, id: data.id, grade, schoolYear: sy };

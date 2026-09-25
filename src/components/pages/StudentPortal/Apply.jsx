@@ -77,20 +77,25 @@ const Apply = () => {
   // Resume a draft if the applicant is already signed in.
   useEffect(() => {
     (async () => {
-      getEnrollment().then(setEnrollment);
+      const enr = await getEnrollment();
+      setEnrollment(enr);
+      const activeSY = enr?.activeSchoolYear || CURRENT_SCHOOL_YEAR;
       const app = await getMyApplication();
       if (app) {
         if (app.status === 'draft') {
           setAppId(app.id);
           setLevel(app.grade_level || '');
           setStudentType(app.student_type || 'New Student');
-          setF({ ...emptyForm, ...(app.form || {}) });
+          setF({ ...emptyForm, schoolYear: activeSY, ...(app.form || {}) });
           setDocs(app.documents || {});
           setStep(1); // account already created
         } else {
           navigate(isEnrolledStatus(app.status) ? '/StudentPortal/Dashboard' : '/StudentPortal/ApplicationStatus', { replace: true });
           return;
         }
+      } else {
+        // Fresh applicant: file under the school year the Admin has set active.
+        setF((p) => ({ ...p, schoolYear: activeSY }));
       }
       setReady(true);
     })();
@@ -151,6 +156,7 @@ const Apply = () => {
       const res = await createApplicantAccount({
         firstName: f.firstName, middleName: f.middleName, lastName: f.lastName, suffix: f.suffix,
         lrn: f.lrn.trim(), email: acct.email, phone: acct.phone, password: acct.password,
+        schoolYear: f.schoolYear || enrollment?.activeSchoolYear || CURRENT_SCHOOL_YEAR,
       });
       setBusy(false);
       if (!res.ok) return setError(res.error || 'Could not create your account.');

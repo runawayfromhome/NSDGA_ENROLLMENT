@@ -3,6 +3,7 @@
 // - Announcements show in the student portal.
 import { useEffect, useState } from 'react';
 import { getEnrollment, saveEnrollment, seasonStatus } from '../../../lib/content';
+import { nextSchoolYear } from '../../../lib/grades';
 import { CardSkeleton } from '../../Skeleton';
 
 const uid = () => Math.random().toString(16).slice(2, 10);
@@ -17,6 +18,13 @@ const EditEnrollment = () => {
   useEffect(() => { getEnrollment().then(setData); }, []);
 
   const set = (k, v) => setData((d) => ({ ...d, [k]: v }));
+  const advanceYear = () => {
+    const next = nextSchoolYear(data.activeSchoolYear);
+    if (next === data.activeSchoolYear) return;
+    if (window.confirm(`Advance the Active School Year to ${next}?\n\nNew applications and new sections will be filed under ${next}. Existing records are not affected. Don't forget to Save.`)) {
+      set('activeSchoolYear', next);
+    }
+  };
   const setAnn = (id, field, value) => set('announcements', data.announcements.map((a) => a.id === id ? { ...a, [field]: value } : a));
   const addAnn = () => set('announcements', [{ id: uid(), title: '', body: '', date: today() }, ...data.announcements]);
   const removeAnn = (id) => set('announcements', data.announcements.filter((a) => a.id !== id));
@@ -60,7 +68,10 @@ const EditEnrollment = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <label className="block">
               <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Active School Year</span>
-              <input className="ip" value={data.activeSchoolYear} onChange={(e) => set('activeSchoolYear', e.target.value)} placeholder="2026-2027" />
+              <div className="flex gap-2">
+                <input className="ip flex-1" value={data.activeSchoolYear} onChange={(e) => set('activeSchoolYear', e.target.value)} placeholder="2026-2027" />
+                <button type="button" onClick={advanceYear} title={`Advance to ${nextSchoolYear(data.activeSchoolYear)}`} className="shrink-0 px-3 rounded-lg bg-[#800000] text-white text-xs font-bold hover:bg-[#600000] cursor-pointer whitespace-nowrap">Next year →</button>
+              </div>
             </label>
             <label className="block">
               <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Season Start</span>
@@ -73,7 +84,7 @@ const EditEnrollment = () => {
           </div>
           <p className="text-xs text-gray-500 mb-5">
             Current status: <b className={seasonStatus(data).open ? 'text-emerald-600' : 'text-red-600'}>{seasonStatus(data).label}</b>
-            <span className="text-gray-400"> — leave the dates blank to control it with the toggle only. New records use the Active School Year.</span>
+            <span className="text-gray-400"> — leave the dates blank to control it with the toggle only. <b>All new applicants and new sections are filed under the Active School Year</b> — use “Next year →” to advance it when a new enrollment season begins.</span>
           </p>
           <label className="block">
             <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Message shown when closed</span>

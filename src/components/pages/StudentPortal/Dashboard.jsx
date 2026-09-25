@@ -8,7 +8,7 @@ import Header from '../../Header';
 import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus } from '../../../lib/student';
 import { BILLING_STATUS } from '../../../lib/billing';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
-import { nextGrade, nextSchoolYear } from '../../../lib/grades';
+import { nextGrade, nextSchoolYear, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
 import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup } from "react-icons/hi";
 import { StatCardsSkeleton, CardSkeleton } from '../../Skeleton';
 
@@ -31,20 +31,30 @@ const Dashboard = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [enr, setEnr] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [strand, setStrand] = useState('');
 
   useEffect(() => {
-    // Defense-in-depth: the full dashboard is enrolled-only. An applicant who
-    // somehow reaches this page is bounced to their applicant dashboard.
-    getMyApplication().then((a) => {
-      if (a && !isEnrolledStatus(a.status)) { navigate('/StudentPortal/ApplicationStatus', { replace: true }); return; }
-      setApp(a);
-    });
-    getMyApplications().then(setHistory);
+    // Defense-in-depth: the full dashboard is for enrolled students. A first-time
+    // applicant is bounced to their applicant status page — but a CONTINUING
+    // student whose re-enrollment is under review stays here (they were enrolled
+    // before), so they don't lose the portal while the Registrar reviews it.
+    (async () => {
+      const [a, hist] = await Promise.all([getMyApplication(), getMyApplications()]);
+      const hasHistory = (hist || []).some((x) => ['enrolled', 'completed'].includes(x.status));
+      const inReview = a && ['submitted', 'under_review', 'needs_correction'].includes(a.status);
+      if (a && !isEnrolledStatus(a.status) && !(inReview && hasHistory)) {
+        navigate('/StudentPortal/ApplicationStatus', { replace: true }); return;
+      }
+      setApp(a); setHistory(hist);
+    })();
     getAnnouncements().then(setAnnouncements);
     getEnrollment().then(setEnr);
   }, []);
 
   const enrolled = app?.status === 'enrolled';
+  // A returning student's re-enrollment that's still being reviewed.
+  const reenrolling = !!app && ['submitted', 'under_review', 'needs_correction'].includes(app.status)
+    && history.some((a) => ['enrolled', 'completed'].includes(a.status));
   const activeIdx = app ? APP_STEPS.findIndex((s) => s.key === (app.status === 'needs_correction' ? 'submitted' : app.status)) : -1;
   const name = app ? `${app.form?.firstName || ''} ${app.form?.lastName || ''}`.trim() : 'Student';
   const gradeText = app ? (app.form?.grade || app.grade_level) : '';
@@ -52,10 +62,13 @@ const Dashboard = () => {
   const ng = app?.status === 'completed' ? nextGrade(app.form?.grade) : null;
   const seasonOpen = enr ? isEnrollmentOpen(enr) : false;
   const canReEnroll = app?.status === 'completed' && ng && seasonOpen;
+  // Moving into Senior High requires picking a strand (unless one already exists).
+  const needsStrand = !!ng && isSHSGrade(ng) && !app?.form?.strand;
 
   const doReEnroll = async () => {
+    if (needsStrand && !strand) return;
     setBusy(true);
-    const res = await reEnroll(app);
+    const res = await reEnroll(app, strand);
     setBusy(false);
     if (res.ok) navigate('/StudentPortal/ApplicationStatus');
   };
@@ -73,6 +86,17 @@ const Dashboard = () => {
             </p>
           </div>
 
+          {/* Re-enrollment under review (continuing student) */}
+          {reenrolling && (
+            <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-6 mb-8 flex items-center gap-4">
+              <HiOutlineClock className="text-blue-600 shrink-0" size={30} />
+              <div>
+                <p className="font-bold text-blue-800">Re-enrollment under review</p>
+                <p className="text-sm text-blue-700 mt-0.5">Your application for <b>{gradeText}</b> (S.Y. {app.school_year}) is being reviewed by the Registrar. You'll be assigned to your new class once it's approved.</p>
+              </div>
+            </div>
+          )}
+
           {/* Re-enroll prompt */}
           {canReEnroll && (
             <div className="rounded-2xl border-2 border-[#800000] bg-[#800000]/5 p-6 mb-8 flex flex-wrap items-center gap-4">
@@ -80,8 +104,15 @@ const Dashboard = () => {
               <div className="flex-1 min-w-[220px]">
                 <p className="font-bold text-[#800000]">Re-enrollment is open for S.Y. {nextSchoolYear(app.school_year)}</p>
                 <p className="text-sm text-slate-600 mt-0.5">You've completed {app.form?.grade || app.grade_level}. Re-enroll for <b>{ng}</b>.</p>
+                {needsStrand && <p className="text-[12px] text-slate-500 mt-2">Senior High requires a strand — choose one to continue.</p>}
               </div>
-              <button onClick={doReEnroll} disabled={busy} className="px-6 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold shadow disabled:opacity-60">{busy ? 'Submitting…' : `Re-enroll for ${ng}`}</button>
+              {needsStrand && (
+                <select value={strand} onChange={(e) => setStrand(e.target.value)} className="px-4 py-3 bg-white border border-[#800000]/30 rounded-xl text-sm font-semibold text-slate-700 outline-none focus:border-[#800000]">
+                  <option value="">Select strand…</option>
+                  {SHS_STRANDS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+              <button onClick={doReEnroll} disabled={busy || (needsStrand && !strand)} className="px-6 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold shadow disabled:opacity-60">{busy ? 'Submitting…' : `Re-enroll for ${ng}`}</button>
             </div>
           )}
           {app?.status === 'completed' && ng && !seasonOpen && (

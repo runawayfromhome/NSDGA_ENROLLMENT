@@ -12,7 +12,7 @@ import {
   listEnrolledInGrade, assignToSection, applicantName, sectionStatus, SECTION_CAPACITY,
 } from '../../../lib/registrar';
 import { getActiveSchoolYear } from '../../../lib/content';
-import { ALL_GRADES } from '../../../lib/grades';
+import { ALL_GRADES, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
 import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePencil, HiOutlinePaperAirplane } from "react-icons/hi";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
@@ -35,8 +35,11 @@ const Sections = () => {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [name, setName] = useState('');
+  const [newStrand, setNewStrand] = useState(''); // strand for a new SHS section
   const [editId, setEditId] = useState(null); // section being renamed
   const [editName, setEditName] = useState('');
+
+  const shs = isSHSGrade(grade);
 
   useEffect(() => { getActiveSchoolYear().then(setSchoolYear); }, []);
 
@@ -55,19 +58,23 @@ const Sections = () => {
   const room = selected ? Math.max(0, SECTION_CAPACITY - members.length) : 0;
   const pickedCount = Object.values(picked).filter(Boolean).length;
   const unassigned = useMemo(() => {
-    const list = pool.filter((a) => !a.form?.section);
+    let list = pool.filter((a) => !a.form?.section);
+    // A strand-specific SHS section draws from its own strand, plus any not-yet-
+    // stranded SHS students (assigning them here sets their strand).
+    if (selected?.strand) list = list.filter((a) => !a.form?.strand || a.form?.strand === selected.strand);
     return [...list].sort((a, b) => sort === 'fcfs'
       ? new Date(a.created_at) - new Date(b.created_at) // first come, first served
       : applicantName(a).localeCompare(applicantName(b)));
-  }, [pool, sort]);
+  }, [pool, sort, selected]);
 
   const addSection = async () => {
     if (!name.trim()) return setMsg('⚠️ Section name is required.');
+    if (shs && !newStrand) return setMsg('⚠️ Choose a strand for this Senior High section.');
     setBusy(true); setMsg('');
-    const r = await createSection({ schoolYear, grade, name: name.trim() });
+    const r = await createSection({ schoolYear, grade, name: name.trim(), strand: shs ? newStrand : null });
     setBusy(false);
     if (!r.ok) return setMsg('⚠️ ' + r.error);
-    setName(''); await load();
+    setName(''); setNewStrand(''); await load();
   };
 
   const saveRename = async (s) => {
@@ -118,7 +125,15 @@ const Sections = () => {
               </select>
             </Field>
             <div className="h-8 w-px bg-gray-200 mx-1" />
-            <Field label="New section name"><input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSection()} className="sel w-44" placeholder="St. Peter" /></Field>
+            <Field label="New section name"><input value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSection()} className="sel w-44" placeholder={shs ? 'STEM-A' : 'St. Peter'} /></Field>
+            {shs && (
+              <Field label="Strand">
+                <select value={newStrand} onChange={(e) => setNewStrand(e.target.value)} className="sel w-32">
+                  <option value="">Select…</option>
+                  {SHS_STRANDS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </Field>
+            )}
             <button disabled={busy} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
           </div>
 
@@ -142,7 +157,7 @@ const Sections = () => {
                           onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') saveRename(s); if (e.key === 'Escape') setEditId(null); }}
                           className="sel flex-1 min-w-0" placeholder="Section name" />
                       ) : (
-                        <p className="font-bold text-slate-800 truncate">{s.name}</p>
+                        <p className="font-bold text-slate-800 truncate">{s.name}{s.strand ? <span className="ml-2 px-2 py-0.5 rounded-md text-[10px] font-black bg-violet-50 text-violet-600 align-middle">{s.strand}</span> : ''}</p>
                       )}
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`px-2.5 py-1 rounded-full text-[9px] font-black tracking-wide ${st.cls}`}>{st.label}</span>
@@ -179,8 +194,8 @@ const Sections = () => {
               ) : (
                 <>
                   <div className="mb-4">
-                    <h3 className="text-lg font-bold text-slate-800">{selected.name}</h3>
-                    <p className="text-[12px] text-slate-400">{members.length}/{SECTION_CAPACITY} students · {room} slot{room === 1 ? '' : 's'} left</p>
+                    <h3 className="text-lg font-bold text-slate-800">{selected.name}{selected.strand ? <span className="ml-2 px-2 py-0.5 rounded-md text-[11px] font-black bg-violet-50 text-violet-600 align-middle">{selected.strand}</span> : ''}</h3>
+                    <p className="text-[12px] text-slate-400">{members.length}/{SECTION_CAPACITY} students · {room} slot{room === 1 ? '' : 's'} left{selected.strand ? ` · ${selected.strand} students only` : ''}</p>
                   </div>
 
                   {/* members */}
