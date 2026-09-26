@@ -45,6 +45,7 @@ import SectionApprovals from './components/pages/AdminPortal/SectionApprovals';
 import Billing from './components/pages/AdminPortal/Billing';
 // Auth + staff/head-admin portals
 import ProtectedRoute from './auth/ProtectedRoute';
+import OfflineBanner from './components/OfflineBanner';
 import AdminLayout from './components/AdminLayout';
 import AdminLogin from './components/pages/AdminPortal/Login';
 import AdminDashboard from './components/pages/AdminPortal/Dashboard';
@@ -62,6 +63,8 @@ import HeadAdminSettings from './components/pages/HeadAdminPortal/Settings';
 
 function App() {
   return (
+    <>
+    <OfflineBanner />
     <Routes>
       {/* Send the root URL to the homepage */}
       <Route path="/" element={<Navigate to="/Home" replace />} />
@@ -133,6 +136,7 @@ function App() {
       {/* Any unknown URL falls back to the homepage */}
       <Route path="*" element={<Navigate to="/Home" replace />} />
     </Routes>
+    </>
   )
 }
 

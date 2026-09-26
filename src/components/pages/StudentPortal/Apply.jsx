@@ -55,6 +55,22 @@ const ageFromDob = (dob) => {
   return a >= 0 && a < 120 ? String(a) : '';
 };
 
+// Local draft autosave — keeps typed input safe across a dropped connection or a
+// closed tab. NEVER stores the password; auto-expires after 12h; cleared on
+// submit. On a shared computer nothing sensitive lingers (no credentials, TTL).
+const DRAFT_KEY = 'nsdga_apply_draft';
+const DRAFT_TTL = 12 * 60 * 60 * 1000; // 12 hours
+const readDraft = () => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const b = JSON.parse(raw);
+    if (!b || (b.ts && Date.now() - b.ts > DRAFT_TTL)) { localStorage.removeItem(DRAFT_KEY); return null; }
+    return b;
+  } catch { return null; }
+};
+const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } };
+
 const Apply = () => {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
@@ -80,19 +96,39 @@ const Apply = () => {
       const enr = await getEnrollment();
       setEnrollment(enr);
       const activeSY = enr?.activeSchoolYear || CURRENT_SCHOOL_YEAR;
+      const saved = readDraft(); // unsaved local edits, if any
       const app = await getMyApplication();
       if (app) {
         if (app.status === 'draft') {
           setAppId(app.id);
           setLevel(app.grade_level || '');
           setStudentType(app.student_type || 'New Student');
-          setF({ ...emptyForm, schoolYear: activeSY, ...(app.form || {}) });
+          // Server draft is the base; overlay any newer unsaved local edits for
+          // THIS application only (ignore a draft left by a different account).
+          const base = { ...emptyForm, schoolYear: activeSY, ...(app.form || {}) };
+          if (saved && (!saved.appId || saved.appId === app.id)) {
+            setF({ ...base, ...(saved.f || {}) });
+            if (saved.level) setLevel(saved.level);
+            if (saved.studentType) setStudentType(saved.studentType);
+            if (typeof saved.noLrn === 'boolean') setNoLrn(saved.noLrn);
+            setAcct((p) => ({ ...p, email: saved.email || '', phone: saved.phone || p.phone }));
+          } else {
+            setF(base);
+          }
           setDocs(app.documents || {});
           setStep(1); // account already created
         } else {
+          clearDraft();
           navigate(isEnrolledStatus(app.status) ? '/StudentPortal/Dashboard' : '/StudentPortal/ApplicationStatus', { replace: true });
           return;
         }
+      } else if (saved && !saved.appId) {
+        // Fresh applicant, no account yet — restore pre-account typing (no password).
+        setF({ ...emptyForm, schoolYear: activeSY, ...(saved.f || {}) });
+        setLevel(saved.level || '');
+        setStudentType(saved.studentType || 'New Student');
+        setNoLrn(!!saved.noLrn);
+        setAcct((p) => ({ ...p, email: saved.email || '', phone: saved.phone || '' }));
       } else {
         // Fresh applicant: file under the school year the Admin has set active.
         setF((p) => ({ ...p, schoolYear: activeSY }));
@@ -100,6 +136,17 @@ const Apply = () => {
       setReady(true);
     })();
   }, [navigate]);
+
+  // Autosave the wizard (never the password) so a dropped connection or closed
+  // tab doesn't lose typed input. Cleared on submit + when a draft is finalized.
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        appId, level, studentType, noLrn, f, email: acct.email, phone: acct.phone, ts: Date.now(),
+      }));
+    } catch { /* storage disabled/full — ignore */ }
+  }, [ready, appId, level, studentType, noLrn, f, acct.email, acct.phone]);
 
   const current = STEP_KEYS[step];
   const isSHS = level === 'Senior High School';
@@ -189,6 +236,7 @@ const Apply = () => {
     const otp = await requestSignupOtp();
     setBusy(false);
     if (!otp.ok) return setError(otp.error || 'Could not send your verification code.');
+    clearDraft();
     navigate('/StudentPortal/VerifyOtp');
   };
 
