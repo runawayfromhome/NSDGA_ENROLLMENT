@@ -7,6 +7,7 @@ import Input from "../../form/Input"
 import Padlock from "../../icons/StudentPortalIcons/Padlock"
 import Eye from "../../icons/StudentPortalIcons/Eye"
 import { resetPasswordWithOtp } from '../../../lib/student'
+import { validatePassword } from '../../../lib/password'
 
 const CreateNewPass = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const CreateNewPass = () => {
     setError('');
     const fd = new FormData(e.target);
     const pw = fd.get('newPassword'), cf = fd.get('confirmPassword');
-    if ((pw || '').length < 8) return setError('Password must be at least 8 characters.');
+    { const v = validatePassword(pw, 'student'); if (!v.ok) return setError(v.error); }
     if (pw !== cf) return setError('Passwords do not match.');
     setBusy(true);
     const res = await resetPasswordWithOtp(email, code, pw);

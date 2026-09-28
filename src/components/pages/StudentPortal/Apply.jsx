@@ -16,6 +16,7 @@ import {
 } from '../../../lib/student';
 import { getEnrollment, isEnrollmentOpen } from '../../../lib/content';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
+import { validatePassword } from '../../../lib/password';
 
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
@@ -165,7 +166,7 @@ const Apply = () => {
       if (!acct.email) return 'Email is required.';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acct.email.trim())) return 'Enter a valid email address.';
       if (!acct.phone) return 'Phone number is required.';
-      if (acct.password.length < 8) return 'Password must be at least 8 characters.';
+      { const v = validatePassword(acct.password, 'student'); if (!v.ok) return v.error; }
       if (acct.password !== acct.confirm) return 'Passwords do not match.';
       if (!agreedAccount) return 'Please agree to the Terms of Service and Privacy Policy.';
     }

@@ -108,7 +108,7 @@ const AuditLog = () => {
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <HeadAdminSidebar />
       <div className="flex-1 lg:ml-64 flex flex-col">
-        <main className="p-6 md:p-12 max-w-[1400px]">
+        <main className="px-6 pt-20 pb-8 md:p-12 max-w-[1400px]">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Audit &amp; Activity Log</h1>
             <p className="text-slate-500 text-sm">Every sign-in and every action staff take across the system.</p>

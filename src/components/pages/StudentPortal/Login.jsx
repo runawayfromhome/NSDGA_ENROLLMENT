@@ -11,11 +11,16 @@ import { useSession } from '../../../contexts/useSession'
 
 const Login = () => {
   const navigate = useNavigate();
-  const { refresh } = useSession();
+  const { refresh, completeMfa } = useSession();
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [mfa, setMfa] = useState(null); // { factorId } while awaiting the 2FA code
+  const [code, setCode] = useState('');
+  const [verifying, setVerifying] = useState(false);
+
+  const goHome = (s) => navigate(s?.isEnrolled ? '/StudentPortal/Dashboard' : '/StudentPortal/ApplicationStatus');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,10 +28,21 @@ const Login = () => {
     const fd = new FormData(e.target);
     const res = await signInStudent(fd.get('email'), fd.get('password'));
     if (!res.ok) { setBusy(false); return setError(res.error); }
-    const s = await refresh(); // load session (incl. enrollment status) before routing
+    const s = await refresh(); // load session (incl. enrollment + MFA status)
     setBusy(false);
-    // Enrolled → full portal; applicant → applicant dashboard.
-    navigate(s?.isEnrolled ? '/StudentPortal/Dashboard' : '/StudentPortal/ApplicationStatus');
+    // If the student turned on 2FA, ask for the authenticator code first.
+    if (s?.needsMfa) { setMfa({ factorId: s.mfaFactorId }); return; }
+    goHome(s);
+  };
+
+  const handleMfaVerify = async (e) => {
+    e.preventDefault();
+    setError(''); setVerifying(true);
+    const res = await completeMfa(mfa.factorId, code);
+    setVerifying(false);
+    if (!res.ok) { setError(res.error); return; }
+    const s = await refresh();
+    goHome(s);
   };
 
   return (
@@ -60,6 +76,24 @@ const Login = () => {
           ← Back to Home
         </NavLink>
         <div className="w-full max-w-md">
+          {mfa ? (
+            <form onSubmit={handleMfaVerify} className="space-y-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Two-Factor Verification</h2>
+              <p className="text-gray-500 mb-8">Enter the 6-digit code from your authenticator app.</p>
+              {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 mb-4">{error}</div>}
+              <div>
+                <label className="block font-semibold text-sm text-gray-700 mb-2">AUTHENTICATION CODE</label>
+                <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoFocus placeholder="123456"
+                  className="w-full h-12 bg-white border border-gray-200 focus:border-[#800000] focus:outline-none rounded-xl text-center text-xl tracking-[0.5em]" />
+              </div>
+              <button type="submit" disabled={verifying || code.length < 6}
+                className="btn w-full bg-[#800000] hover:bg-[#600000] text-white border-none h-12 rounded-lg text-lg normal-case font-bold shadow-md cursor-pointer flex items-center justify-center disabled:opacity-60">
+                {verifying ? 'Verifying…' : 'Verify & Continue'}
+              </button>
+              <button type="button" onClick={() => { setMfa(null); setCode(''); setError(''); }} className="w-full text-center text-gray-400 text-xs hover:text-gray-600 cursor-pointer">← Back to login</button>
+            </form>
+          ) : (
+          <>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Student Portal Login</h2>
           <p className="text-gray-500 mb-10">Welcome back! Please enter your details.</p>
           
@@ -130,6 +164,8 @@ const Login = () => {
               Apply now
             </NavLink>
           </p>
+          </>
+          )}
         </div>
 
         <div className="absolute bottom-8 text-center text-[10px] uppercase tracking-widest text-gray-400">

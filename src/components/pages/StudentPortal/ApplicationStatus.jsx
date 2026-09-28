@@ -40,7 +40,11 @@ const StatusBody = ({ app }) => {
   const rejected = app.status === 'rejected';
   const needsFix = app.status === 'needs_correction';
   const enrolled = app.status === 'enrolled';
-  const activeIdx = APP_STEPS.findIndex((s) => s.key === (needsFix ? 'submitted' : app.status));
+  // A corrected + resubmitted application re-enters review — show it as "Under
+  // Review" to the applicant (not back at "Submitted").
+  const resubmitted = app.status === 'submitted' && app.form?.resubmitted;
+  const displayStatus = resubmitted ? 'under_review' : app.status;
+  const activeIdx = APP_STEPS.findIndex((s) => s.key === (needsFix ? 'submitted' : displayStatus));
   const name = `${app.form?.firstName || ''} ${app.form?.lastName || ''}`.trim() || 'Applicant';
 
   return (
@@ -58,7 +62,7 @@ const StatusBody = ({ app }) => {
 
       <div className={`rounded-2xl p-5 mb-8 border ${enrolled ? 'bg-emerald-50 border-emerald-200' : rejected ? 'bg-red-50 border-red-200' : needsFix ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
         <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Current Status</p>
-        <p className={`text-2xl font-bold ${enrolled ? 'text-emerald-700' : rejected ? 'text-red-700' : needsFix ? 'text-amber-700' : 'text-[#800000]'}`}>{STATUS_LABEL[app.status]}</p>
+        <p className={`text-2xl font-bold ${enrolled ? 'text-emerald-700' : rejected ? 'text-red-700' : needsFix ? 'text-amber-700' : 'text-[#800000]'}`}>{STATUS_LABEL[displayStatus]}</p>
         {enrolled && app.student_no && <p className="text-sm text-emerald-700 mt-1">🎓 Student Number: <b>{app.student_no}</b></p>}
       </div>
 
@@ -82,7 +86,7 @@ const StatusBody = ({ app }) => {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-8">
           <h3 className="font-bold text-slate-800 mb-2">Note from the Registrar</h3>
           <p className="text-sm text-slate-600">{app.review_note || (needsFix ? 'Please review and resubmit your application.' : 'Thank you for applying.')}</p>
-          {needsFix && <NavLink to="/StudentPortal/Apply" className="inline-block mt-4 px-5 py-2 bg-[#800000] text-white rounded-lg text-sm font-bold">Update &amp; Resubmit</NavLink>}
+          {needsFix && <NavLink to="/StudentPortal/EnrollmentForm" className="inline-block mt-4 px-5 py-2 bg-[#800000] text-white rounded-lg text-sm font-bold">Update &amp; Resubmit</NavLink>}
         </div>
       )}
 

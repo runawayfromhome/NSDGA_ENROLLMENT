@@ -50,8 +50,14 @@ Deno.serve(async (req) => {
     });
     if (cErr) return json({ error: cErr.message });
 
-    // 4) The handle_new_user trigger made a default profile row; set role + name.
-    await admin.from('profiles').update({ name, role }).eq('id', created.user.id);
+    // 4) The handle_new_user trigger made a default profile row (status
+    //    'verified', which is right for self-registering students). Staff must
+    //    instead go through onboarding: set role + name and reset to
+    //    'pending_profile' so they complete ProfileSetup and the HeadAdmin
+    //    verifies them before they can use the portal.
+    await admin.from('profiles')
+      .update({ name, role, status: 'pending_profile', verified_at: null })
+      .eq('id', created.user.id);
 
     return json({ id: created.user.id, email, name, role });
   } catch (e) {

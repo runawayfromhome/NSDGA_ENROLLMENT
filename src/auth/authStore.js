@@ -112,6 +112,21 @@ export async function changeRoleWithOtp(targetUserId, newRole, code, targetName)
     `${newRole === 'headadmin' ? 'Promoted to HeadAdmin' : 'Changed role to ' + newRole}: ${targetName || targetUserId}`);
   return { ok: true };
 }
+// admin-set-password Edge Function (HeadAdmin-only + OTP): reset a staff password.
+export async function requestSetPasswordOtp() {
+  const { data, error } = await supabase.functions.invoke('admin-set-password', { body: {} });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true, sentTo: data.sentTo };
+}
+export async function setUserPassword(targetUserId, newPassword, code, targetName) {
+  const { data, error } = await supabase.functions.invoke('admin-set-password', { body: { targetUserId, newPassword, code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Password reset failed.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  logAction('PASSWORD_RESET', `Reset password for ${targetName || targetUserId}`);
+  return { ok: true };
+}
+
 export async function verifyAccount(id) {
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.VERIFIED, verified_at: new Date().toISOString() }).eq('id', id);

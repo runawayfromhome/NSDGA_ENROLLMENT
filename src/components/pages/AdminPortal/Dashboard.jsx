@@ -3,6 +3,7 @@
 // job (managing public website content). Cards link to each content editor.
 import { NavLink } from 'react-router-dom';
 import AdminSidebar from '../../AdminSidebar';
+import MfaReminder from '../../MfaReminder';
 import {
   HiOutlinePhone,
   HiOutlineCalendar,
@@ -28,6 +29,8 @@ const Dashboard = () => (
           <h1 className="text-3xl font-bold text-slate-900 mb-1">Admin Overview</h1>
           <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Website &amp; Content Management</p>
         </div>
+
+        <MfaReminder settingsPath="/AdminPortal/Settings" />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {CARDS.map((c) => (

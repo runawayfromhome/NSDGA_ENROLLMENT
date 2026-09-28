@@ -28,7 +28,7 @@ const SystemUsage = () => {
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <HeadAdminSidebar />
       <div className="flex-1 lg:ml-64 flex flex-col">
-        <main className="p-6 md:p-12 max-w-[1100px]">
+        <main className="px-6 pt-20 pb-8 md:p-12 max-w-[1100px]">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-1">System Usage</h1>
             <p className="text-slate-500 text-sm">Your free-tier resources at a glance. Everything here is on free plans.</p>

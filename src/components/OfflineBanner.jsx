@@ -21,7 +21,7 @@ export default function OfflineBanner() {
   if (!offline) return null;
   return (
     <div className="fixed bottom-0 inset-x-0 z-[9999] bg-amber-500 text-white text-sm font-semibold px-4 py-2.5 text-center shadow-lg">
-      ⚠️ Walang koneksyon sa internet — hindi mase-save o ma-lo-load ang mga bagong datos hanggang bumalik ang koneksyon.
+      ⚠️ No internet connection — changes won't save or load until you're back online.
     </div>
   );
 }
