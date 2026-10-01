@@ -81,7 +81,7 @@ export default function SessionProvider({ children }) {
 
     // Keep the session in sync (token refresh, sign-in/out in another tab, etc.)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sbSession) => {
-      loadFrom(sbSession);
+      if (active) loadFrom(sbSession);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [loadFrom]);
