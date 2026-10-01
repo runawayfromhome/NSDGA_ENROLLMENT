@@ -44,6 +44,12 @@ Deno.serve(async (req) => {
     const { data: me } = await admin.from('profiles').select('role').eq('id', user.id).single();
     if (!me || me.role !== 'headadmin') return json({ error: 'Only the Head Administrator can change roles.' }, 403);
 
+    // Require the Head Admin to have MFA enabled before any account change.
+    const { data: factors } = await caller.auth.mfa.listFactors();
+    if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
+      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
+    }
+
     const { targetUserId, newRole, code } = await req.json();
 
     // ---- Mode 1: request a step-up code (emailed to the HeadAdmin) ----------

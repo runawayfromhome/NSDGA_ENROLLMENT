@@ -38,6 +38,12 @@ Deno.serve(async (req) => {
       return json({ error: 'Only the Head Administrator can create accounts.' });
     }
 
+    // Require the Head Admin to have MFA enabled before creating accounts.
+    const { data: factors } = await caller.auth.mfa.listFactors();
+    if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
+      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' });
+    }
+
     // 2) Validate input.
     const { name, email, password, role } = await req.json();
     if (!name || !email || !password || !['registrar', 'admin'].includes(role)) {
