@@ -7,7 +7,7 @@ import { useSession } from '../contexts/useSession';
 import { ROLE_HOME, PROFILE_SETUP_PATH, MFA_SETUP_PATH, STATUS } from './authStore';
 
 export default function ProtectedRoute({ allow, loginPath = '/StudentPortal/Login', requireVerified = false, requireEnrolled = false, skipMfaGate = false, children }) {
-  const { session, loading, mfaBypass } = useSession();
+  const { session, loading } = useSession();
 
   // Don't decide anything until Supabase has told us who (if anyone) is logged in.
   if (loading) {
@@ -39,8 +39,7 @@ export default function ProtectedRoute({ allow, loginPath = '/StudentPortal/Logi
   }
 
   // Roles that require MFA must enroll an authenticator before using the portal.
-  // (mfaBypass is a DEMO escape hatch — remove for production.)
-  if (!skipMfaGate && session.mfaSetupRequired && !mfaBypass) {
+  if (!skipMfaGate && session.mfaSetupRequired) {
     const mfaPath = MFA_SETUP_PATH[session.role];
     if (mfaPath) return <Navigate to={mfaPath} replace />;
   }

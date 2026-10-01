@@ -9,15 +9,9 @@ import { useSession } from '../../../contexts/useSession';
 import { enrollMfa, activateMfa, ROLE_HOME } from '../../../auth/authStore';
 
 const MfaSetup = () => {
-  const { session, logout, refresh, bypassMfa } = useSession();
+  const { session, logout, refresh } = useSession();
   const navigate = useNavigate();
 
-  // DEMO ONLY — skip enrollment and go straight to the dashboard.
-  // Remove this handler (and the button below) for production.
-  const skipForDemo = () => {
-    bypassMfa();
-    navigate(ROLE_HOME[session.role] || '/Home', { replace: true });
-  };
   const [enroll, setEnroll] = useState(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -106,12 +100,6 @@ const MfaSetup = () => {
             </form>
           )}
 
-          {/* DEMO ONLY — remove this block for production */}
-          <div className="mt-8 pt-5 border-t border-dashed border-gray-200 text-center">
-            <button onClick={skipForDemo} className="text-xs font-bold text-slate-400 hover:text-[#800000] underline cursor-pointer">
-              Continue to dashboard (demo — skip MFA)
-            </button>
-          </div>
         </div>
       </div>
     </div>

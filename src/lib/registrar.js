@@ -55,7 +55,8 @@ export async function listApplications() {
   const { data, error } = await supabase
     .from('applications')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(5000); // sanity cap vs unbounded fetch (see pagination TODO)
   if (error) return [];
   return data;
 }
@@ -361,7 +362,7 @@ export async function getStudentRecord(studentId) {
 // tell a genuine "leftover" (its completed record is the student's latest) from
 // a completed record that a re-enrollment has already superseded.
 export async function latestAppDates() {
-  const { data } = await supabase.from('applications').select('student_id, created_at');
+  const { data } = await supabase.from('applications').select('student_id, created_at').limit(20000);
   const map = {};
   (data || []).forEach((r) => {
     if (!map[r.student_id] || r.created_at > map[r.student_id]) map[r.student_id] = r.created_at;
@@ -377,7 +378,8 @@ export async function listStudents() {
     .from('applications')
     .select('*')
     .in('status', ['enrolled', 'completed', 'withdrawn', 'graduated', 'archived'])
-    .order('student_no', { ascending: true });
+    .order('student_no', { ascending: true })
+    .limit(5000); // sanity cap vs unbounded fetch (see pagination TODO)
   if (error) return [];
   return data;
 }
