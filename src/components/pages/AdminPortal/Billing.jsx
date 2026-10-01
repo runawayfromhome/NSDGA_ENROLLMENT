@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminSidebar from '../../AdminSidebar';
 import { CardSkeleton } from '../../Skeleton';
+import { useMfaLock } from '../../MfaLock';
 import { useSession } from '../../../contexts/useSession';
 import { applicantName } from '../../../lib/registrar';
 import {
@@ -23,6 +24,7 @@ const Billing = () => {
   const [edit, setEdit] = useState(null); // application being edited
   const [msg, setMsg] = useState('');
   const [importing, setImporting] = useState(false);
+  const { locked, banner } = useMfaLock('/AdminPortal/Settings');
   const fileRef = useRef(null);
 
   const load = async () => setRows(await listBillingRows());
@@ -79,6 +81,7 @@ const Billing = () => {
           </p>
 
           {msg && <div className={`mb-5 rounded-lg px-4 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
+          {banner}
 
           {/* Stat tiles */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
@@ -98,7 +101,7 @@ const Billing = () => {
               {BILLING_ORDER.map((k) => <option key={k} value={k}>{BILLING_STATUS[k].label}</option>)}
             </select>
             <button onClick={onExport} disabled={!filtered.length} className="px-5 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold shadow disabled:opacity-50 cursor-pointer">📤 Export for Finance</button>
-            <button onClick={() => fileRef.current?.click()} disabled={importing} className="px-5 py-3 bg-white border-2 border-[#800000] text-[#800000] hover:bg-[#800000]/5 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-50">{importing ? 'Importing…' : '📥 Import from Finance'}</button>
+            <button onClick={() => fileRef.current?.click()} disabled={importing || locked} className="px-5 py-3 bg-white border-2 border-[#800000] text-[#800000] hover:bg-[#800000]/5 rounded-xl text-sm font-bold cursor-pointer disabled:opacity-50">{importing ? 'Importing…' : '📥 Import from Finance'}</button>
             <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onImportFile} className="hidden" />
           </div>
 
@@ -128,7 +131,7 @@ const Billing = () => {
                           <td className="py-3.5">{voucher ? <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-teal-50 text-teal-600">{r.form?.voucherType || 'Voucher'}</span> : <span className="text-slate-300 text-xs">—</span>}</td>
                           <td className="py-3.5"><span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${st.cls}`}>{st.label.toUpperCase()}</span></td>
                           <td className="py-3.5 text-[12px] text-slate-500">{b.orNumber || '—'}</td>
-                          <td className="py-3.5 text-right"><button onClick={() => setEdit(r)} className="px-4 py-2 rounded-lg text-[12px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Edit</button></td>
+                          <td className="py-3.5 text-right"><button disabled={locked} onClick={() => setEdit(r)} className="px-4 py-2 rounded-lg text-[12px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer disabled:opacity-40">Edit</button></td>
                         </tr>
                       );
                     })}
@@ -155,7 +158,7 @@ const Billing = () => {
                         <span>OR: {b.orNumber || '—'}</span>
                         {voucher && <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-600">🎟️ {r.form?.voucherType || 'Voucher'}</span>}
                       </div>
-                      <button onClick={() => setEdit(r)} className="mt-3 w-full py-2 rounded-lg text-[12px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer">Edit</button>
+                      <button disabled={locked} onClick={() => setEdit(r)} className="mt-3 w-full py-2 rounded-lg text-[12px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer disabled:opacity-40">Edit</button>
                     </div>
                   );
                 })}

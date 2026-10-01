@@ -3,6 +3,7 @@
 // - Announcements show in the student portal.
 import { useEffect, useState } from 'react';
 import { getEnrollment, saveEnrollment, seasonStatus } from '../../../lib/content';
+import { useMfaLock } from '../../MfaLock';
 import { nextSchoolYear } from '../../../lib/grades';
 import { CardSkeleton } from '../../Skeleton';
 
@@ -14,6 +15,7 @@ const EditEnrollment = () => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const { locked, banner } = useMfaLock('/AdminPortal/Settings');
 
   useEffect(() => { getEnrollment().then(setData); }, []);
 
@@ -49,10 +51,11 @@ const EditEnrollment = () => {
           </div>
           <div className="flex items-center gap-3">
             {saved && <span className="text-xs font-bold text-emerald-600">Saved ✓</span>}
-            <button onClick={save} disabled={saving} className="px-7 py-2.5 bg-[#800000] text-white rounded-lg font-bold hover:bg-[#600000] disabled:opacity-60 cursor-pointer shadow-md">{saving ? 'Saving…' : 'Save Changes'}</button>
+            <button onClick={save} disabled={saving || locked} className="px-7 py-2.5 bg-[#800000] text-white rounded-lg font-bold hover:bg-[#600000] disabled:opacity-60 cursor-pointer shadow-md">{saving ? 'Saving…' : 'Save Changes'}</button>
           </div>
         </div>
 
+        {banner}
         {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
         {/* Enrollment period */}

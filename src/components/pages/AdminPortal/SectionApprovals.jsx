@@ -8,6 +8,7 @@ import { listAllSections, listEnrolled, approveSection, unapproveSection, applic
 import { printClassList, printGradeList } from '../../../lib/print';
 import { ALL_GRADES } from '../../../lib/grades';
 import { CardSkeleton } from '../../Skeleton';
+import { useMfaLock } from '../../MfaLock';
 import { HiOutlinePrinter } from 'react-icons/hi';
 
 const SectionApprovals = () => {
@@ -15,6 +16,7 @@ const SectionApprovals = () => {
   const [enrolled, setEnrolled] = useState([]);
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
+  const { locked, banner } = useMfaLock('/AdminPortal/Settings');
   const [open, setOpen] = useState(null); // section id whose members are shown
   const [printGrade, setPrintGrade] = useState('Grade 7');
 
@@ -68,6 +70,7 @@ const SectionApprovals = () => {
           </div>
 
           {msg && <div className={`mb-5 rounded-lg px-4 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
+          {banner}
 
           {sections === null && <div className="space-y-4"><CardSkeleton lines={2} /><CardSkeleton lines={2} /></div>}
           {sections && sections.length === 0 && <div className="bg-white rounded-2xl shadow-sm p-10 text-center text-slate-400">No sections created yet.</div>}
@@ -90,10 +93,10 @@ const SectionApprovals = () => {
                       <button onClick={() => printClassList({ grade: s.grade, section: s.name, schoolYear: s.school_year, students: mem })} disabled={mem.length === 0} className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm disabled:opacity-50" title="Print class list"><HiOutlinePrinter size={15} /> Class list</button>
                       <span className={`inline-flex px-4 py-1.5 rounded-full text-[10px] font-black ${badge}`}>{isDraft ? 'DRAFT' : approved ? 'APPROVED' : 'PENDING'}</span>
                       {approved
-                        ? <button disabled={busy === s.id} onClick={() => doUnapprove(s)} className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm disabled:opacity-60">Unapprove</button>
+                        ? <button disabled={busy === s.id || locked} onClick={() => doUnapprove(s)} className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg font-bold text-sm disabled:opacity-60">Unapprove</button>
                         : isDraft
                           ? <span className="px-4 py-2 text-slate-400 text-sm font-semibold">Not submitted yet</span>
-                          : <button disabled={busy === s.id || mem.length === 0} onClick={() => doApprove(s)} className="px-5 py-2 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold text-sm disabled:opacity-50">{busy === s.id ? 'Approving…' : '✓ Approve'}</button>}
+                          : <button disabled={busy === s.id || mem.length === 0 || locked} onClick={() => doApprove(s)} className="px-5 py-2 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold text-sm disabled:opacity-50">{busy === s.id ? 'Approving…' : '✓ Approve'}</button>}
                     </div>
                   </div>
                   {open === s.id && (

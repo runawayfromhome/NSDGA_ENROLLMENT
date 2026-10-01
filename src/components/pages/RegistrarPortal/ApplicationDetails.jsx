@@ -13,6 +13,7 @@ import {
 } from '../../../lib/registrar';
 import { REQUIRED_DOCS, DOC_STATUS_STYLE, signedDocUrl } from '../../../lib/student';
 import { CardSkeleton } from '../../Skeleton';
+import { useMfaLock } from '../../MfaLock';
 
 const ageFrom = (dob) => {
   if (!dob) return '—';
@@ -30,6 +31,7 @@ const ApplicationDetails = () => {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
 
   const load = async () => { const a = await getApplication(id); setApp(a); setNote(a?.review_note || ''); setLoading(false); };
   useEffect(() => { load(); }, [id]);
@@ -75,6 +77,7 @@ const ApplicationDetails = () => {
         </div>
 
         {msg && <div className={`rounded-xl px-5 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
+        {banner}
 
         <PersonalInfoCard>
           <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-6">Personal Information</h2>
@@ -139,8 +142,8 @@ const ApplicationDetails = () => {
                     {doc?.path ? (
                       <>
                         <button onClick={() => viewDoc(doc.path)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-black cursor-pointer">VIEW</button>
-                        <button onClick={() => setDoc(key, 'verified')} className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg text-[10px] font-black cursor-pointer">VERIFY</button>
-                        <button onClick={() => setDoc(key, 'rejected')} className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-[10px] font-black cursor-pointer">REJECT</button>
+                        <button disabled={locked} onClick={() => setDoc(key, 'verified')} className="px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 rounded-lg text-[10px] font-black cursor-pointer disabled:opacity-40">VERIFY</button>
+                        <button disabled={locked} onClick={() => setDoc(key, 'rejected')} className="px-3 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-[10px] font-black cursor-pointer disabled:opacity-40">REJECT</button>
                       </>
                     ) : <span className="text-[11px] text-slate-400 italic pr-2">not uploaded</span>}
                   </div>
@@ -162,11 +165,11 @@ const ApplicationDetails = () => {
             <p className="text-[11px] text-slate-400 mt-2">ⓘ The student sees the status and this note on their portal immediately.</p>
             <div className="flex flex-wrap justify-end gap-3 mt-6">
               {app.status === 'submitted' && (
-                <button disabled={busy} onClick={() => run(() => setUnderReview(app.id), 'Marked under review.')} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Mark Under Review</button>
+                <button disabled={busy || locked} onClick={() => run(() => setUnderReview(app.id), 'Marked under review.')} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Mark Under Review</button>
               )}
-              <button disabled={busy} onClick={() => run(() => returnForCorrection(app.id, note), 'Returned for correction.')} className="px-6 py-3 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl font-bold cursor-pointer disabled:opacity-60">Return for Correction</button>
-              <button disabled={busy} onClick={() => run(() => rejectApplication(app.id, note), 'Application rejected.')} className="px-6 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Reject</button>
-              <button disabled={busy} onClick={() => run(() => enrollApplication(app.id, note), 'Enrolled.')} className="px-8 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold shadow-md cursor-pointer disabled:opacity-60">✓ Approve &amp; Enroll</button>
+              <button disabled={busy || locked} onClick={() => run(() => returnForCorrection(app.id, note), 'Returned for correction.')} className="px-6 py-3 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-xl font-bold cursor-pointer disabled:opacity-60">Return for Correction</button>
+              <button disabled={busy || locked} onClick={() => run(() => rejectApplication(app.id, note), 'Application rejected.')} className="px-6 py-3 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Reject</button>
+              <button disabled={busy || locked} onClick={() => run(() => enrollApplication(app.id, note), 'Enrolled.')} className="px-8 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold shadow-md cursor-pointer disabled:opacity-60">✓ Approve &amp; Enroll</button>
             </div>
           </AdditionalNotesCard>
         )}

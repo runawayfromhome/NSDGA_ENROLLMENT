@@ -2,6 +2,7 @@
 // supports photo upload + reordering. Shows on the public About Us page.
 import { useEffect, useState } from 'react';
 import { getSection, saveSection, uploadSiteImage } from '../../../lib/content';
+import { useMfaLock } from '../../MfaLock';
 import { HiOutlineTrash, HiChevronUp, HiChevronDown, HiPlus, HiOutlinePhotograph } from 'react-icons/hi';
 
 const rid = () => Math.random().toString(16).slice(2, 8);
@@ -29,6 +30,7 @@ const EditExecutiveBoard = () => {
   const [saved, setSaved] = useState(false);
   const [uploadingId, setUploadingId] = useState(null);
   const [error, setError] = useState('');
+  const { locked, banner } = useMfaLock('/AdminPortal/Settings');
 
   useEffect(() => {
     (async () => {
@@ -75,10 +77,11 @@ const EditExecutiveBoard = () => {
           <div className="flex items-center gap-3">
             {saved && <span className="text-xs font-bold text-emerald-600">Saved ✓</span>}
             <button onClick={add} className="px-5 py-2.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 flex items-center gap-1 cursor-pointer"><HiPlus /> Add Member</button>
-            <button onClick={save} disabled={saving} className="px-7 py-2.5 bg-[#800000] text-white rounded-lg font-bold hover:bg-[#600000] disabled:opacity-60 cursor-pointer shadow-md">{saving ? 'Saving…' : 'Save Changes'}</button>
+            <button onClick={save} disabled={saving || locked} className="px-7 py-2.5 bg-[#800000] text-white rounded-lg font-bold hover:bg-[#600000] disabled:opacity-60 cursor-pointer shadow-md">{saving ? 'Saving…' : 'Save Changes'}</button>
           </div>
         </div>
 
+        {banner}
         {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {loading && <p className="text-slate-400 text-sm">Loading…</p>}
 

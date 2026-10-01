@@ -3,6 +3,7 @@
 // on the public homepage and Calendar.
 import { useEffect, useState } from 'react';
 import { getSection, saveSection, uploadSiteImage, formatEventDate } from '../../../lib/content';
+import { useMfaLock } from '../../MfaLock';
 import { HiOutlineCalendar, HiOutlinePencilAlt, HiOutlineTrash, HiOutlinePhotograph, HiPlus } from 'react-icons/hi';
 
 const blank = { id: '', title: '', date: '', category: '', location: '', description: '', image: '', published: true };
@@ -14,6 +15,7 @@ const EditSchoolEvent = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { locked, banner } = useMfaLock('/AdminPortal/Settings');
 
   const load = async () => { const c = await getSection('events'); setItems(c.items || []); setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -64,10 +66,11 @@ const EditSchoolEvent = () => {
           </div>
           <div className="flex items-center gap-3">
             {saving && <span className="text-xs text-slate-400">Saving…</span>}
-            <button onClick={openAdd} className="bg-[#800000] text-white px-6 py-2.5 rounded-lg font-bold hover:bg-[#600000] flex items-center gap-2 cursor-pointer"><HiPlus /> Add Event</button>
+            <button onClick={openAdd} disabled={locked} className="bg-[#800000] text-white px-6 py-2.5 rounded-lg font-bold hover:bg-[#600000] flex items-center gap-2 cursor-pointer disabled:opacity-50"><HiPlus /> Add Event</button>
           </div>
         </div>
 
+        {banner}
         {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {loading && <p className="text-slate-400 text-sm">Loading events…</p>}
         {!loading && items.length === 0 && <p className="text-slate-400 text-sm">No events yet. Click &ldquo;Add Event&rdquo; to create one.</p>}
@@ -89,8 +92,8 @@ const EditSchoolEvent = () => {
                 <p className="text-sm text-slate-500 mt-2 flex-1" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ev.description}</p>
                 <div className="flex gap-2 mt-4">
                   <button onClick={() => openEdit(ev)} className="flex-1 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center gap-1 cursor-pointer"><HiOutlinePencilAlt /> Edit</button>
-                  <button onClick={() => togglePublish(ev)} className="flex-1 py-2 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer">{ev.published ? 'Unpublish' : 'Publish'}</button>
-                  <button onClick={() => removeEvent(ev.id)} className="py-2 px-3 rounded-lg text-xs font-bold bg-red-50 text-[#C55A5A] hover:bg-red-100 cursor-pointer"><HiOutlineTrash /></button>
+                  <button onClick={() => togglePublish(ev)} disabled={locked} className="flex-1 py-2 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 cursor-pointer disabled:opacity-50">{ev.published ? 'Unpublish' : 'Publish'}</button>
+                  <button onClick={() => removeEvent(ev.id)} disabled={locked} className="py-2 px-3 rounded-lg text-xs font-bold bg-red-50 text-[#C55A5A] hover:bg-red-100 cursor-pointer disabled:opacity-50"><HiOutlineTrash /></button>
                 </div>
               </div>
             </div>
@@ -127,7 +130,7 @@ const EditSchoolEvent = () => {
 
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setEditing(null)} className="px-5 py-2.5 rounded-lg border border-gray-300 text-sm font-bold text-slate-600 hover:bg-gray-50 cursor-pointer">Cancel</button>
-              <button type="submit" className="px-6 py-2.5 rounded-lg bg-[#800000] text-white text-sm font-bold hover:bg-[#600000] cursor-pointer">Save Event</button>
+              <button type="submit" disabled={locked} className="px-6 py-2.5 rounded-lg bg-[#800000] text-white text-sm font-bold hover:bg-[#600000] cursor-pointer disabled:opacity-50">Save Event</button>
             </div>
           </form>
         </div>
