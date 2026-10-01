@@ -43,6 +43,11 @@ Deno.serve(async (req) => {
     if (!name || !email || !password || !['registrar', 'admin'].includes(role)) {
       return json({ error: 'All fields are required (role must be registrar or admin).' });
     }
+    // Server-side password policy (mirror of the client: 12+ with complexity).
+    const pw = String(password);
+    if (pw.length < 12 || !/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) {
+      return json({ error: 'Password must be at least 12 characters with upper & lower case, a number, and a special character.' });
+    }
 
     // 3) Create the auth user (confirmed, no email sent).
     const { data: created, error: cErr } = await admin.auth.admin.createUser({

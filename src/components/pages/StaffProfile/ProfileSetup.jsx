@@ -204,14 +204,6 @@ const ProfileSetup = () => {
             <Field label="Certifications"><input value={form.certifications} onChange={set('certifications')} className="ip" /></Field>
           </Section>
 
-          {/* Government IDs (optional) */}
-          <Section title="Government IDs (optional)">
-            <Field label="TIN"><input value={form.tin} onChange={set('tin')} className="ip" /></Field>
-            <Field label="SSS"><input value={form.sss} onChange={set('sss')} className="ip" /></Field>
-            <Field label="PhilHealth"><input value={form.philhealth} onChange={set('philhealth')} className="ip" /></Field>
-            <Field label="Pag-IBIG"><input value={form.pagibig} onChange={set('pagibig')} className="ip" /></Field>
-          </Section>
-
           <div className="flex justify-end gap-3 pt-2">
             <button type="submit" disabled={submitting} className="px-10 py-3 bg-[#800000] hover:bg-[#600000] disabled:opacity-60 text-white rounded-xl font-bold text-sm shadow-md cursor-pointer">
               {submitting ? 'Submitting…' : 'Submit for Verification'}

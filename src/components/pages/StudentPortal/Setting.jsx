@@ -6,7 +6,7 @@ import Header from '../../Header';
 import { HiOutlineEye, HiOutlineEyeOff, HiSave } from "react-icons/hi";
 import { verifyCurrentPassword, changePassword } from '../../../auth/authStore';
 import { validatePassword } from '../../../lib/password';
-import MfaCard from '../../MfaCard';
+import MfaSettings from '../../MfaSettings';
 
 const Setting = () => {
   const [cur, setCur] = useState('');
@@ -67,7 +67,7 @@ const Setting = () => {
               </div>
             </form>
 
-            <MfaCard />
+            <MfaSettings />
           </div>
         </main>
       </div>
