@@ -28,6 +28,10 @@ export function levelOfGrade(grade) {
   return '';
 }
 
+// Senior High grades require a strand.
+export const SHS_STRANDS = ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL'];
+export const isSHSGrade = (grade) => levelOfGrade(grade) === 'Senior High School';
+
 // "2026-2027" -> "2027-2028".
 export function nextSchoolYear(sy) {
   const m = String(sy || '').match(/(\d{4})-(\d{4})/);

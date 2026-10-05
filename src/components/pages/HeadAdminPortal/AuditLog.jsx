@@ -14,7 +14,7 @@ const ACTION_LABEL = {
   REACTIVATE: 'Reactivate', READMIT: 'Re-admit',
   SECTION_APPROVE: 'Approve section', SECTION_UNAPPROVE: 'Un-approve section',
   ACCOUNT_CREATE: 'Create account', ACCOUNT_DISABLE: 'Disable account', ACCOUNT_ENABLE: 'Enable account',
-  ROLE_CHANGE: 'Change role', ACCOUNT_VERIFY: 'Verify account', PROFILE_RETURN: 'Return profile',
+  ROLE_CHANGE: 'Change role', HEADADMIN_PROMOTE: 'Promote to HeadAdmin', ACCOUNT_VERIFY: 'Verify account', PROFILE_RETURN: 'Return profile',
   CONTENT_EDIT: 'Edit content',
   BILLING_UPDATE: 'Update billing',
 };
@@ -26,7 +26,7 @@ const CATEGORIES = {
   enrollment: ['ENROLL', 'REJECT', 'RETURN'],
   lifecycle: ['COMPLETE', 'GRADUATED', 'WITHDRAWN', 'ARCHIVED', 'REACTIVATE', 'READMIT'],
   sections: ['SECTION_APPROVE', 'SECTION_UNAPPROVE'],
-  accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN'],
+  accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'HEADADMIN_PROMOTE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN'],
   content: ['CONTENT_EDIT'],
   billing: ['BILLING_UPDATE'],
 };
@@ -108,7 +108,7 @@ const AuditLog = () => {
     <div className="flex min-h-screen bg-[#F8F9FA]">
       <HeadAdminSidebar />
       <div className="flex-1 lg:ml-64 flex flex-col">
-        <main className="p-6 md:p-12 max-w-[1400px]">
+        <main className="px-6 pt-20 pb-8 md:p-12 max-w-[1400px]">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Audit &amp; Activity Log</h1>
             <p className="text-slate-500 text-sm">Every sign-in and every action staff take across the system.</p>

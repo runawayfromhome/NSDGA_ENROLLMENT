@@ -42,21 +42,23 @@ Deno.serve(async (req) => {
     if (cErr) return json({ error: cErr.message });
     const uid = created.user.id;
 
-    // 2) File the admission application (service role bypasses RLS).
-    const { error: appErr } = await admin.from('applications').insert({
+    // 2) Open a DRAFT admission application (service role bypasses RLS). The
+    //    applicant fills the rest of the wizard while signed in; OTP verification
+    //    later flips this to 'submitted'. level/studentType may still be null.
+    const { data: app, error: appErr } = await admin.from('applications').insert({
       student_id: uid,
       school_year: form.schoolYear || '2026-2027',
-      grade_level: level,
-      student_type: studentType,
-      status: 'submitted',
+      grade_level: level || null,
+      student_type: studentType || null,
+      status: 'draft',
       form: { ...form, contact },
-    });
+    }).select('id').single();
     if (appErr) {
       await admin.auth.admin.deleteUser(uid); // rollback so they can retry cleanly
       return json({ error: appErr.message });
     }
 
-    return json({ ok: true, userId: uid });
+    return json({ ok: true, userId: uid, appId: app.id });
   } catch (e) {
     return json({ error: String(e) });
   }

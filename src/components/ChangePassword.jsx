@@ -5,15 +5,11 @@
 import { useEffect, useState } from 'react';
 import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { getMfaFactor, verifyCurrentPassword, verifyMfaChallenge, changePassword } from '../auth/authStore';
-
-const rules = (pw) => ({
-  'At least 12 characters': pw.length >= 12,
-  'Upper & lower case letters': /[a-z]/.test(pw) && /[A-Z]/.test(pw),
-  'At least one number': /\d/.test(pw),
-  'At least one special character': /[^A-Za-z0-9]/.test(pw),
-});
+import { passwordChecks } from '../lib/password';
+import { useSession } from '../contexts/useSession';
 
 const ChangePassword = () => {
+  const { session } = useSession();
   const [factor, setFactor] = useState(null);
   const [form, setForm] = useState({ current: '', next: '', confirm: '', code: '' });
   const [show, setShow] = useState({ current: false, next: false });
@@ -24,7 +20,7 @@ const ChangePassword = () => {
   useEffect(() => { (async () => setFactor(await getMfaFactor()))(); }, []);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const checks = rules(form.next);
+  const checks = passwordChecks(form.next, session?.role);
   const allValid = Object.values(checks).every(Boolean);
 
   const submit = async (e) => {

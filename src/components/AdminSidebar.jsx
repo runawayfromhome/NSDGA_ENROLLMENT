@@ -27,7 +27,7 @@ const MENU = [
   { name: 'Executive Board', icon: HiOutlineUserGroup, path: '/AdminPortal/EditExecutiveBoard' },
   { name: 'Academic Schedule', icon: HiOutlineAcademicCap, path: '/AdminPortal/EditAcademicSched' },
   { name: 'Section Approvals', icon: HiOutlineClipboardCheck, path: '/AdminPortal/SectionApprovals' },
-  { name: 'Billing & Finance', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
+  { name: 'Finance Status', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/AdminPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/AdminPortal/Settings' },
 ];

@@ -14,6 +14,7 @@ const STATUS_OPTIONS = [
   { value: 'submitted', label: 'Pending Review' },
   { value: 'under_review', label: 'Under Review' },
   { value: 'needs_correction', label: 'Needs Correction' },
+  { value: 'resubmitted', label: 'Resubmitted (re-review)' },
   { value: 'enrolled', label: 'Enrolled' },
   { value: 'rejected', label: 'Rejected' },
 ];
@@ -41,7 +42,9 @@ const Applications = () => {
   const filtered = (apps || []).filter((a) => {
     const s = (applicantName(a) + ' ' + a.id + ' ' + (a.grade_level || '')).toLowerCase();
     if (!s.includes(q.toLowerCase())) return false;
-    if (status !== 'all' && a.status !== status) return false;
+    if (status === 'resubmitted') {
+      if (!(a.status === 'submitted' && a.form?.resubmitted)) return false;
+    } else if (status !== 'all' && a.status !== status) return false;
     if (grade !== 'all' && a.grade_level !== grade) return false;
     if (dateFrom || dateTo) {
       // Compare using the LOCAL date (matches the "Date Submitted" column).
@@ -117,6 +120,7 @@ const Applications = () => {
                       id={a.id.slice(0, 8).toUpperCase()}
                       grade={a.grade_level}
                       status={a.status}
+                      resubmitted={!!a.form?.resubmitted && a.status === 'submitted'}
                       date={fmtDate(a.created_at)}
                       onClick={() => navigate('/RegistrarPortal/Applications/' + a.id)}
                     />
@@ -137,7 +141,10 @@ const Applications = () => {
                         <p className="text-[13px] font-bold text-slate-700 truncate">{applicantName(a).toUpperCase()}</p>
                         <p className="text-[11px] text-slate-400">{a.grade_level}</p>
                       </div>
-                      <span className={`shrink-0 px-3 py-1.5 rounded-full text-[9px] font-black tracking-tighter ${style.bg} ${style.text}`}>{style.label}</span>
+                      <div className="shrink-0 flex flex-col items-end gap-1">
+                        <span className={`px-3 py-1.5 rounded-full text-[9px] font-black tracking-tighter ${style.bg} ${style.text}`}>{style.label}</span>
+                        {!!a.form?.resubmitted && a.status === 'submitted' && <span className="px-2.5 py-1 rounded-full text-[9px] font-black tracking-tighter bg-teal-50 text-teal-600">RESUBMITTED</span>}
+                      </div>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-2">ID {a.id.slice(0, 8).toUpperCase()} · {fmtDate(a.created_at)}</p>
                   </div>
@@ -169,7 +176,7 @@ const Field = ({ label, children }) => (
   </div>
 );
 
-const AppTableRow = ({ name, id, grade, status, date, onClick }) => {
+const AppTableRow = ({ name, id, grade, status, resubmitted, date, onClick }) => {
   const style = APP_DISPLAY[status] || APP_DISPLAY.submitted;
   return (
     <tr onClick={onClick} className="group hover:bg-gray-50 transition-colors cursor-pointer">
@@ -177,6 +184,7 @@ const AppTableRow = ({ name, id, grade, status, date, onClick }) => {
       <td className="py-6 text-[12px] font-medium text-slate-500">{id}</td>
       <td className="py-6">
         <span className={`px-5 py-2 rounded-full text-[9px] font-black tracking-tighter ${style.bg} ${style.text}`}>{style.label}</span>
+        {resubmitted && <span className="ml-2 px-3 py-2 rounded-full text-[9px] font-black tracking-tighter bg-teal-50 text-teal-600">RESUBMITTED</span>}
       </td>
       <td className="py-6 text-[12px] font-medium text-slate-500">{date}</td>
     </tr>

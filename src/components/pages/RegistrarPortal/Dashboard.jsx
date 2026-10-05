@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
+import MfaReminder from '../../MfaReminder';
 import Header from '../../Header';
 import TotalPendingCard from '../../icons/TotalPendingCard';
 import DocumentReviewcard from '../../icons/RegistrarIcons/DocumentReviewcard';
@@ -35,6 +36,8 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Registrar Overview</h1>
             <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Academic Year 2026-2027</p>
           </div>
+
+          <MfaReminder settingsPath="/RegistrarPortal/Settings" />
 
           {apps === null ? (
             <div className="mb-12"><StatCardsSkeleton count={3} /></div>

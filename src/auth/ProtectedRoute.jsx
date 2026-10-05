@@ -6,7 +6,7 @@ import { Navigate } from 'react-router-dom';
 import { useSession } from '../contexts/useSession';
 import { ROLE_HOME, PROFILE_SETUP_PATH, MFA_SETUP_PATH, STATUS } from './authStore';
 
-export default function ProtectedRoute({ allow, loginPath = '/StudentPortal/Login', requireVerified = false, skipMfaGate = false, children }) {
+export default function ProtectedRoute({ allow, loginPath = '/StudentPortal/Login', requireVerified = false, requireEnrolled = false, skipMfaGate = false, children }) {
   const { session, loading, mfaBypass } = useSession();
 
   // Don't decide anything until Supabase has told us who (if anyone) is logged in.
@@ -26,6 +26,11 @@ export default function ProtectedRoute({ allow, loginPath = '/StudentPortal/Logi
 
   if (allow && !allow.includes(session.role)) {
     return <Navigate to={ROLE_HOME[session.role] || '/Home'} replace />;
+  }
+
+  // A student who isn't enrolled yet can only use the applicant dashboard.
+  if (requireEnrolled && session.role === 'student' && !session.isEnrolled) {
+    return <Navigate to="/StudentPortal/ApplicationStatus" replace />;
   }
 
   if (requireVerified && session.status !== STATUS.VERIFIED) {

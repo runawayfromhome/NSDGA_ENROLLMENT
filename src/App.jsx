@@ -19,6 +19,8 @@ import ForgotPassOtp from './components/pages/StudentPortal/ForgotPassOtp';
 import CreateNewPass from './components/pages/StudentPortal/CreateNewPass';
 import LoginOtp from './components/pages/StudentPortal/LoginOtp';
 import Apply from './components/pages/StudentPortal/Apply';
+import VerifyOtp from './components/pages/StudentPortal/VerifyOtp';
+import EnrollmentForm from './components/pages/StudentPortal/EnrollmentForm';
 import Notification from './components/pages/StudentPortal/Notification';
 import Application from './components/pages/StudentPortal/ApplicationStatus';
 import StudentDashboard from './components/pages/StudentPortal/Dashboard';
@@ -45,6 +47,7 @@ import SectionApprovals from './components/pages/AdminPortal/SectionApprovals';
 import Billing from './components/pages/AdminPortal/Billing';
 // Auth + staff/head-admin portals
 import ProtectedRoute from './auth/ProtectedRoute';
+import OfflineBanner from './components/OfflineBanner';
 import AdminLayout from './components/AdminLayout';
 import AdminLogin from './components/pages/AdminPortal/Login';
 import AdminDashboard from './components/pages/AdminPortal/Dashboard';
@@ -62,6 +65,8 @@ import HeadAdminSettings from './components/pages/HeadAdminPortal/Settings';
 
 function App() {
   return (
+    <>
+    <OfflineBanner />
     <Routes>
       {/* Send the root URL to the homepage */}
       <Route path="/" element={<Navigate to="/Home" replace />} />
@@ -77,17 +82,21 @@ function App() {
       <Route path="/About" element={<About />} />
       <Route path="/StudentPortal/Login" element={<Login />} />
       <Route path="/StudentPortal/Apply" element={<Apply />} />
+      <Route path="/StudentPortal/VerifyOtp" element={<VerifyOtp />} />
+      <Route path="/StudentPortal/EnrollmentForm" element={<ProtectedRoute allow={['student']}><EnrollmentForm /></ProtectedRoute>} />
       <Route path="/StudentPortal/Signup" element={<Signup />} />
       <Route path="/StudentPortal/ForgotPass" element={<ForgotPass />} />
       <Route path="/StudentPortal/ForgotPassOtp" element={<ForgotPassOtp />} />
       <Route path="/StudentPortal/CreateNewPass" element={<CreateNewPass />} />
       <Route path="/StudentPortal/LoginOtp" element={<LoginOtp />} />
-      <Route path="/StudentPortal/Notifications" element={<Notification />} />
-      <Route path="/StudentPortal/Dashboard" element={<StudentDashboard />} />
-      <Route path="/StudentPortal/ApplicationStatus" element={<Application />} />
-      <Route path="/StudentPortal/Documents" element={<Documents />} />
-      <Route path="/StudentPortal/Profile" element={<Profile />} />
-      <Route path="/StudentPortal/Settings" element={<Setting />} />
+      {/* Applicant pages — need login only */}
+      <Route path="/StudentPortal/ApplicationStatus" element={<ProtectedRoute allow={['student']}><Application /></ProtectedRoute>} />
+      {/* Full Student Portal — only after the Registrar enrolls the student */}
+      <Route path="/StudentPortal/Dashboard" element={<ProtectedRoute allow={['student']} requireEnrolled><StudentDashboard /></ProtectedRoute>} />
+      <Route path="/StudentPortal/Notifications" element={<ProtectedRoute allow={['student']} requireEnrolled><Notification /></ProtectedRoute>} />
+      <Route path="/StudentPortal/Documents" element={<ProtectedRoute allow={['student']} requireEnrolled><Documents /></ProtectedRoute>} />
+      <Route path="/StudentPortal/Profile" element={<ProtectedRoute allow={['student']} requireEnrolled><Profile /></ProtectedRoute>} />
+      <Route path="/StudentPortal/Settings" element={<ProtectedRoute allow={['student']} requireEnrolled><Setting /></ProtectedRoute>} />
       {/* Registrar portal — login public; ProfileSetup requires login only; the rest require a VERIFIED registrar */}
       <Route path="/RegistrarPortal/Login" element={<LoginPage />} />
       <Route path="/RegistrarPortal/ProfileSetup" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login"><StaffProfileSetup /></ProtectedRoute>} />
@@ -129,6 +138,7 @@ function App() {
       {/* Any unknown URL falls back to the homepage */}
       <Route path="*" element={<Navigate to="/Home" replace />} />
     </Routes>
+    </>
   )
 }
 

@@ -5,6 +5,8 @@ import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineEye, HiOutlineEyeOff, HiSave } from "react-icons/hi";
 import { verifyCurrentPassword, changePassword } from '../../../auth/authStore';
+import { validatePassword } from '../../../lib/password';
+import MfaCard from '../../MfaCard';
 
 const Setting = () => {
   const [cur, setCur] = useState('');
@@ -18,7 +20,7 @@ const Setting = () => {
   const submit = async (e) => {
     e.preventDefault();
     setMsg(null);
-    if (nw.length < 8) return setMsg({ ok: false, text: 'New password must be at least 8 characters.' });
+    { const v = validatePassword(nw, 'student'); if (!v.ok) return setMsg({ ok: false, text: v.error }); }
     if (nw !== confirm) return setMsg({ ok: false, text: 'New passwords do not match.' });
     setBusy(true);
     const v = await verifyCurrentPassword(cur);
@@ -64,6 +66,8 @@ const Setting = () => {
                 </div>
               </div>
             </form>
+
+            <MfaCard />
           </div>
         </main>
       </div>

@@ -1,6 +1,7 @@
 // src/lib/billing.js
-// Billing / Payment handoff to Finance (Option B: export + import).
-// The app never handles money — it only stores a payment STATUS per enrollment
+// Finance Status handoff (Option B: export + import).
+// The school does NOT hold the finance side, so the app never handles money —
+// it only stores a payment STATUS (+ OR number and remarks) per enrollment
 // record, set by staff after Finance assesses/receives payment offline. Admin
 // exports enrolled students to a CSV for Finance, then imports the returned CSV
 // to update statuses automatically. Students see the result read-only.
@@ -19,11 +20,6 @@ export const BILLING_ORDER = ['not_assessed', 'assessed', 'partial', 'paid', 'vo
 const nameOf = (app) => {
   const f = app?.form || {};
   return `${f.firstName || ''} ${f.lastName || ''}`.replace(/\s+/g, ' ').trim() || app?.student_no || '—';
-};
-export const billingBalance = (b) => {
-  const due = Number(b?.amountDue), paid = Number(b?.amountPaid);
-  if (isNaN(due)) return null;
-  return due - (isNaN(paid) ? 0 : paid);
 };
 
 // Enrolled students for the billing desk (optionally one school year), by no.
@@ -53,18 +49,17 @@ const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 export const BILLING_HEADERS = [
   'Student No', 'Last Name', 'First Name', 'Grade', 'Strand',
   'Voucher', 'Voucher Type', 'Voucher ID',
-  'Status', 'Amount Due', 'Amount Paid', 'Balance', 'OR Number', 'Remarks',
+  'Status', 'OR Number', 'Remarks',
 ];
 
 export function billingCsv(rows) {
   const lines = rows.map((r) => {
     const f = r.form || {}, b = r.billing || {};
-    const bal = billingBalance(b);
     return [
       r.student_no, f.lastName, f.firstName, f.grade || r.grade_level, f.strand || '',
       f.voucherApplicant || '', f.voucherType || '', f.voucherId || '',
       BILLING_STATUS[b.status]?.label || 'Not Assessed',
-      b.amountDue ?? '', b.amountPaid ?? '', bal == null ? '' : bal, b.orNumber || '', b.remarks || '',
+      b.orNumber || '', b.remarks || '',
     ].map(csvCell).join(',');
   });
   return [BILLING_HEADERS.map(csvCell).join(','), ...lines].join('\r\n');
@@ -120,8 +115,7 @@ export async function importBillingCsv(text, rows, staffName) {
   const col = (name) => header.indexOf(name);
   const cNo = col('student no');
   if (cNo < 0) return { ok: false, error: 'CSV must include a "Student No" column.' };
-  const cStatus = col('status'), cDue = col('amount due'), cPaid = col('amount paid'),
-    cOr = col('or number'), cRem = col('remarks');
+  const cStatus = col('status'), cOr = col('or number'), cRem = col('remarks');
 
   const byNo = {};
   rows.forEach((r) => { if (r.student_no) byNo[String(r.student_no).trim()] = r; });
@@ -134,8 +128,6 @@ export async function importBillingCsv(text, rows, staffName) {
     if (!app) { skipped++; if (no) misses.push(no); continue; }
     const patch = { updatedByName: staffName };
     if (cStatus >= 0) { const st = normalizeStatus(row[cStatus]); if (st) patch.status = st; }
-    if (cDue >= 0) patch.amountDue = String(row[cDue] ?? '').trim();
-    if (cPaid >= 0) patch.amountPaid = String(row[cPaid] ?? '').trim();
     if (cOr >= 0) patch.orNumber = String(row[cOr] ?? '').trim();
     if (cRem >= 0) patch.remarks = String(row[cRem] ?? '').trim();
     const res = await updateBilling(app.id, patch, nameOf(app));

@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import AcademyLogo from '../../../assets/nuestralogo.jpg';
 import { useSession } from '../../../contexts/useSession';
 import { submitProfile, ROLE_HOME, STATUS } from '../../../auth/authStore';
+import { validatePassword, passwordChecks } from '../../../lib/password';
 
 const ROLE_DEFAULTS = {
   registrar: { position: 'School Registrar', department: "Registrar's Office" },
@@ -57,9 +58,7 @@ const ProfileSetup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!password.newPassword || password.newPassword.length < 6) {
-      return setError('Please set a new password of at least 6 characters.');
-    }
+    { const v = validatePassword(password.newPassword, session.role); if (!v.ok) return setError(v.error); }
     if (password.newPassword !== password.confirmPassword) {
       return setError('Passwords do not match.');
     }
@@ -139,8 +138,15 @@ const ProfileSetup = () => {
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Account & Security */}
           <Section title="Account & Security">
-            <Field label="New Password *"><input type="password" value={password.newPassword}
-              onChange={(e) => setPassword({ ...password, newPassword: e.target.value })} className="ip" placeholder="At least 6 characters" /></Field>
+            <div>
+              <Field label="New Password *"><input type="password" value={password.newPassword}
+                onChange={(e) => setPassword({ ...password, newPassword: e.target.value })} className="ip" placeholder="Set a strong password" /></Field>
+              <ul className="mt-2 space-y-1">
+                {Object.entries(passwordChecks(password.newPassword, session.role)).map(([label, ok]) => (
+                  <li key={label} className={`flex items-center gap-2 text-[12px] font-medium ${ok ? 'text-[#48A675]' : 'text-slate-400'}`}><span>{ok ? '✓' : '•'}</span> {label}</li>
+                ))}
+              </ul>
+            </div>
             <Field label="Confirm Password *"><input type="password" value={password.confirmPassword}
               onChange={(e) => setPassword({ ...password, confirmPassword: e.target.value })} className="ip" placeholder="Re-type password" /></Field>
           </Section>
