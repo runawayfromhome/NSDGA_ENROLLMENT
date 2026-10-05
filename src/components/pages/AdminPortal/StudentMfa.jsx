@@ -1,9 +1,10 @@
-// Admin → Student 2FA. Account recovery for students who lost their authenticator
+// Admin → Student MFA. Account recovery for students who lost their authenticator
 // and are locked out. Lists enrolled students (searchable); removing MFA requires
 // an emailed OTP step-up (handled by RemoveMfaSection + admin-remove-mfa).
 import { useEffect, useState } from 'react';
 import AdminSidebar from '../../AdminSidebar';
 import { listStudents, applicantName } from '../../../lib/registrar';
+import { ALL_GRADES } from '../../../lib/grades';
 import { TableSkeleton } from '../../Skeleton';
 import { useMfaLock } from '../../MfaLock';
 import RemoveMfaSection from '../../RemoveMfaSection';
@@ -11,13 +12,19 @@ import RemoveMfaSection from '../../RemoveMfaSection';
 const StudentMfa = () => {
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
   const [target, setTarget] = useState(null); // { id (student_id), name }
   const { locked, banner } = useMfaLock('/AdminPortal/Settings');
 
   useEffect(() => { listStudents().then(setRows); }, []);
 
+  const gradeOf = (r) => r.form?.grade || r.grade_level || '';
+  // Only offer grades that actually have enrolled students in the dropdown.
+  const gradesPresent = ALL_GRADES.filter((g) => (rows || []).some((r) => r.status === 'enrolled' && gradeOf(r) === g));
+
   const filtered = (rows || []).filter((r) => {
     if (r.status !== 'enrolled') return false; // verified/active students only
+    if (gradeFilter && gradeOf(r) !== gradeFilter) return false;
     const s = (applicantName(r) + ' ' + (r.student_no || '') + ' ' + (r.form?.lrn || '')).toLowerCase();
     return s.includes(q.trim().toLowerCase());
   });
@@ -29,7 +36,7 @@ const StudentMfa = () => {
         <main className="p-6 md:p-12 max-w-[1100px] w-full">
           <div className="flex items-center gap-4 mb-2">
             <div className="w-2 h-10 bg-[#800000]" />
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Student 2FA</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Student MFA</h1>
           </div>
           <p className="text-gray-500 text-sm ml-6 mb-6 max-w-2xl">
             Remove a student's Two-Factor Authentication if they lost their authenticator and are locked out.
@@ -38,8 +45,15 @@ const StudentMfa = () => {
 
           {banner}
 
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, Student No., or LRN…"
-            className="w-full md:w-96 px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm mb-5 outline-none focus:border-[#800000]" />
+          <div className="flex flex-col md:flex-row gap-3 mb-5">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, Student No., or LRN…"
+              className="w-full md:w-96 px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm outline-none focus:border-[#800000]" />
+            <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}
+              className="w-full md:w-52 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm outline-none focus:border-[#800000] cursor-pointer">
+              <option value="">All grade levels</option>
+              {gradesPresent.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
 
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 md:p-6">
             {rows === null ? <TableSkeleton rows={6} cols={3} /> : (

@@ -14,13 +14,13 @@ import {
   createApplicantAccount, saveApplicationDraft, requestSignupOtp,
   getMyApplication, uploadStudentDoc, CURRENT_SCHOOL_YEAR, isEnrolledStatus,
 } from '../../../lib/student';
-import { getEnrollment, isEnrollmentOpen } from '../../../lib/content';
+import { getEnrollment, isEnrollmentOpen, getStrands } from '../../../lib/content';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
 import { validatePassword } from '../../../lib/password';
+import ChatbotWidget from '../../ChatbotWidget';
 
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
-const SHS_STRANDS = ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL'];
 
 const STEP_KEYS = ['account', 'personal', 'grade', 'academic', 'documents', 'review'];
 const STEP_LABELS = {
@@ -100,12 +100,14 @@ const Apply = () => {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState('');
   const [enrollment, setEnrollment] = useState(null);
+  const [shsStrands, setShsStrands] = useState([]); // SHS courses, managed by Admin
 
   // Resume a draft if the applicant is already signed in.
   useEffect(() => {
     (async () => {
       const enr = await getEnrollment();
       setEnrollment(enr);
+      getStrands().then(setShsStrands);
       const activeSY = enr?.activeSchoolYear || CURRENT_SCHOOL_YEAR;
       const saved = readDraft(); // unsaved local edits, if any
       const app = await getMyApplication();
@@ -270,7 +272,8 @@ const Apply = () => {
   }
 
   return (
-    <Shell steps={STEP_KEYS.map((k) => STEP_LABELS[k])} step={step} done={accountDone ? 0 : -1}>
+    <Shell steps={STEP_KEYS.map((k) => STEP_LABELS[k])} step={step} done={accountDone ? 0 : -1}
+      chatContext={`The user is on the NSDGA online admission application page. The Senior High strands currently offered by the school are: ${shsStrands.join(', ') || '(see the strand dropdown on the form)'}. Use exactly this list if asked about available strands.`}>
       {current === 'account' ? (
         <>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Create Account</h2>
@@ -366,7 +369,7 @@ const Apply = () => {
           </Field>
           {isSHS && (
             <Field label="Preferred Strand" req>
-              <select className="ip" value={f.strand} onChange={(e) => set('strand', e.target.value)}><option value="">Select…</option>{SHS_STRANDS.map((s) => <option key={s}>{s}</option>)}</select>
+              <select className="ip" value={f.strand} onChange={(e) => set('strand', e.target.value)}><option value="">Select…</option>{shsStrands.map((s) => <option key={s}>{s}</option>)}</select>
             </Field>
           )}
         </div>
@@ -475,7 +478,7 @@ const Apply = () => {
   );
 };
 
-const Shell = ({ children, steps, step, done = -1 }) => (
+const Shell = ({ children, steps, step, done = -1, chatContext }) => (
   <div className="flex min-h-screen w-full font-sans">
     <div className="relative hidden lg:flex lg:w-[38%] flex-col items-center justify-center p-12 text-center text-white"
       style={{ backgroundImage: `url(${NuestraLogoImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
@@ -505,6 +508,7 @@ const Shell = ({ children, steps, step, done = -1 }) => (
         {children}
       </div>
     </div>
+    <ChatbotWidget context={chatContext || 'The user is on the NSDGA online admission application page (applying / enrolling).'} />
   </div>
 );
 

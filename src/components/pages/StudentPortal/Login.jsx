@@ -16,7 +16,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [mfa, setMfa] = useState(null); // { factorId } while awaiting the 2FA code
+  const [mfa, setMfa] = useState(null); // { factorId } while awaiting the MFA code
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
 
@@ -30,7 +30,7 @@ const Login = () => {
     if (!res.ok) { setBusy(false); return setError(res.error); }
     const s = await refresh(); // load session (incl. enrollment + MFA status)
     setBusy(false);
-    // If the student turned on 2FA, ask for the authenticator code first.
+    // If the student turned on MFA, ask for the authenticator code first.
     if (s?.needsMfa) { setMfa({ factorId: s.mfaFactorId }); return; }
     goHome(s);
   };

@@ -48,6 +48,7 @@ const EditSchoolEvent = lazy(() => import('./components/pages/AdminPortal/EditSc
 const EditExecutiveBoard = lazy(() => import('./components/pages/AdminPortal/EditExecutiveBoard'));
 const EditAcademicSched = lazy(() => import('./components/pages/AdminPortal/EditAcademicSched'));
 const EditEnrollment = lazy(() => import('./components/pages/AdminPortal/EditEnrollment'));
+const EditStrands = lazy(() => import('./components/pages/AdminPortal/EditStrands'));
 const SectionApprovals = lazy(() => import('./components/pages/AdminPortal/SectionApprovals'));
 const Billing = lazy(() => import('./components/pages/AdminPortal/Billing'));
 const StudentMfa = lazy(() => import('./components/pages/AdminPortal/StudentMfa'));
@@ -129,6 +130,7 @@ function App() {
       <Route path="/AdminPortal/EditExecutiveBoard" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditExecutiveBoard /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditAcademicSched" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditAcademicSched /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditEnrollment" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditEnrollment /></AdminLayout></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditStrands" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditStrands /></AdminLayout></ProtectedRoute>} />
 
       {/* HeadAdmin portal — login public; management pages require the headadmin role */}
       <Route path="/HeadAdminPortal/Login" element={<HeadAdminLogin />} />

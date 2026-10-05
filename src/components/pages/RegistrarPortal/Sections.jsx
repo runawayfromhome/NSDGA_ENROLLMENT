@@ -11,8 +11,8 @@ import {
   listSections, createSection, deleteSection, renameSection, submitSection,
   listEnrolledInGrade, assignToSection, applicantName, sectionStatus, SECTION_CAPACITY,
 } from '../../../lib/registrar';
-import { getActiveSchoolYear } from '../../../lib/content';
-import { ALL_GRADES, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
+import { getActiveSchoolYear, getStrands } from '../../../lib/content';
+import { ALL_GRADES, isSHSGrade } from '../../../lib/grades';
 import { useMfaLock } from '../../MfaLock';
 import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePencil, HiOutlinePaperAirplane } from "react-icons/hi";
 
@@ -37,6 +37,7 @@ const Sections = () => {
   const [msg, setMsg] = useState('');
   const [name, setName] = useState('');
   const [newStrand, setNewStrand] = useState(''); // strand for a new SHS section
+  const [shsStrands, setShsStrands] = useState([]); // SHS courses, managed by Admin
   const [editId, setEditId] = useState(null); // section being renamed
   const [editName, setEditName] = useState('');
   const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
@@ -44,6 +45,7 @@ const Sections = () => {
   const shs = isSHSGrade(grade);
 
   useEffect(() => { getActiveSchoolYear().then(setSchoolYear); }, []);
+  useEffect(() => { getStrands().then(setShsStrands); }, []);
 
   const load = async () => {
     if (!schoolYear) return;
@@ -134,7 +136,7 @@ const Sections = () => {
               <Field label="Strand">
                 <select value={newStrand} onChange={(e) => setNewStrand(e.target.value)} className="sel w-32">
                   <option value="">Select…</option>
-                  {SHS_STRANDS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {shsStrands.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </Field>
             )}

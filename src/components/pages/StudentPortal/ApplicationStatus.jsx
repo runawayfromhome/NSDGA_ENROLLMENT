@@ -6,6 +6,7 @@ import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, APP_STEPS, STATUS_LABEL } from '../../../lib/student';
 import { CardSkeleton } from '../../Skeleton';
+import ChatbotWidget from '../../ChatbotWidget';
 
 const ApplicationStatus = () => {
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,13 @@ const ApplicationStatus = () => {
           {!loading && app && <StatusBody app={app} />}
         </main>
       </div>
+      <ChatbotWidget
+        context={
+          app
+            ? `The user is an enrolled/applicant student viewing their Application Status page. Their current application status is "${STATUS_LABEL[app.status] || app.status}" for ${app.grade_level || ''} (S.Y. ${app.school_year || ''}).`
+            : 'The user is on their Application Status page but has no application on file yet.'
+        }
+      />
     </div>
   );
 };
