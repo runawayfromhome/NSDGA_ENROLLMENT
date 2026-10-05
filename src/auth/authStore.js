@@ -127,6 +127,22 @@ export async function setUserPassword(targetUserId, newPassword, code, targetNam
   return { ok: true };
 }
 
+// admin-remove-mfa Edge Function (HeadAdmin→staff, Admin→student; OTP step-up):
+// account recovery when a user loses their authenticator.
+export async function requestRemoveMfaOtp() {
+  const { data, error } = await supabase.functions.invoke('admin-remove-mfa', { body: {} });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true, sentTo: data.sentTo };
+}
+export async function removeUserMfa(targetUserId, code, targetName) {
+  const { data, error } = await supabase.functions.invoke('admin-remove-mfa', { body: { targetUserId, code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'MFA reset failed.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  logAction('MFA_RESET', `Removed MFA for ${targetName || targetUserId}`);
+  return { ok: true };
+}
+
 export async function verifyAccount(id) {
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.VERIFIED, verified_at: new Date().toISOString() }).eq('id', id);

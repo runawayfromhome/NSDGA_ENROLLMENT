@@ -7,6 +7,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import MfaReminder from '../../MfaReminder';
+import RemoveMfaSection from '../../RemoveMfaSection';
 import { useSession } from '../../../contexts/useSession';
 import {
   getStaffAccounts, createAccount, setDisabled, verifyAccount, returnProfile,
@@ -450,6 +451,14 @@ const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
             <div className="border-t border-gray-100 pt-5">
               <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Reset Password</h4>
               <ResetPasswordSection account={account} locked={mfaLocked} />
+            </div>
+          )}
+
+          {/* Remove MFA (account recovery — staff only) */}
+          {!isSelf && ['registrar', 'admin'].includes(account.role) && (
+            <div className="border-t border-gray-100 pt-5">
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Two-Factor Authentication</h4>
+              <RemoveMfaSection account={account} locked={mfaLocked} />
             </div>
           )}
 

@@ -13,6 +13,7 @@ import {
   HiOutlineSpeakerphone,
   HiOutlineClipboardCheck,
   HiOutlineCurrencyDollar,
+  HiOutlineShieldCheck,
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineLogout,
@@ -28,6 +29,7 @@ const MENU = [
   { name: 'Academic Schedule', icon: HiOutlineAcademicCap, path: '/AdminPortal/EditAcademicSched' },
   { name: 'Section Approvals', icon: HiOutlineClipboardCheck, path: '/AdminPortal/SectionApprovals' },
   { name: 'Finance Status', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
+  { name: 'Student 2FA', icon: HiOutlineShieldCheck, path: '/AdminPortal/StudentMfa' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/AdminPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/AdminPortal/Settings' },
 ];
