@@ -34,6 +34,16 @@ Deno.serve(async (req) => {
     const clean = String(email).trim().toLowerCase();
     const name = `${form.firstName || ''} ${form.lastName || ''}`.trim() || clean;
 
+    // 0) Reject a duplicate LRN — one learner can't register twice. (Skipped for
+    //    incoming Grade 1 / no-LRN applicants, whose LRN is blank.)
+    const lrn = String(form.lrn || '').trim();
+    if (lrn) {
+      const { data: dup } = await admin.from('applications').select('id').filter('form->>lrn', 'eq', lrn).limit(1);
+      if (dup && dup.length) {
+        return json({ error: 'This LRN is already registered. If you already have an account, please log in instead.' });
+      }
+    }
+
     // 1) Create the confirmed applicant account (trigger makes a 'student' profile).
     const { data: created, error: cErr } = await admin.auth.admin.createUser({
       email: clean, password, email_confirm: true,

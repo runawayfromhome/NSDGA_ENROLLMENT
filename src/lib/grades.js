@@ -18,6 +18,14 @@ export function nextGrade(grade) {
   return (i < 0 || i === ORDER.length - 1) ? null : ORDER[i + 1];
 }
 
+// The grade a student must have completed to enter `grade` (e.g. Grade 10 → Grade 9,
+// Grade 7 → Grade 6, Grade 1 → Kindergarten). '' if unknown.
+export function prevGrade(grade) {
+  if (grade === 'Grade 1') return 'Kindergarten';
+  const i = ORDER.indexOf(grade);
+  return i > 0 ? ORDER[i - 1] : '';
+}
+
 // Which level a specific grade belongs to.
 export function levelOfGrade(grade) {
   if (grade === 'Kinder') return 'Kindergarten';

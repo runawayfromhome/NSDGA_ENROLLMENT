@@ -12,27 +12,33 @@ import AcademyLogo from '../../../assets/nuestralogo.jpg';
 import NuestraLogoImage from '../../../assets/nuestradg.png';
 import {
   createApplicantAccount, saveApplicationDraft, requestSignupOtp,
-  getMyApplication, uploadStudentDoc, CURRENT_SCHOOL_YEAR, isEnrolledStatus,
+  getMyApplication, uploadStudentDoc, CURRENT_SCHOOL_YEAR, isEnrolledStatus, studentSignOut,
 } from '../../../lib/student';
 import { getEnrollment, isEnrollmentOpen, getStrands } from '../../../lib/content';
-import { GRADES_BY_LEVEL } from '../../../lib/grades';
+import { GRADES_BY_LEVEL, prevGrade } from '../../../lib/grades';
 import { validatePassword } from '../../../lib/password';
 import ChatbotWidget from '../../ChatbotWidget';
+import AddressPicker from '../../AddressPicker';
 
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
+const SUFFIXES = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
+const TODAY_ISO = new Date().toISOString().slice(0, 10); // for the max birth date (no future)
 
-const STEP_KEYS = ['account', 'personal', 'grade', 'academic', 'documents', 'review'];
+// Account-first no more: Step 1 collects account INFO (no email/password, no
+// account yet); the real account is created at Step 5 "Account Creation" (email
+// + password), which must come BEFORE Documents since uploads need a session.
+const STEP_KEYS = ['account', 'personal', 'grade', 'academic', 'create', 'documents', 'review'];
 const STEP_LABELS = {
-  account: 'Account Creation', personal: 'Personal Information', grade: 'Grade & Type',
-  academic: 'Academic Background', documents: 'Document Submission', review: 'Review Information',
+  account: 'Account Information', personal: 'Personal Information', grade: 'Grade & Type',
+  academic: 'Academic Background', create: 'Account Creation', documents: 'Document Submission', review: 'Review Information',
 };
 const DOCS = [
   { key: 'photo', label: '2x2 Picture', hint: 'High-quality, white background', required: true },
   { key: 'psa', label: 'PSA Birth Certificate', hint: 'Clear copy from PSA', required: true },
   { key: 'reportCard', label: 'Report Card', hint: 'Scanned copy of latest grades', required: true },
   { key: 'goodMoral', label: 'Good Moral Cert', hint: 'From previous school principal', required: false },
-  { key: 'form137', label: 'Form 137', hint: 'Official Student Permanent Record', required: false },
+  // Form 137 is NOT uploaded here — it is confidential and transmitted school-to-school.
   { key: 'kinderCert', label: 'Kinder Cert / ECCD Checklist', hint: 'Certificate of completion (if any)', required: false, grade1Only: true },
 ];
 // Incoming Grade 1 (from Kindergarten) has no GWA / Form 137, and may have no
@@ -41,7 +47,9 @@ const GRADE1_REQUIRED_DOCS = ['photo', 'psa'];
 
 const emptyForm = {
   firstName: '', middleName: '', lastName: '', suffix: '', lrn: '',
-  sex: '', dob: '', birthplace: '', address: '', strand: '',
+  sex: '', dob: '', age: '', birthplace: '', address: '', strand: '',
+  region: '', province: '', city: '', barangay: '', houseStreet: '',
+  regionCode: '', provinceCode: '', cityCode: '',
   fatherName: '', motherName: '', guardianName: '', guardianContact: '',
   lastSchool: '', lastSchoolAddress: '', lastGrade: '', gwa: '',
   grade: '', contact: '', schoolYear: CURRENT_SCHOOL_YEAR,
@@ -81,6 +89,46 @@ const gwaClean = (v) => {                                                     //
   return s.slice(0, 5);
 };
 const PHONE_RE = /^09\d{9}$/; // PH mobile: 11 digits starting with 09
+const GMAIL_RE = /^[a-z0-9][a-z0-9._%+-]*@gmail\.com$/i; // must be a @gmail.com address
+// Names: letters + space, hyphen, apostrophe, period, ñ — no digits/symbols.
+const nameClean = (v, max = 50) => String(v).replace(/[^A-Za-zñÑ .'-]/g, '').replace(/\s{2,}/g, ' ').slice(0, max);
+// Places (City, Province): letters + space, comma, period, hyphen — no digits.
+const placeClean = (v, max = 100) => String(v).replace(/[^A-Za-zñÑ .,'-]/g, '').replace(/\s{2,}/g, ' ').slice(0, max);
+
+// Title-case a name on blur, keeping Filipino/Spanish particles lowercase mid-name
+// ("juan dela cruz" → "Juan dela Cruz") and capitalising after hyphens/apostrophes
+// ("maria-clara d'cruz" → "Maria-Clara D'Cruz").
+const NAME_PARTICLES = new Set(['dela', 'delas', 'delos', 'de', 'del', 'da', 'di', 'van', 'von', 'la', 'le', 'los', 'las', 'y', 'ng', 'bin', 'al']);
+const titleCaseName = (v) => String(v).trim().replace(/\s+/g, ' ').split(' ').map((w, i) => {
+  const lower = w.toLowerCase();
+  if (i > 0 && NAME_PARTICLES.has(lower)) return lower;
+  return lower.replace(/(^|[-'])([a-zñ])/g, (_m, sep, ch) => sep + ch.toUpperCase());
+}).join(' ');
+
+// Password strength (0–4) for the live meter.
+const pwScore = (pw) => {
+  if (!pw) return 0;
+  let s = 0;
+  if (pw.length >= 8) s++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++;
+  if (/\d/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 12) s++;
+  return s;
+};
+const PwMeter = ({ pw }) => {
+  if (!pw) return null;
+  const score = pwScore(pw);
+  const labels = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
+  const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#16a34a'];
+  return (
+    <div className="mt-2">
+      <div className="flex gap-1">
+        {[0, 1, 2, 3].map((i) => <div key={i} className="h-1.5 flex-1 rounded" style={{ background: i < score ? colors[score] : '#e5e7eb' }} />)}
+      </div>
+      <p className="text-[11px] mt-1 font-semibold" style={{ color: colors[score] }}>{labels[score]}</p>
+    </div>
+  );
+};
 
 const Apply = () => {
   const navigate = useNavigate();
@@ -129,7 +177,7 @@ const Apply = () => {
             setF(base);
           }
           setDocs(app.documents || {});
-          setStep(1); // account already created
+          setStep(STEP_KEYS.indexOf('documents')); // account already created → resume at Documents
         } else {
           clearDraft();
           navigate(isEnrolledStatus(app.status) ? '/StudentPortal/Dashboard' : '/StudentPortal/ApplicationStatus', { replace: true });
@@ -175,17 +223,20 @@ const Apply = () => {
       if (!f.firstName.trim() || !f.lastName.trim()) return 'First and last name are required.';
       if (!noLrn && !f.lrn) return 'LRN is required (or tick "No LRN yet").';
       if (f.lrn && !/^\d{12}$/.test(f.lrn.trim())) return 'LRN must be 12 digits.';
-      if (!acct.email) return 'Email is required.';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acct.email.trim())) return 'Enter a valid email address.';
       if (!acct.phone) return 'Phone number is required.';
       if (!PHONE_RE.test(acct.phone)) return 'Enter a valid mobile number (09XXXXXXXXX).';
+    }
+    if (current === 'create') {
+      if (!acct.email) return 'Email is required.';
+      if (!GMAIL_RE.test(acct.email.trim())) return 'Please use a valid Gmail address (must end with @gmail.com).';
       { const v = validatePassword(acct.password, 'student'); if (!v.ok) return v.error; }
       if (acct.password !== acct.confirm) return 'Passwords do not match.';
       if (!agreedAccount) return 'Please agree to the Terms of Service and Privacy Policy.';
     }
     if (current === 'personal') {
       if (!f.sex || !f.dob) return 'Sex and date of birth are required.';
-      if (!f.birthplace.trim() || !f.address.trim()) return 'Birthplace and home address are required.';
+      if (!f.birthplace.trim()) return 'Birthplace is required.';
+      if (!f.region || !f.city || !f.barangay || !f.houseStreet?.trim()) return 'Please complete your home address (region, city, barangay, and house no. & street).';
       if (f.guardianContact && !PHONE_RE.test(f.guardianContact)) return "Guardian's contact must be a valid mobile number (09XXXXXXXXX).";
     }
     if (current === 'grade') {
@@ -208,30 +259,43 @@ const Apply = () => {
   // Persist the current step's data onto the draft.
   const persist = async () => {
     if (!appId) return { ok: true };
-    const form = { ...f, contact: acct.phone || f.contact, age: ageFromDob(f.dob) };
+    const form = { ...f, contact: acct.phone || f.contact, age: f.age || ageFromDob(f.dob) };
     return saveApplicationDraft(appId, { form, grade_level: level || null, student_type: studentType });
   };
 
   const next = async () => {
     const m = validate(); if (m) return setError(m);
     setBusy(true); setError('');
-    if (current === 'account' && !accountDone) {
+    if (current === 'create' && !accountDone) {
       const res = await createApplicantAccount({
         firstName: f.firstName, middleName: f.middleName, lastName: f.lastName, suffix: f.suffix,
         lrn: f.lrn.trim(), email: acct.email, phone: acct.phone, password: acct.password,
         schoolYear: f.schoolYear || enrollment?.activeSchoolYear || CURRENT_SCHOOL_YEAR,
       });
-      setBusy(false);
-      if (!res.ok) return setError(res.error || 'Could not create your account.');
+      if (!res.ok) { setBusy(false); return setError(res.error || 'Could not create your account.'); }
       setAppId(res.appId);
-      setStep(1);
+      // Push everything already collected in Steps 1–4 onto the fresh draft.
+      const form = { ...f, contact: acct.phone || f.contact, age: f.age || ageFromDob(f.dob) };
+      await saveApplicationDraft(res.appId, { form, grade_level: level || null, student_type: studentType });
+      setBusy(false);
+      setStep((s) => s + 1); // → Document Submission
       return;
     }
     await persist();
     setBusy(false);
     setStep((s) => Math.min(s + 1, STEP_KEYS.length - 1));
   };
-  const back = () => { setError(''); setStep((s) => Math.max(s - 1, accountDone ? 1 : 0)); };
+  // Once the account exists, earlier steps are locked — you can't un-create it;
+  // navigation stays within Documents ↔ Review.
+  const back = () => { setError(''); setStep((s) => Math.max(s - 1, accountDone ? STEP_KEYS.indexOf('documents') : 0)); };
+
+  // Log out + discard this draft so a different person can create a new account.
+  const startOver = async () => {
+    if (!window.confirm('Start over?\n\nThis logs you out and leaves this draft, so you can create a new account with a different email. Your typed progress here will be cleared.')) return;
+    clearDraft();
+    await studentSignOut();
+    window.location.assign('/StudentPortal/Apply');
+  };
 
   const onUpload = async (key, file) => {
     if (!file || !appId) return;
@@ -272,31 +336,27 @@ const Apply = () => {
   }
 
   return (
-    <Shell steps={STEP_KEYS.map((k) => STEP_LABELS[k])} step={step} done={accountDone ? 0 : -1}
+    <Shell steps={STEP_KEYS.map((k) => STEP_LABELS[k])} step={step}
       chatContext={`The user is on the NSDGA online admission application page. The Senior High strands currently offered by the school are: ${shsStrands.join(', ') || '(see the strand dropdown on the form)'}. Use exactly this list if asked about available strands.`}>
-      {current === 'account' ? (
-        <>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Create Account</h2>
-          <p className="text-gray-500 text-sm mt-1 mb-6">Register with your student credentials to access the portal.</p>
-        </>
-      ) : (
-        <div className="mb-6">
+      <div className="mb-6 flex items-start justify-between gap-3">
+        <div>
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Online Admission</h2>
           <p className="text-gray-500 text-sm mt-1">{STEP_LABELS[current]}</p>
         </div>
-      )}
+        {accountDone && <button type="button" onClick={startOver} className="shrink-0 mt-1 text-xs font-bold text-slate-400 hover:text-[#800000] cursor-pointer">Not you? Start over</button>}
+      </div>
 
-      {current !== 'account' && <p className="text-xs text-gray-400 mb-4">Please fill out all required fields marked with an asterisk (*).</p>}
+      {current !== 'review' && <p className="text-xs text-gray-400 mb-4">Please fill out all required fields marked with an asterisk (*).</p>}
       {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>}
 
       {/* STEP 1 — Account */}
       {current === 'account' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="First Name" req><input className="ip" value={f.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="Juan Miguel" maxLength={50} /></Field>
-            <Field label="Last Name" req><input className="ip" value={f.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Dela Cruz" maxLength={50} /></Field>
-            <Field label="Middle Name (if any)"><input className="ip" value={f.middleName} onChange={(e) => set('middleName', e.target.value)} placeholder="Ponce" maxLength={50} /></Field>
-            <Field label="Suffix (if any)"><input className="ip" value={f.suffix} onChange={(e) => set('suffix', e.target.value)} placeholder="Jr." maxLength={20} /></Field>
+            <Field label="First Name" req><input className="ip" value={f.firstName} onChange={(e) => set('firstName', nameClean(e.target.value))} onBlur={(e) => set('firstName', titleCaseName(e.target.value))} placeholder="Juan Miguel" maxLength={50} /></Field>
+            <Field label="Last Name" req><input className="ip" value={f.lastName} onChange={(e) => set('lastName', nameClean(e.target.value))} onBlur={(e) => set('lastName', titleCaseName(e.target.value))} placeholder="Dela Cruz" maxLength={50} /></Field>
+            <Field label="Middle Name (if any)"><input className="ip" value={f.middleName} onChange={(e) => set('middleName', nameClean(e.target.value))} onBlur={(e) => set('middleName', titleCaseName(e.target.value))} placeholder="Ponce" maxLength={50} /></Field>
+            <Field label="Suffix (if any)"><select className="ip" value={f.suffix} onChange={(e) => set('suffix', e.target.value)}><option value="">— None —</option>{SUFFIXES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
           </div>
           <Field label="LRN Number" req={!noLrn}>
             <input className="ip" value={f.lrn} onChange={(e) => set('lrn', onlyDigits(e.target.value, 12))} placeholder="136676090147" inputMode="numeric" maxLength={12} disabled={noLrn} />
@@ -305,21 +365,8 @@ const Apply = () => {
               Wala pa akong LRN (incoming Grade 1 / hindi nag-Kinder)
             </label>
           </Field>
-          <Field label="Email" req><input className="ip" type="email" value={acct.email} onChange={(e) => setAcct({ ...acct, email: e.target.value })} placeholder="juandelacruz@gmail.com" maxLength={254} /></Field>
           <Field label="Phone Number" req><input className="ip" value={acct.phone} onChange={(e) => setAcct({ ...acct, phone: onlyDigits(e.target.value, 11) })} placeholder="09171234567" inputMode="numeric" maxLength={11} /></Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="Password" req>
-              <div className="relative">
-                <input className="ip pr-16" type={showPw ? 'text' : 'password'} value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 8 characters" maxLength={64} />
-                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#800000]">{showPw ? 'Hide' : 'Show'}</button>
-              </div>
-            </Field>
-            <Field label="Confirm Password" req><input className="ip" type={showPw ? 'text' : 'password'} value={acct.confirm} onChange={(e) => setAcct({ ...acct, confirm: e.target.value })} placeholder="Re-type password" maxLength={64} /></Field>
-          </div>
-          <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer pt-1">
-            <input type="checkbox" checked={agreedAccount} onChange={(e) => setAgreedAccount(e.target.checked)} className="mt-1 accent-[#800000] w-4 h-4" />
-            <span>I have read and agree to the <b className="text-[#800000]">Terms of Service</b> and <b className="text-[#800000]">Privacy Policy</b> of NSDGA. <span className="text-red-500">*</span></span>
-          </label>
+          <p className="text-center text-gray-500 text-sm pt-1">Already have an account? <NavLink to="/StudentPortal/Login" className="text-[#800000] font-bold">Login</NavLink></p>
         </div>
       )}
 
@@ -330,17 +377,20 @@ const Apply = () => {
             <Field label="Sex" req>
               <select className="ip" value={f.sex} onChange={(e) => set('sex', e.target.value)}><option value="">Select Sex</option><option>Male</option><option>Female</option></select>
             </Field>
-            <Field label="Age"><input className="ip bg-gray-50" value={ageFromDob(f.dob)} readOnly placeholder="0" /></Field>
-            <Field label="Date of Birth" req><input className="ip" type="date" value={f.dob} onChange={(e) => set('dob', e.target.value)} /></Field>
-            <Field label="Birthplace" req><input className="ip" value={f.birthplace} onChange={(e) => set('birthplace', e.target.value)} placeholder="City, Province" maxLength={100} /></Field>
+            <Field label="Age"><input className="ip" value={f.age} onChange={(e) => set('age', onlyDigits(e.target.value, 3))} inputMode="numeric" placeholder="Auto-fills from birth date" /></Field>
+            <Field label="Date of Birth" req><input className="ip" type="date" max={TODAY_ISO} value={f.dob} onChange={(e) => { const v = e.target.value; setF((p) => ({ ...p, dob: v, age: ageFromDob(v) })); }} /></Field>
+            <Field label="Birthplace" req><input className="ip" value={f.birthplace} onChange={(e) => set('birthplace', placeClean(e.target.value))} placeholder="City, Province" maxLength={100} /></Field>
           </div>
-          <Field label="Home Address" req><textarea className="ip" style={{ minHeight: 70 }} value={f.address} onChange={(e) => set('address', e.target.value)} placeholder="House No., Street, Brgy, City, Province" maxLength={200} /></Field>
+          <div>
+            <p className="font-semibold text-xs text-gray-600 mb-2">Home Address <span className="text-red-500">*</span></p>
+            <AddressPicker value={f} onChange={(patch) => setF((p) => ({ ...p, ...patch }))} />
+          </div>
           <div className="pt-2">
             <p className="font-bold text-sm text-gray-700 mb-3">Parent / Guardian</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Father's Name"><input className="ip" value={f.fatherName} onChange={(e) => set('fatherName', e.target.value)} maxLength={50} /></Field>
-              <Field label="Mother's Name"><input className="ip" value={f.motherName} onChange={(e) => set('motherName', e.target.value)} maxLength={50} /></Field>
-              <Field label="Guardian's Name"><input className="ip" value={f.guardianName} onChange={(e) => set('guardianName', e.target.value)} maxLength={50} /></Field>
+              <Field label="Father's Name"><input className="ip" value={f.fatherName} onChange={(e) => set('fatherName', nameClean(e.target.value))} onBlur={(e) => set('fatherName', titleCaseName(e.target.value))} maxLength={50} /></Field>
+              <Field label="Mother's Name"><input className="ip" value={f.motherName} onChange={(e) => set('motherName', nameClean(e.target.value))} onBlur={(e) => set('motherName', titleCaseName(e.target.value))} maxLength={50} /></Field>
+              <Field label="Guardian's Name"><input className="ip" value={f.guardianName} onChange={(e) => set('guardianName', nameClean(e.target.value))} onBlur={(e) => set('guardianName', titleCaseName(e.target.value))} maxLength={50} /></Field>
               <Field label="Guardian's Contact"><input className="ip" value={f.guardianContact} onChange={(e) => set('guardianContact', onlyDigits(e.target.value, 11))} placeholder="09171234567" inputMode="numeric" maxLength={11} /></Field>
             </div>
           </div>
@@ -359,7 +409,7 @@ const Apply = () => {
             <select className="ip" value={f.grade}
               onChange={(e) => {
                 const g = e.target.value;
-                setF((p) => ({ ...p, grade: g, ...(g === 'Grade 1' ? { lastGrade: 'Kindergarten', gwa: '' } : {}) }));
+                setF((p) => ({ ...p, grade: g, lastGrade: prevGrade(g), ...(g === 'Grade 1' ? { gwa: '' } : {}) }));
               }} disabled={!level}>
               <option value="">Select…</option>{(GRADES_BY_LEVEL[level] || []).map((g) => <option key={g}>{g}</option>)}
             </select>
@@ -392,13 +442,40 @@ const Apply = () => {
             )}
           </div>
           <Field label="School Address" req={!isGrade1}><input className="ip" value={f.lastSchoolAddress} onChange={(e) => set('lastSchoolAddress', e.target.value)} placeholder="504 J. P. Rizal St, Marikina" maxLength={200} /></Field>
-          <Field label="Last Grade Completed" req={!isGrade1}>
-            <input className={`ip ${isGrade1 ? 'bg-gray-50' : ''}`} value={f.lastGrade} onChange={(e) => set('lastGrade', e.target.value)} placeholder="e.g. Grade 10" maxLength={30} readOnly={isGrade1} />
+          <Field label="Last Grade Completed">
+            <input className="ip bg-gray-50" value={f.lastGrade} readOnly placeholder="Auto from the grade you're applying for" />
           </Field>
         </div>
       )}
 
-      {/* STEP 5 — Documents */}
+      {/* STEP 5 — Account Creation (email + password → creates the account here) */}
+      {current === 'create' && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-4 py-3 text-[12px] text-amber-700">
+            Set your login credentials. Your account is created now so you can upload your documents in the next step — you'll confirm it with an email code before the application is finally submitted.
+          </div>
+          <Field label="Email (Gmail)" req>
+            <input className="ip" type="email" value={acct.email} onChange={(e) => setAcct({ ...acct, email: e.target.value.replace(/\s/g, '') })} placeholder="juandelacruz@gmail.com" maxLength={254} />
+            <span className="block text-[11px] text-gray-400 mt-1.5">Must be a valid Gmail address ending in <b>@gmail.com</b>.</span>
+          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Password" req>
+              <div className="relative">
+                <input className="ip pr-16" type={showPw ? 'text' : 'password'} value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 8 characters" maxLength={64} />
+                <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#800000]">{showPw ? 'Hide' : 'Show'}</button>
+              </div>
+              <PwMeter pw={acct.password} />
+            </Field>
+            <Field label="Confirm Password" req><input className="ip" type={showPw ? 'text' : 'password'} value={acct.confirm} onChange={(e) => setAcct({ ...acct, confirm: e.target.value })} placeholder="Re-type password" maxLength={64} /></Field>
+          </div>
+          <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer pt-1">
+            <input type="checkbox" checked={agreedAccount} onChange={(e) => setAgreedAccount(e.target.checked)} className="mt-1 accent-[#800000] w-4 h-4" />
+            <span>I have read and agree to the <b className="text-[#800000]">Terms of Service</b> and <b className="text-[#800000]">Privacy Policy</b> of NSDGA. <span className="text-red-500">*</span></span>
+          </label>
+        </div>
+      )}
+
+      {/* STEP 6 — Documents */}
       {current === 'documents' && (
         <div>
           <p className="text-sm text-gray-500 mb-5">Upload clear scans or photos of your original academic documents. Supported formats: JPG, PNG, PDF (Max 5MB each).</p>
@@ -420,17 +497,20 @@ const Apply = () => {
               );
             })}
           </div>
+          <div className="mt-5 rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-3 text-[12px] text-blue-700">
+            📄 <b>Form 137</b> is <b>not uploaded here.</b> It is a confidential school record transmitted directly <b>school-to-school</b> — your previous school forwards it to NSDGA. You do not need to submit it yourself.
+          </div>
         </div>
       )}
 
-      {/* STEP 6 — Review */}
+      {/* STEP 7 — Review */}
       {current === 'review' && (
         <div className="space-y-5">
           <p className="text-sm text-gray-500">Please carefully review all your information below for accuracy before submitting.</p>
           <Summary title="Personal Information" rows={[
             ['Name', `${f.firstName} ${f.middleName} ${f.lastName} ${f.suffix}`.replace(/\s+/g, ' ').trim()],
             ['LRN', f.lrn], ['Email', acct.email || f.email], ['Contact', acct.phone || f.contact],
-            ['Sex', f.sex], ['Age', ageFromDob(f.dob)], ['Date of Birth', f.dob], ['Birthplace', f.birthplace],
+            ['Sex', f.sex], ['Age', f.age || ageFromDob(f.dob)], ['Date of Birth', f.dob], ['Birthplace', f.birthplace],
             ['Home Address', f.address],
           ]} />
           <Summary title="Guardian" rows={[['Father', f.fatherName], ['Mother', f.motherName], ['Guardian', f.guardianName], ['Guardian Contact', f.guardianContact]]} />
@@ -461,17 +541,13 @@ const Apply = () => {
       )}
 
       <div className="flex items-center justify-between mt-8">
-        <button type="button" onClick={back} disabled={step <= (accountDone ? 1 : 0)} className="px-5 py-2.5 rounded-lg font-semibold text-gray-500 disabled:opacity-0">← Back</button>
-        {current === 'account'
+        <button type="button" onClick={back} disabled={step <= (accountDone ? STEP_KEYS.indexOf('documents') : 0)} className="px-5 py-2.5 rounded-lg font-semibold text-gray-500 disabled:opacity-0">← Back</button>
+        {current === 'create'
           ? <button type="button" onClick={next} disabled={busy} className="px-8 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold shadow disabled:opacity-60">{busy ? 'Creating…' : 'Create Account →'}</button>
           : current === 'review'
             ? <button type="button" onClick={submit} disabled={busy} className="px-8 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold shadow disabled:opacity-60">{busy ? 'Submitting…' : 'Submit Application →'}</button>
-            : <button type="button" onClick={next} disabled={busy} className="px-8 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold shadow disabled:opacity-60">{busy ? 'Saving…' : 'Complete →'}</button>}
+            : <button type="button" onClick={next} disabled={busy} className="px-8 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold shadow disabled:opacity-60">{busy ? 'Saving…' : 'Next →'}</button>}
       </div>
-
-      {current === 'account' && (
-        <p className="text-center mt-6 text-gray-500 text-sm">Already have an account? <NavLink to="/StudentPortal/Login" className="text-[#800000] font-bold">Login</NavLink></p>
-      )}
 
       <style>{`.ip{width:100%;border:1px solid #E5E7EB;border-radius:.6rem;padding:.6rem .8rem;font-size:.9rem;outline:none;background:#fff}.ip:focus{border-color:#800000}`}</style>
     </Shell>
@@ -502,7 +578,7 @@ const Shell = ({ children, steps, step, done = -1, chatContext }) => (
         )}
       </div>
     </div>
-    <div className="w-full lg:w-[62%] bg-[#F9FAFB] flex flex-col justify-center px-6 md:px-16 py-10 overflow-y-auto">
+    <div className="w-full lg:w-[62%] bg-[#F9FAFB] flex flex-col justify-center px-6 md:px-16 pt-10 pb-28 overflow-y-auto">
       <div className="w-full max-w-2xl mx-auto">
         <NavLink to="/Home" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-400 hover:text-[#800000] transition-colors mb-6">← Back to Home</NavLink>
         {children}

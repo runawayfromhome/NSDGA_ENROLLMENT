@@ -18,7 +18,6 @@ const JHSOnline = lazy(() => import('./components/pages/JHSOnline'));
 const Calendar = lazy(() => import('./components/pages/Calendar'));
 const About = lazy(() => import('./components/pages/About'));
 const Login = lazy(() => import('./components/pages/StudentPortal/Login'));
-const Signup = lazy(() => import('./components/pages/StudentPortal/Signup'));
 const ForgotPass = lazy(() => import('./components/pages/StudentPortal/ForgotPass'));
 const ForgotPassOtp = lazy(() => import('./components/pages/StudentPortal/ForgotPassOtp'));
 const CreateNewPass = lazy(() => import('./components/pages/StudentPortal/CreateNewPass'));
@@ -88,7 +87,6 @@ function App() {
       <Route path="/StudentPortal/Apply" element={<Apply />} />
       <Route path="/StudentPortal/VerifyOtp" element={<VerifyOtp />} />
       <Route path="/StudentPortal/EnrollmentForm" element={<ProtectedRoute allow={['student']}><EnrollmentForm /></ProtectedRoute>} />
-      <Route path="/StudentPortal/Signup" element={<Signup />} />
       <Route path="/StudentPortal/ForgotPass" element={<ForgotPass />} />
       <Route path="/StudentPortal/ForgotPassOtp" element={<ForgotPassOtp />} />
       <Route path="/StudentPortal/CreateNewPass" element={<CreateNewPass />} />
