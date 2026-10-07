@@ -72,6 +72,16 @@ const readDraft = () => {
 };
 const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ } };
 
+// --- Input limiters (client-side hardening for robust/stress testing) --------
+const onlyDigits = (v, max) => String(v).replace(/\D/g, '').slice(0, max);   // numbers only, capped
+const gwaClean = (v) => {                                                     // digits + one decimal, max 5
+  let s = String(v).replace(/[^\d.]/g, '');
+  const i = s.indexOf('.');
+  if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, '');
+  return s.slice(0, 5);
+};
+const PHONE_RE = /^09\d{9}$/; // PH mobile: 11 digits starting with 09
+
 const Apply = () => {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
@@ -160,19 +170,21 @@ const Apply = () => {
   const validate = () => {
     setError('');
     if (current === 'account') {
-      if (!f.firstName || !f.lastName) return 'First and last name are required.';
+      if (!f.firstName.trim() || !f.lastName.trim()) return 'First and last name are required.';
       if (!noLrn && !f.lrn) return 'LRN is required (or tick "No LRN yet").';
       if (f.lrn && !/^\d{12}$/.test(f.lrn.trim())) return 'LRN must be 12 digits.';
       if (!acct.email) return 'Email is required.';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(acct.email.trim())) return 'Enter a valid email address.';
       if (!acct.phone) return 'Phone number is required.';
+      if (!PHONE_RE.test(acct.phone)) return 'Enter a valid mobile number (09XXXXXXXXX).';
       { const v = validatePassword(acct.password, 'student'); if (!v.ok) return v.error; }
       if (acct.password !== acct.confirm) return 'Passwords do not match.';
       if (!agreedAccount) return 'Please agree to the Terms of Service and Privacy Policy.';
     }
     if (current === 'personal') {
       if (!f.sex || !f.dob) return 'Sex and date of birth are required.';
-      if (!f.birthplace || !f.address) return 'Birthplace and home address are required.';
+      if (!f.birthplace.trim() || !f.address.trim()) return 'Birthplace and home address are required.';
+      if (f.guardianContact && !PHONE_RE.test(f.guardianContact)) return "Guardian's contact must be a valid mobile number (09XXXXXXXXX).";
     }
     if (current === 'grade') {
       if (!level) return 'Please choose an education level.';
@@ -180,8 +192,9 @@ const Apply = () => {
       if (isSHS && !f.strand) return 'Please choose a Senior High strand.';
     }
     if (current === 'academic' && !isGrade1) {
-      if (!f.lastSchool || !f.lastSchoolAddress) return 'Previous school and its address are required.';
+      if (!f.lastSchool.trim() || !f.lastSchoolAddress.trim()) return 'Previous school and its address are required.';
       if (!f.lastGrade) return 'Last grade completed is required.';
+      if (f.gwa && (isNaN(+f.gwa) || +f.gwa < 0 || +f.gwa > 100)) return 'GWA must be a number from 0 to 100.';
     }
     if (current === 'documents') {
       const missing = DOCS.filter((d) => docRequired(d) && !docs[d.key]?.path).map((d) => d.label);
@@ -277,28 +290,28 @@ const Apply = () => {
       {current === 'account' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="First Name" req><input className="ip" value={f.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="Juan Miguel" /></Field>
-            <Field label="Last Name" req><input className="ip" value={f.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Dela Cruz" /></Field>
-            <Field label="Middle Name (if any)"><input className="ip" value={f.middleName} onChange={(e) => set('middleName', e.target.value)} placeholder="Ponce" /></Field>
-            <Field label="Suffix (if any)"><input className="ip" value={f.suffix} onChange={(e) => set('suffix', e.target.value)} placeholder="Jr." /></Field>
+            <Field label="First Name" req><input className="ip" value={f.firstName} onChange={(e) => set('firstName', e.target.value)} placeholder="Juan Miguel" maxLength={50} /></Field>
+            <Field label="Last Name" req><input className="ip" value={f.lastName} onChange={(e) => set('lastName', e.target.value)} placeholder="Dela Cruz" maxLength={50} /></Field>
+            <Field label="Middle Name (if any)"><input className="ip" value={f.middleName} onChange={(e) => set('middleName', e.target.value)} placeholder="Ponce" maxLength={50} /></Field>
+            <Field label="Suffix (if any)"><input className="ip" value={f.suffix} onChange={(e) => set('suffix', e.target.value)} placeholder="Jr." maxLength={20} /></Field>
           </div>
           <Field label="LRN Number" req={!noLrn}>
-            <input className="ip" value={f.lrn} onChange={(e) => set('lrn', e.target.value)} placeholder="136676090147" inputMode="numeric" disabled={noLrn} />
+            <input className="ip" value={f.lrn} onChange={(e) => set('lrn', onlyDigits(e.target.value, 12))} placeholder="136676090147" inputMode="numeric" maxLength={12} disabled={noLrn} />
             <label className="flex items-center gap-2 text-[12px] text-gray-500 cursor-pointer mt-2">
               <input type="checkbox" checked={noLrn} onChange={(e) => { setNoLrn(e.target.checked); if (e.target.checked) set('lrn', ''); }} className="accent-[#800000] w-3.5 h-3.5" />
               Wala pa akong LRN (incoming Grade 1 / hindi nag-Kinder)
             </label>
           </Field>
-          <Field label="Email" req><input className="ip" type="email" value={acct.email} onChange={(e) => setAcct({ ...acct, email: e.target.value })} placeholder="juandelacruz@gmail.com" /></Field>
-          <Field label="Phone Number" req><input className="ip" value={acct.phone} onChange={(e) => setAcct({ ...acct, phone: e.target.value })} placeholder="0912 345 6789" /></Field>
+          <Field label="Email" req><input className="ip" type="email" value={acct.email} onChange={(e) => setAcct({ ...acct, email: e.target.value })} placeholder="juandelacruz@gmail.com" maxLength={254} /></Field>
+          <Field label="Phone Number" req><input className="ip" value={acct.phone} onChange={(e) => setAcct({ ...acct, phone: onlyDigits(e.target.value, 11) })} placeholder="09171234567" inputMode="numeric" maxLength={11} /></Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Password" req>
               <div className="relative">
-                <input className="ip pr-16" type={showPw ? 'text' : 'password'} value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 8 characters" />
+                <input className="ip pr-16" type={showPw ? 'text' : 'password'} value={acct.password} onChange={(e) => setAcct({ ...acct, password: e.target.value })} placeholder="At least 8 characters" maxLength={64} />
                 <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#800000]">{showPw ? 'Hide' : 'Show'}</button>
               </div>
             </Field>
-            <Field label="Confirm Password" req><input className="ip" type={showPw ? 'text' : 'password'} value={acct.confirm} onChange={(e) => setAcct({ ...acct, confirm: e.target.value })} placeholder="Re-type password" /></Field>
+            <Field label="Confirm Password" req><input className="ip" type={showPw ? 'text' : 'password'} value={acct.confirm} onChange={(e) => setAcct({ ...acct, confirm: e.target.value })} placeholder="Re-type password" maxLength={64} /></Field>
           </div>
           <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer pt-1">
             <input type="checkbox" checked={agreedAccount} onChange={(e) => setAgreedAccount(e.target.checked)} className="mt-1 accent-[#800000] w-4 h-4" />
@@ -316,16 +329,16 @@ const Apply = () => {
             </Field>
             <Field label="Age"><input className="ip bg-gray-50" value={ageFromDob(f.dob)} readOnly placeholder="0" /></Field>
             <Field label="Date of Birth" req><input className="ip" type="date" value={f.dob} onChange={(e) => set('dob', e.target.value)} /></Field>
-            <Field label="Birthplace" req><input className="ip" value={f.birthplace} onChange={(e) => set('birthplace', e.target.value)} placeholder="City, Province" /></Field>
+            <Field label="Birthplace" req><input className="ip" value={f.birthplace} onChange={(e) => set('birthplace', e.target.value)} placeholder="City, Province" maxLength={100} /></Field>
           </div>
-          <Field label="Home Address" req><textarea className="ip" style={{ minHeight: 70 }} value={f.address} onChange={(e) => set('address', e.target.value)} placeholder="House No., Street, Brgy, City, Province" /></Field>
+          <Field label="Home Address" req><textarea className="ip" style={{ minHeight: 70 }} value={f.address} onChange={(e) => set('address', e.target.value)} placeholder="House No., Street, Brgy, City, Province" maxLength={200} /></Field>
           <div className="pt-2">
             <p className="font-bold text-sm text-gray-700 mb-3">Parent / Guardian</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Father's Name"><input className="ip" value={f.fatherName} onChange={(e) => set('fatherName', e.target.value)} /></Field>
-              <Field label="Mother's Name"><input className="ip" value={f.motherName} onChange={(e) => set('motherName', e.target.value)} /></Field>
-              <Field label="Guardian's Name"><input className="ip" value={f.guardianName} onChange={(e) => set('guardianName', e.target.value)} /></Field>
-              <Field label="Guardian's Contact"><input className="ip" value={f.guardianContact} onChange={(e) => set('guardianContact', e.target.value)} placeholder="0917 123 4567" /></Field>
+              <Field label="Father's Name"><input className="ip" value={f.fatherName} onChange={(e) => set('fatherName', e.target.value)} maxLength={50} /></Field>
+              <Field label="Mother's Name"><input className="ip" value={f.motherName} onChange={(e) => set('motherName', e.target.value)} maxLength={50} /></Field>
+              <Field label="Guardian's Name"><input className="ip" value={f.guardianName} onChange={(e) => set('guardianName', e.target.value)} maxLength={50} /></Field>
+              <Field label="Guardian's Contact"><input className="ip" value={f.guardianContact} onChange={(e) => set('guardianContact', onlyDigits(e.target.value, 11))} placeholder="09171234567" inputMode="numeric" maxLength={11} /></Field>
             </div>
           </div>
         </div>
@@ -369,15 +382,15 @@ const Apply = () => {
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label={isGrade1 ? 'Kindergarten School (if any)' : 'Previous School Attended'} req={!isGrade1}>
-              <input className="ip" value={f.lastSchool} onChange={(e) => set('lastSchool', e.target.value)} placeholder={isGrade1 ? 'Name of Kinder school' : 'FEU ROOSEVELT'} />
+              <input className="ip" value={f.lastSchool} onChange={(e) => set('lastSchool', e.target.value)} placeholder={isGrade1 ? 'Name of Kinder school' : 'FEU ROOSEVELT'} maxLength={120} />
             </Field>
             {!isGrade1 && (
-              <Field label="GWA (General Weighted Average)" req><input className="ip" value={f.gwa} onChange={(e) => set('gwa', e.target.value)} placeholder="95" inputMode="decimal" /></Field>
+              <Field label="GWA (General Weighted Average)" req><input className="ip" value={f.gwa} onChange={(e) => set('gwa', gwaClean(e.target.value))} placeholder="95" inputMode="decimal" maxLength={5} /></Field>
             )}
           </div>
-          <Field label="School Address" req={!isGrade1}><input className="ip" value={f.lastSchoolAddress} onChange={(e) => set('lastSchoolAddress', e.target.value)} placeholder="504 J. P. Rizal St, Marikina" /></Field>
+          <Field label="School Address" req={!isGrade1}><input className="ip" value={f.lastSchoolAddress} onChange={(e) => set('lastSchoolAddress', e.target.value)} placeholder="504 J. P. Rizal St, Marikina" maxLength={200} /></Field>
           <Field label="Last Grade Completed" req={!isGrade1}>
-            <input className={`ip ${isGrade1 ? 'bg-gray-50' : ''}`} value={f.lastGrade} onChange={(e) => set('lastGrade', e.target.value)} placeholder="e.g. Grade 10" readOnly={isGrade1} />
+            <input className={`ip ${isGrade1 ? 'bg-gray-50' : ''}`} value={f.lastGrade} onChange={(e) => set('lastGrade', e.target.value)} placeholder="e.g. Grade 10" maxLength={30} readOnly={isGrade1} />
           </Field>
         </div>
       )}

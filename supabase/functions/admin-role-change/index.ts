@@ -44,6 +44,12 @@ Deno.serve(async (req) => {
     const { data: me } = await admin.from('profiles').select('role').eq('id', user.id).single();
     if (!me || me.role !== 'headadmin') return json({ error: 'Only the Head Administrator can change roles.' }, 403);
 
+    // Require the Head Admin to have MFA enabled before any account change.
+    const { data: factors } = await caller.auth.mfa.listFactors();
+    if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
+      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
+    }
+
     const { targetUserId, newRole, code } = await req.json();
 
     // ---- Mode 1: request a step-up code (emailed to the HeadAdmin) ----------
@@ -56,7 +62,7 @@ Deno.serve(async (req) => {
       const code_hash = await sha256(`${user.id}:${otp}`);
       const expires_at = new Date(Date.now() + 10 * 60_000).toISOString();
       const { error: upErr } = await admin.from('otp_codes')
-        .upsert({ user_id: user.id, code_hash, purpose: 'admin', expires_at, attempts: 0, created_at: new Date().toISOString() });
+        .upsert({ user_id: user.id, code_hash, purpose: 'role', expires_at, attempts: 0, created_at: new Date().toISOString() });
       if (upErr) return json({ error: upErr.message }, 500);
       if (!brevoKey || !fromEmail) return json({ error: 'Email is not configured on the server.' }, 500);
       const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:auto">
@@ -84,7 +90,7 @@ Deno.serve(async (req) => {
     if (targetUserId === user.id) return json({ error: 'You cannot change your own role.' }, 400);
 
     const { data: row } = await admin.from('otp_codes').select('*').eq('user_id', user.id).maybeSingle();
-    if (!row || row.purpose !== 'admin') return json({ error: 'Request a code first.' }, 400);
+    if (!row || row.purpose !== 'role') return json({ error: 'Request a code first.' }, 400);
     if (new Date(row.expires_at).getTime() < Date.now()) {
       await admin.from('otp_codes').delete().eq('user_id', user.id);
       return json({ error: 'This code has expired. Please request a new one.' }, 400);

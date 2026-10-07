@@ -3,13 +3,9 @@
 -- Run this in the Supabase SQL Editor AFTER schema.sql has been run.
 -- Safe to re-run: it deletes and recreates the 5 demo accounts.
 --
--- NOTE: `demo_password` stores the plain-text password so you can see the demo
--- logins during development. This is NOT for production — drop the column before
--- going live:  alter table public.profiles drop column demo_password;
+-- The demo login passwords are listed in the VALUES block below (dev reference).
+-- No plain-text password is ever stored in the database.
 -- ============================================================================
-
--- 0a. dev-only column to view passwords
-alter table public.profiles add column if not exists demo_password text;
 
 -- 0b. FIX: allow the SQL editor / service context (auth.uid() is null) and
 -- HeadAdmin to change role/status. (The original trigger blocked the promote.)
@@ -83,7 +79,7 @@ begin
 
     -- handle_new_user() already inserted a default profile row; finalise it:
     update public.profiles
-      set name = r.name, role = r.role, status = r.status, demo_password = r.password,
+      set name = r.name, role = r.role, status = r.status,
           verified_at = case when r.status = 'verified' then now() end
       where id = uid;
   end loop;
@@ -100,7 +96,7 @@ update public.profiles set profile = $j$
 $j$::jsonb
 where email = 'admin@nsdgamarikina.edu.ph';
 
--- 3. See the result (incl. the visible demo passwords)
-select email, name, role, status, disabled, demo_password
+-- 3. See the result
+select email, name, role, status, disabled
 from public.profiles
 order by role, status, email;

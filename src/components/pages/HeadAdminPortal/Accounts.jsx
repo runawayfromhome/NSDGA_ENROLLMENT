@@ -4,12 +4,14 @@
 // admin / headadmin). Role changes require an OTP step-up: a 6-digit code is
 // emailed to the acting HeadAdmin and must be verified before the change applies.
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { NavLink } from 'react-router-dom';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import MfaReminder from '../../MfaReminder';
+import RemoveMfaSection from '../../RemoveMfaSection';
 import { useSession } from '../../../contexts/useSession';
 import {
   getStaffAccounts, createAccount, setDisabled, verifyAccount, returnProfile,
-  getPresence, requestAdminOtp, changeRoleWithOtp, requestSetPasswordOtp, setUserPassword, STATUS,
+  getPresence, requestAdminOtp, changeRoleWithOtp, requestSetPasswordOtp, setUserPassword, getMfaFactor, STATUS,
 } from '../../../auth/authStore';
 import { passwordChecks, isPasswordValid } from '../../../lib/password';
 
@@ -84,9 +86,10 @@ const Accounts = () => {
   const [manage, setManage] = useState(null); // account being managed
   const [presence, setPresence] = useState({});
   const [now, setNow] = useState(() => Date.now());
+  const [mfaOn, setMfaOn] = useState(true); // Head Admin must have MFA before changes
 
   const refresh = async () => setAccounts(await getStaffAccounts());
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => { refresh(); getMfaFactor().then((f) => setMfaOn(!!f)); }, []);
   useEffect(() => {
     const load = async () => { setPresence(await getPresence()); setNow(Date.now()); };
     load();
@@ -130,13 +133,25 @@ const Accounts = () => {
               <h1 className="text-3xl font-bold text-slate-900 mb-1">Account Management</h1>
               <p className="text-slate-500 text-sm">Create staff, review profiles, and manage roles. Role changes require an emailed code.</p>
             </div>
-            <button onClick={() => { setShowForm((v) => !v); setError(''); }}
-              className="px-6 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer">
+            <button onClick={() => { setShowForm((v) => !v); setError(''); }} disabled={!mfaOn}
+              title={!mfaOn ? 'Enable MFA in Settings first' : undefined}
+              className="px-6 py-3 bg-[#800000] hover:bg-[#600000] text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
               {showForm ? 'Close' : '+ New Account'}
             </button>
           </div>
 
-          <MfaReminder settingsPath="/HeadAdminPortal/Settings" />
+          {!mfaOn && (
+            <div className="mb-6 rounded-2xl border-2 border-red-300 bg-red-50 px-5 py-4 flex flex-wrap items-center gap-3">
+              <span className="text-2xl">🔒</span>
+              <div className="flex-1 min-w-[220px]">
+                <p className="font-bold text-red-800">Account changes are locked</p>
+                <p className="text-sm text-red-700 mt-0.5">For security, you must enable Two-Factor Authentication before creating accounts, changing roles, or resetting passwords.</p>
+              </div>
+              <NavLink to="/HeadAdminPortal/Settings" className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold whitespace-nowrap">Enable MFA →</NavLink>
+            </div>
+          )}
+
+          {mfaOn && <MfaReminder settingsPath="/HeadAdminPortal/Settings" />}
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <StatTile label="Total Staff" value={counts.all} />
@@ -241,7 +256,7 @@ const Accounts = () => {
       </div>
 
       {manage && (
-        <ManageModal account={manage} isSelf={manage.id === session?.id} onClose={() => setManage(null)} onRefresh={refresh} onDone={afterAction} />
+        <ManageModal account={manage} isSelf={manage.id === session?.id} mfaLocked={!mfaOn} onClose={() => setManage(null)} onDone={afterAction} />
       )}
 
       <style>{`
@@ -253,7 +268,7 @@ const Accounts = () => {
 };
 
 // ---- Reset-password section (HeadAdmin sets a staff password, with OTP) -----
-const ResetPasswordSection = ({ account }) => {
+const ResetPasswordSection = ({ account, locked }) => {
   const [pw, setPw] = useState('');
   const [step, setStep] = useState('idle'); // idle | sent
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
@@ -295,14 +310,14 @@ const ResetPasswordSection = ({ account }) => {
   return (
     <div className="space-y-3">
       {msg && <div className={`rounded-lg px-4 py-2.5 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
-      <input type="text" value={pw} onChange={(e) => { setPw(e.target.value); setStep('idle'); setMsg(''); }} placeholder="New temporary password" className="ip" disabled={step === 'sent'} />
+      <input type="text" value={pw} onChange={(e) => { setPw(e.target.value); setStep('idle'); setMsg(''); }} placeholder="New temporary password" className="ip" disabled={step === 'sent' || locked} />
       <ul className="space-y-1">
         {Object.entries(passwordChecks(pw, account.role)).map(([label, ok]) => (
           <li key={label} className={`flex items-center gap-2 text-[12px] font-medium ${ok ? 'text-[#48A675]' : 'text-slate-400'}`}><span>{ok ? '✓' : '•'}</span> {label}</li>
         ))}
       </ul>
       {step === 'idle' ? (
-        <button onClick={send} disabled={!valid || !!busy} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-50 cursor-pointer">{busy === 'otp' ? 'Sending…' : 'Reset password'}</button>
+        <button onClick={send} disabled={!valid || !!busy || locked} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-50 cursor-pointer">{busy === 'otp' ? 'Sending…' : 'Reset password'}</button>
       ) : (
         <div className="bg-slate-50 rounded-xl p-4 space-y-3">
           <p className="text-[12px] font-bold text-slate-600">Enter the code emailed to you to confirm the reset.</p>
@@ -323,7 +338,7 @@ const ResetPasswordSection = ({ account }) => {
 };
 
 // ---- Manage modal ----------------------------------------------------------
-const ManageModal = ({ account, isSelf, onClose, onRefresh, onDone }) => {
+const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
   const [newRole, setNewRole] = useState(account.role);
   const [otpStep, setOtpStep] = useState('idle'); // idle | sent
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
@@ -401,7 +416,7 @@ const ManageModal = ({ account, isSelf, onClose, onRefresh, onDone }) => {
                     <option value="headadmin">Head Admin</option>
                   </select>
                   {otpStep === 'idle' && (
-                    <button onClick={sendCode} disabled={!roleChanged || !!busy}
+                    <button onClick={sendCode} disabled={!roleChanged || !!busy || mfaLocked}
                       className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-50 cursor-pointer">
                       {busy === 'otp' ? 'Sending…' : newRole === 'headadmin' ? 'Promote to Head Admin' : 'Change role'}
                     </button>
@@ -435,7 +450,15 @@ const ManageModal = ({ account, isSelf, onClose, onRefresh, onDone }) => {
           {!isSelf && (
             <div className="border-t border-gray-100 pt-5">
               <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Reset Password</h4>
-              <ResetPasswordSection account={account} />
+              <ResetPasswordSection account={account} locked={mfaLocked} />
+            </div>
+          )}
+
+          {/* Remove MFA (account recovery — staff only) */}
+          {!isSelf && ['registrar', 'admin'].includes(account.role) && (
+            <div className="border-t border-gray-100 pt-5">
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Two-Factor Authentication</h4>
+              <RemoveMfaSection account={account} locked={mfaLocked} />
             </div>
           )}
 
@@ -446,15 +469,15 @@ const ManageModal = ({ account, isSelf, onClose, onRefresh, onDone }) => {
               <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note if returning for correction…"
                 className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:border-[#800000] focus:outline-none min-h-[64px] mb-3" />
               <div className="flex flex-wrap justify-end gap-3">
-                <button onClick={doReturn} disabled={!!busy} className="px-6 py-2.5 border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl text-sm font-bold cursor-pointer">Return for Correction</button>
-                <button onClick={doVerify} disabled={!!busy} className="px-6 py-2.5 bg-[#48A675] hover:bg-[#3c8c63] text-white rounded-xl text-sm font-bold cursor-pointer">Verify Account ✓</button>
+                <button onClick={doReturn} disabled={!!busy || mfaLocked} className="px-6 py-2.5 border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl text-sm font-bold disabled:opacity-40 cursor-pointer">Return for Correction</button>
+                <button onClick={doVerify} disabled={!!busy || mfaLocked} className="px-6 py-2.5 bg-[#48A675] hover:bg-[#3c8c63] text-white rounded-xl text-sm font-bold disabled:opacity-40 cursor-pointer">Verify Account ✓</button>
               </div>
             </div>
           )}
         </div>
 
         <div className="p-5 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-          <button onClick={doDisable} disabled={isSelf || !!busy}
+          <button onClick={doDisable} disabled={isSelf || !!busy || mfaLocked}
             className={`px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 cursor-pointer ${account.disabled ? 'bg-green-50 text-[#48A675] hover:bg-green-100' : 'bg-red-50 text-[#C55A5A] hover:bg-red-100'}`}>
             {account.disabled ? 'Enable account' : 'Disable account'}
           </button>

@@ -55,7 +55,8 @@ export async function listApplications() {
   const { data, error } = await supabase
     .from('applications')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(5000); // sanity cap vs unbounded fetch (see pagination TODO)
   if (error) return [];
   return data;
 }
@@ -102,19 +103,30 @@ export async function rejectApplication(id, note) {
 export async function enrollApplication(id, note) {
   const app = await getApplication(id);
   if (!app) return { ok: false, error: 'Application not found.' };
-  // A returning student keeps the number they were first given; only a brand-new
-  // student is minted the next number for the school year.
-  const student_no = app.student_no || await existingStudentNo(app.student_id) || await nextStudentNo(app.school_year);
   const { data: { user } } = await supabase.auth.getUser();
   const msg = note || 'Congratulations! You have been accepted and enrolled.';
-  const { error } = await supabase.from('applications').update({
-    status: 'enrolled',
-    student_no,
-    reviewed_by: user?.id || null,
-    reviewed_at: new Date().toISOString(),
-    review_note: msg,
-  }).eq('id', id);
-  if (error) return { ok: false, error: error.message };
+  // A returning student keeps the number they were first given; only a brand-new
+  // student is minted the next number for the school year.
+  const reuse = app.student_no || await existingStudentNo(app.student_id);
+
+  // Atomic-ish: a UNIQUE index on student_no guarantees no duplicates. If two
+  // registrars enroll at once and collide (Postgres 23505), regenerate + retry.
+  let student_no = reuse, lastErr = null;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (!student_no) student_no = await nextStudentNo(app.school_year);
+    const { error } = await supabase.from('applications').update({
+      status: 'enrolled',
+      student_no,
+      reviewed_by: user?.id || null,
+      reviewed_at: new Date().toISOString(),
+      review_note: msg,
+    }).eq('id', id);
+    if (!error) { lastErr = null; break; }
+    lastErr = error;
+    if (error.code === '23505' && !reuse) { student_no = null; continue; } // number taken → retry
+    break;
+  }
+  if (lastErr) return { ok: false, error: lastErr.message };
   logAction('ENROLL', `Enrolled ${app.form?.grade || app.grade_level} · ${applicantName(app)} (${student_no})`);
   notifyStudent(app.student_id, `You're enrolled at NSDGA — Student No. ${student_no}`,
     emailShell('Enrollment Confirmed 🎓', `<p>Congratulations, ${applicantName(app)}!</p><p>Your application for <b>${app.grade_level}</b> (S.Y. ${app.school_year}) has been <b>accepted</b>. Your student number is <b>${student_no}</b>.</p><p>${msg}</p><p>Log in to your Student Portal to view the details.</p>`));
@@ -361,7 +373,7 @@ export async function getStudentRecord(studentId) {
 // tell a genuine "leftover" (its completed record is the student's latest) from
 // a completed record that a re-enrollment has already superseded.
 export async function latestAppDates() {
-  const { data } = await supabase.from('applications').select('student_id, created_at');
+  const { data } = await supabase.from('applications').select('student_id, created_at').limit(20000);
   const map = {};
   (data || []).forEach((r) => {
     if (!map[r.student_id] || r.created_at > map[r.student_id]) map[r.student_id] = r.created_at;
@@ -377,7 +389,8 @@ export async function listStudents() {
     .from('applications')
     .select('*')
     .in('status', ['enrolled', 'completed', 'withdrawn', 'graduated', 'archived'])
-    .order('student_no', { ascending: true });
+    .order('student_no', { ascending: true })
+    .limit(5000); // sanity cap vs unbounded fetch (see pagination TODO)
   if (error) return [];
   return data;
 }

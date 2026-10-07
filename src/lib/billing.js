@@ -26,7 +26,7 @@ const nameOf = (app) => {
 export async function listBillingRows(schoolYear) {
   let q = supabase.from('applications').select('*').eq('status', 'enrolled');
   if (schoolYear && schoolYear !== 'All') q = q.eq('school_year', schoolYear);
-  const { data, error } = await q.order('student_no', { ascending: true });
+  const { data, error } = await q.order('student_no', { ascending: true }).limit(5000); // sanity cap
   if (error) return [];
   return data;
 }

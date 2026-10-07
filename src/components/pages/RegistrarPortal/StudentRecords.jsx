@@ -9,6 +9,7 @@ import { LuSearch } from "react-icons/lu";
 import { listStudents, applicantName, APP_DISPLAY, bulkArchive, latestAppDates } from '../../../lib/registrar';
 import { ALL_GRADES } from '../../../lib/grades';
 import { TableSkeleton } from '../../Skeleton';
+import { useMfaLock } from '../../MfaLock';
 
 const PAGE_SIZE = 10;
 const STATUS_OPTIONS = [
@@ -31,6 +32,7 @@ const StudentRecords = () => {
   const [sel, setSel] = useState({}); // { appId: true } for bulk actions
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
 
   const load = () => { listStudents().then(setRows); latestAppDates().then(setLatest); };
   useEffect(() => { load(); }, []);
@@ -99,13 +101,14 @@ const StudentRecords = () => {
           </div>
 
           {msg && <div className={`rounded-xl px-5 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
+          {banner}
 
           {selIds.length > 0 && (
             <div className="flex flex-wrap items-center justify-between gap-3 bg-[#800000]/5 border border-[#800000]/20 rounded-2xl px-5 py-4">
               <span className="text-sm font-bold text-[#800000]">{selIds.length} selected</span>
               <div className="flex items-center gap-2">
                 <button onClick={() => setSel({})} className="px-4 py-2 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-100">Clear</button>
-                <button disabled={busy} onClick={doBulkArchive} className="px-5 py-2 rounded-lg text-sm font-bold bg-slate-700 hover:bg-slate-800 text-white disabled:opacity-60">{busy ? 'Archiving…' : `Archive ${selIds.length} selected`}</button>
+                <button disabled={busy || locked} onClick={doBulkArchive} className="px-5 py-2 rounded-lg text-sm font-bold bg-slate-700 hover:bg-slate-800 text-white disabled:opacity-60">{busy ? 'Archiving…' : `Archive ${selIds.length} selected`}</button>
               </div>
             </div>
           )}

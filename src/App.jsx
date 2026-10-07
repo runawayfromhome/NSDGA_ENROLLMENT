@@ -1,72 +1,75 @@
 import './App.css';
-
-
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Home from './components/pages/Home';
-import SHSOnlineAdmission from './components/pages/SHSOnlineAdmission';
-import SHSOnCampus from './components/pages/SHSOnCampus'; // Ensure this file exists
-import Kindergarten from './components/pages/Kindergarten';
-import ElemOnCampus from './components/pages/ElemOnCampus';
-import ElemOnline from './components/pages/ElemOnline';
-import JHSOnCampus from './components/pages/JHSOnCampus';
-import JHSOnline from './components/pages/JHSOnline';
-import Calendar from './components/pages/Calendar';
-import About from './components/pages/About';
-import Login from './components/pages/StudentPortal/Login';
-import Signup from './components/pages/StudentPortal/Signup';
-import ForgotPass from './components/pages/StudentPortal/ForgotPass';
-import ForgotPassOtp from './components/pages/StudentPortal/ForgotPassOtp';
-import CreateNewPass from './components/pages/StudentPortal/CreateNewPass';
-import LoginOtp from './components/pages/StudentPortal/LoginOtp';
-import Apply from './components/pages/StudentPortal/Apply';
-import VerifyOtp from './components/pages/StudentPortal/VerifyOtp';
-import EnrollmentForm from './components/pages/StudentPortal/EnrollmentForm';
-import Notification from './components/pages/StudentPortal/Notification';
-import Application from './components/pages/StudentPortal/ApplicationStatus';
-import StudentDashboard from './components/pages/StudentPortal/Dashboard';
-import Documents from './components/pages/StudentPortal/Documents';
-import Profile from './components/pages/StudentPortal/Profile';
-import Setting from './components/pages/StudentPortal/Setting'; 
-import LoginPage from './components/pages/RegistrarPortal/LoginPage';
-import Dashboard from './components/pages/RegistrarPortal/Dashboard';
-import Applications from './components/pages/RegistrarPortal/Applications';
-import ApplicationDetails from './components/pages/RegistrarPortal/ApplicationDetails';
-import MyProfile from './components/pages/RegistrarPortal/MyProfile';
-import RegistrarSettings from './components/pages/RegistrarPortal/RegistrarSettings';
-import StudentRecords from './components/pages/RegistrarPortal/StudentRecords';
-import StudentProfile from './components/pages/RegistrarPortal/StudentProfile';
-import Sections from './components/pages/RegistrarPortal/Sections';
-import Document from './components/pages/RegistrarPortal/Documents';
-import DocuStudentProfile from './components/pages/RegistrarPortal/DocuStudentProfile';
-import EditContactUs from './components/pages/AdminPortal/EditContactUs';
-import EditSchoolEvent from './components/pages/AdminPortal/EditSchoolEvent';
-import EditExecutiveBoard from './components/pages/AdminPortal/EditExecutiveBoard';
-import EditAcademicSched from './components/pages/AdminPortal/EditAcademicSched';
-import EditEnrollment from './components/pages/AdminPortal/EditEnrollment';
-import SectionApprovals from './components/pages/AdminPortal/SectionApprovals';
-import Billing from './components/pages/AdminPortal/Billing';
-// Auth + staff/head-admin portals
+// Eager (small, used on every route):
 import ProtectedRoute from './auth/ProtectedRoute';
 import OfflineBanner from './components/OfflineBanner';
 import AdminLayout from './components/AdminLayout';
-import AdminLogin from './components/pages/AdminPortal/Login';
-import AdminDashboard from './components/pages/AdminPortal/Dashboard';
-import AdminProfile from './components/pages/AdminPortal/MyProfile';
-import AdminSettings from './components/pages/AdminPortal/Settings';
-import StaffProfileSetup from './components/pages/StaffProfile/ProfileSetup';
-import MfaSetup from './components/pages/StaffProfile/MfaSetup';
-import HeadAdminLogin from './components/pages/HeadAdminPortal/Login';
-import HeadAdminAccounts from './components/pages/HeadAdminPortal/Accounts';
-import HeadAdminAuditLog from './components/pages/HeadAdminPortal/AuditLog';
-import HeadAdminReports from './components/pages/HeadAdminPortal/Reports';
-import HeadAdminSystem from './components/pages/HeadAdminPortal/SystemUsage';
-import HeadAdminSettings from './components/pages/HeadAdminPortal/Settings';
+
+// Lazy-loaded pages (code-split per route → smaller initial bundle).
+const Home = lazy(() => import('./components/pages/Home'));
+const SHSOnlineAdmission = lazy(() => import('./components/pages/SHSOnlineAdmission'));
+const SHSOnCampus = lazy(() => import('./components/pages/SHSOnCampus'));
+const Kindergarten = lazy(() => import('./components/pages/Kindergarten'));
+const ElemOnCampus = lazy(() => import('./components/pages/ElemOnCampus'));
+const ElemOnline = lazy(() => import('./components/pages/ElemOnline'));
+const JHSOnCampus = lazy(() => import('./components/pages/JHSOnCampus'));
+const JHSOnline = lazy(() => import('./components/pages/JHSOnline'));
+const Calendar = lazy(() => import('./components/pages/Calendar'));
+const About = lazy(() => import('./components/pages/About'));
+const Login = lazy(() => import('./components/pages/StudentPortal/Login'));
+const Signup = lazy(() => import('./components/pages/StudentPortal/Signup'));
+const ForgotPass = lazy(() => import('./components/pages/StudentPortal/ForgotPass'));
+const ForgotPassOtp = lazy(() => import('./components/pages/StudentPortal/ForgotPassOtp'));
+const CreateNewPass = lazy(() => import('./components/pages/StudentPortal/CreateNewPass'));
+const LoginOtp = lazy(() => import('./components/pages/StudentPortal/LoginOtp'));
+const Apply = lazy(() => import('./components/pages/StudentPortal/Apply'));
+const VerifyOtp = lazy(() => import('./components/pages/StudentPortal/VerifyOtp'));
+const EnrollmentForm = lazy(() => import('./components/pages/StudentPortal/EnrollmentForm'));
+const Notification = lazy(() => import('./components/pages/StudentPortal/Notification'));
+const Application = lazy(() => import('./components/pages/StudentPortal/ApplicationStatus'));
+const StudentDashboard = lazy(() => import('./components/pages/StudentPortal/Dashboard'));
+const Documents = lazy(() => import('./components/pages/StudentPortal/Documents'));
+const Profile = lazy(() => import('./components/pages/StudentPortal/Profile'));
+const Setting = lazy(() => import('./components/pages/StudentPortal/Setting'));
+const LoginPage = lazy(() => import('./components/pages/RegistrarPortal/LoginPage'));
+const Dashboard = lazy(() => import('./components/pages/RegistrarPortal/Dashboard'));
+const Applications = lazy(() => import('./components/pages/RegistrarPortal/Applications'));
+const ApplicationDetails = lazy(() => import('./components/pages/RegistrarPortal/ApplicationDetails'));
+const MyProfile = lazy(() => import('./components/pages/RegistrarPortal/MyProfile'));
+const RegistrarSettings = lazy(() => import('./components/pages/RegistrarPortal/RegistrarSettings'));
+const StudentRecords = lazy(() => import('./components/pages/RegistrarPortal/StudentRecords'));
+const StudentProfile = lazy(() => import('./components/pages/RegistrarPortal/StudentProfile'));
+const Sections = lazy(() => import('./components/pages/RegistrarPortal/Sections'));
+const Document = lazy(() => import('./components/pages/RegistrarPortal/Documents'));
+const DocuStudentProfile = lazy(() => import('./components/pages/RegistrarPortal/DocuStudentProfile'));
+const EditContactUs = lazy(() => import('./components/pages/AdminPortal/EditContactUs'));
+const EditSchoolEvent = lazy(() => import('./components/pages/AdminPortal/EditSchoolEvent'));
+const EditExecutiveBoard = lazy(() => import('./components/pages/AdminPortal/EditExecutiveBoard'));
+const EditAcademicSched = lazy(() => import('./components/pages/AdminPortal/EditAcademicSched'));
+const EditEnrollment = lazy(() => import('./components/pages/AdminPortal/EditEnrollment'));
+const SectionApprovals = lazy(() => import('./components/pages/AdminPortal/SectionApprovals'));
+const Billing = lazy(() => import('./components/pages/AdminPortal/Billing'));
+const StudentMfa = lazy(() => import('./components/pages/AdminPortal/StudentMfa'));
+const AdminLogin = lazy(() => import('./components/pages/AdminPortal/Login'));
+const AdminDashboard = lazy(() => import('./components/pages/AdminPortal/Dashboard'));
+const AdminProfile = lazy(() => import('./components/pages/AdminPortal/MyProfile'));
+const AdminSettings = lazy(() => import('./components/pages/AdminPortal/Settings'));
+const StaffProfileSetup = lazy(() => import('./components/pages/StaffProfile/ProfileSetup'));
+const MfaSetup = lazy(() => import('./components/pages/StaffProfile/MfaSetup'));
+const HeadAdminLogin = lazy(() => import('./components/pages/HeadAdminPortal/Login'));
+const HeadAdminAccounts = lazy(() => import('./components/pages/HeadAdminPortal/Accounts'));
+const HeadAdminAuditLog = lazy(() => import('./components/pages/HeadAdminPortal/AuditLog'));
+const HeadAdminReports = lazy(() => import('./components/pages/HeadAdminPortal/Reports'));
+const HeadAdminSystem = lazy(() => import('./components/pages/HeadAdminPortal/SystemUsage'));
+const HeadAdminSettings = lazy(() => import('./components/pages/HeadAdminPortal/Settings'));
 
 
 function App() {
   return (
     <>
     <OfflineBanner />
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#F8F9FA] text-slate-400 text-sm">Loading…</div>}>
     <Routes>
       {/* Send the root URL to the homepage */}
       <Route path="/" element={<Navigate to="/Home" replace />} />
@@ -119,6 +122,7 @@ function App() {
       <Route path="/AdminPortal/Settings" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminSettings /></ProtectedRoute>} />
       <Route path="/AdminPortal/SectionApprovals" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><SectionApprovals /></ProtectedRoute>} />
       <Route path="/AdminPortal/Billing" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><Billing /></ProtectedRoute>} />
+      <Route path="/AdminPortal/StudentMfa" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><StudentMfa /></ProtectedRoute>} />
       <Route path="/AdminPortal/MfaSetup" element={<ProtectedRoute allow={['admin']} loginPath="/AdminPortal/Login" requireVerified skipMfaGate><MfaSetup /></ProtectedRoute>} />
       <Route path="/AdminPortal/EditContactUs" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditContactUs /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditSchoolEvent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditSchoolEvent /></AdminLayout></ProtectedRoute>} />
@@ -138,6 +142,7 @@ function App() {
       {/* Any unknown URL falls back to the homepage */}
       <Route path="*" element={<Navigate to="/Home" replace />} />
     </Routes>
+    </Suspense>
     </>
   )
 }

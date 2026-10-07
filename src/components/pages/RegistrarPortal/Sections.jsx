@@ -13,6 +13,7 @@ import {
 } from '../../../lib/registrar';
 import { getActiveSchoolYear } from '../../../lib/content';
 import { ALL_GRADES, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
+import { useMfaLock } from '../../MfaLock';
 import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePencil, HiOutlinePaperAirplane } from "react-icons/hi";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
@@ -38,6 +39,7 @@ const Sections = () => {
   const [newStrand, setNewStrand] = useState(''); // strand for a new SHS section
   const [editId, setEditId] = useState(null); // section being renamed
   const [editName, setEditName] = useState('');
+  const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
 
   const shs = isSHSGrade(grade);
 
@@ -116,6 +118,8 @@ const Sections = () => {
           <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Class Sections</h1>
           <p className="text-slate-500 text-sm -mt-4">Section names are unique per grade · up to {SECTION_CAPACITY} students each · edit anytime, then submit to Admin for approval.</p>
 
+          {banner}
+
           {/* filters + add */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-4">
             <Field label="School Year"><input value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="sel w-36" placeholder="2026-2027" /></Field>
@@ -134,7 +138,7 @@ const Sections = () => {
                 </select>
               </Field>
             )}
-            <button disabled={busy} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
+            <button disabled={busy || locked} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
           </div>
 
           {msg && <div className={`rounded-xl px-5 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
@@ -167,7 +171,7 @@ const Sections = () => {
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
                       {editId === s.id ? (
                         <>
-                          <button disabled={busy} onClick={() => saveRename(s)} className="px-3 py-1.5 text-xs font-bold bg-[#800000] text-white rounded-lg disabled:opacity-60">Save</button>
+                          <button disabled={busy || locked} onClick={() => saveRename(s)} className="px-3 py-1.5 text-xs font-bold bg-[#800000] text-white rounded-lg disabled:opacity-60">Save</button>
                           <button onClick={() => { setEditId(null); setEditName(''); }} className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg">Cancel</button>
                         </>
                       ) : (
@@ -177,8 +181,8 @@ const Sections = () => {
                             ? <span className="text-xs font-bold text-emerald-600">✓ Approved by Admin</span>
                             : sectionStatus(s) === 'pending'
                               ? <span className="text-xs font-semibold text-amber-600">Awaiting Admin approval</span>
-                              : <button disabled={busy} onClick={() => submit(s)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-60"><HiOutlinePaperAirplane size={13} /> Submit to Admin</button>}
-                          <button onClick={() => removeSection(s)} className="ml-auto p-1.5 text-red-500 hover:bg-red-50 rounded-lg" title="Delete section"><HiOutlineTrash size={16} /></button>
+                              : <button disabled={busy || locked} onClick={() => submit(s)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-60"><HiOutlinePaperAirplane size={13} /> Submit to Admin</button>}
+                          <button disabled={locked} onClick={() => removeSection(s)} className="ml-auto p-1.5 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-40" title="Delete section"><HiOutlineTrash size={16} /></button>
                         </>
                       )}
                     </div>
@@ -205,7 +209,7 @@ const Sections = () => {
                     {members.map((a) => (
                       <div key={a.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
                         <span className="text-sm font-semibold text-slate-700">{applicantName(a)} <span className="text-slate-400 font-normal">· enrolled {fmtDate(a.created_at)}</span></span>
-                        <button disabled={busy} onClick={() => removeStudent(a)} className="text-[11px] font-bold text-red-600 hover:underline">Remove</button>
+                        <button disabled={busy || locked} onClick={() => removeStudent(a)} className="text-[11px] font-bold text-red-600 hover:underline disabled:opacity-40">Remove</button>
                       </div>
                     ))}
                   </div>
@@ -233,7 +237,7 @@ const Sections = () => {
                       );
                     })}
                   </div>
-                  <button disabled={busy || pickedCount === 0} onClick={assignPicked} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold disabled:opacity-50">Assign {pickedCount || ''} to {selected.name}</button>
+                  <button disabled={busy || pickedCount === 0 || locked} onClick={assignPicked} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold disabled:opacity-50">Assign {pickedCount || ''} to {selected.name}</button>
                   <p className="text-[11px] text-slate-400 mt-2">Editing a section sends it back to Admin for re-approval.</p>
                 </>
               )}

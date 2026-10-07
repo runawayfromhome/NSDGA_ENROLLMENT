@@ -26,12 +26,6 @@ function combine(user, profile) {
 export default function SessionProvider({ children }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  // DEMO ONLY: lets a required-MFA user skip enrollment. Remove for production.
-  const [mfaBypass, setMfaBypass] = useState(() => sessionStorage.getItem('nsdga_mfa_bypass') === '1');
-  const bypassMfa = useCallback(() => {
-    sessionStorage.setItem('nsdga_mfa_bypass', '1');
-    setMfaBypass(true);
-  }, []);
   // Keep a ref to the latest session so logout() can read it without being
   // re-created on every session change. Updated in an effect (not during render).
   const sessionRef = useRef(null);
@@ -87,7 +81,7 @@ export default function SessionProvider({ children }) {
 
     // Keep the session in sync (token refresh, sign-in/out in another tab, etc.)
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sbSession) => {
-      loadFrom(sbSession);
+      if (active) loadFrom(sbSession);
     });
     return () => { active = false; sub.subscription.unsubscribe(); };
   }, [loadFrom]);
@@ -116,8 +110,6 @@ export default function SessionProvider({ children }) {
 
   const logout = useCallback(async () => {
     await signOutWithAudit(sessionRef.current);
-    sessionStorage.removeItem('nsdga_mfa_bypass'); // DEMO ONLY
-    setMfaBypass(false);
     setSession(null);
   }, []);
 
@@ -134,8 +126,8 @@ export default function SessionProvider({ children }) {
   }, [refresh]);
 
   const value = useMemo(
-    () => ({ session, loading, login, logout, refresh, completeMfa, mfaBypass, bypassMfa, isAuthenticated: !!session, role: session?.role || null }),
-    [session, loading, login, logout, refresh, completeMfa, mfaBypass, bypassMfa]
+    () => ({ session, loading, login, logout, refresh, completeMfa, isAuthenticated: !!session, role: session?.role || null }),
+    [session, loading, login, logout, refresh, completeMfa]
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

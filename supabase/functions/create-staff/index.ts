@@ -38,10 +38,21 @@ Deno.serve(async (req) => {
       return json({ error: 'Only the Head Administrator can create accounts.' });
     }
 
+    // Require the Head Admin to have MFA enabled before creating accounts.
+    const { data: factors } = await caller.auth.mfa.listFactors();
+    if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
+      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' });
+    }
+
     // 2) Validate input.
     const { name, email, password, role } = await req.json();
     if (!name || !email || !password || !['registrar', 'admin'].includes(role)) {
       return json({ error: 'All fields are required (role must be registrar or admin).' });
+    }
+    // Server-side password policy (mirror of the client: 12+ with complexity).
+    const pw = String(password);
+    if (pw.length < 12 || !/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) {
+      return json({ error: 'Password must be at least 12 characters with upper & lower case, a number, and a special character.' });
     }
 
     // 3) Create the auth user (confirmed, no email sent).
