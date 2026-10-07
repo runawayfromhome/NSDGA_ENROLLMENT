@@ -19,6 +19,7 @@ import { GRADES_BY_LEVEL, prevGrade } from '../../../lib/grades';
 import { validatePassword } from '../../../lib/password';
 import ChatbotWidget from '../../ChatbotWidget';
 import AddressPicker from '../../AddressPicker';
+import Turnstile from '../../Turnstile';
 
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
@@ -143,6 +144,7 @@ const Apply = () => {
   const [noLrn, setNoLrn] = useState(false);       // incoming Grade 1 with no LRN yet
   const [agreedAccount, setAgreedAccount] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(''); // Cloudflare Turnstile
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -232,6 +234,7 @@ const Apply = () => {
       { const v = validatePassword(acct.password, 'student'); if (!v.ok) return v.error; }
       if (acct.password !== acct.confirm) return 'Passwords do not match.';
       if (!agreedAccount) return 'Please agree to the Terms of Service and Privacy Policy.';
+      if (!captchaToken) return 'Please complete the "I\'m not a robot" check.';
     }
     if (current === 'personal') {
       if (!f.sex || !f.dob) return 'Sex and date of birth are required.';
@@ -271,8 +274,9 @@ const Apply = () => {
         firstName: f.firstName, middleName: f.middleName, lastName: f.lastName, suffix: f.suffix,
         lrn: f.lrn.trim(), email: acct.email, phone: acct.phone, password: acct.password,
         schoolYear: f.schoolYear || enrollment?.activeSchoolYear || CURRENT_SCHOOL_YEAR,
+        captchaToken,
       });
-      if (!res.ok) { setBusy(false); return setError(res.error || 'Could not create your account.'); }
+      if (!res.ok) { setBusy(false); setCaptchaToken(''); return setError(res.error || 'Could not create your account.'); }
       setAppId(res.appId);
       // Push everything already collected in Steps 1–4 onto the fresh draft.
       const form = { ...f, contact: acct.phone || f.contact, age: f.age || ageFromDob(f.dob) };
@@ -472,6 +476,9 @@ const Apply = () => {
             <input type="checkbox" checked={agreedAccount} onChange={(e) => setAgreedAccount(e.target.checked)} className="mt-1 accent-[#800000] w-4 h-4" />
             <span>I have read and agree to the <b className="text-[#800000]">Terms of Service</b> and <b className="text-[#800000]">Privacy Policy</b> of NSDGA. <span className="text-red-500">*</span></span>
           </label>
+          <div className="pt-1">
+            <Turnstile onToken={setCaptchaToken} />
+          </div>
         </div>
       )}
 

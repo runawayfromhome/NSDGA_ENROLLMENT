@@ -92,11 +92,11 @@ export async function applyAsStudent({ email, password, contact, level, studentT
 // --- New account-first signup flow ------------------------------------------
 // Step 1: create the account + a DRAFT application, then sign in so the rest of
 // the wizard (and document uploads) run authenticated. Returns { ok, appId }.
-export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password, schoolYear }) {
+export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password, schoolYear, captchaToken }) {
   const clean = (email || '').trim().toLowerCase();
   const form = { firstName, middleName, lastName, suffix, lrn, contact: phone, schoolYear: schoolYear || CURRENT_SCHOOL_YEAR };
   const { data, error } = await supabase.functions.invoke('create-applicant', {
-    body: { email: clean, password, contact: phone, level: null, studentType: null, form },
+    body: { email: clean, password, contact: phone, level: null, studentType: null, form, captchaToken },
   });
   if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not create your account — is create-applicant deployed?' };
   if (data && data.error) return { ok: false, error: data.error };
