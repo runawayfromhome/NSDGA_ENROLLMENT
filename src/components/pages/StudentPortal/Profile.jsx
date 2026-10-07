@@ -9,6 +9,9 @@ import { getMyApplication, updateMyForm } from '../../../lib/student';
 import { formatEventDate } from '../../../lib/content';
 import { CardSkeleton } from '../../Skeleton';
 
+const onlyDigits = (v, max) => String(v).replace(/\D/g, '').slice(0, max);
+const PHONE_RE = /^09\d{9}$/; // PH mobile: 09 + 9 digits
+
 const Profile = () => {
   const { session } = useSession();
   const [app, setApp] = useState(undefined);
@@ -16,6 +19,7 @@ const Profile = () => {
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState('');
 
   useEffect(() => {
     getMyApplication().then((a) => {
@@ -31,10 +35,13 @@ const Profile = () => {
 
   const save = async () => {
     if (!app) return;
+    setErr('');
+    if (mobile && !PHONE_RE.test(mobile)) { setErr('Enter a valid mobile number (09XXXXXXXXX).'); return; }
     setSaving(true); setSaved(false);
     const res = await updateMyForm(app.id, { ...app.form, contact: mobile, address });
     setSaving(false);
     if (res.ok) { setSaved(true); setApp({ ...app, form: { ...app.form, contact: mobile, address } }); setTimeout(() => setSaved(false), 2500); }
+    else setErr(res.error || 'Could not save changes.');
   };
 
   return (
@@ -79,10 +86,11 @@ const Profile = () => {
                   <Divider>Contact Information</Divider>
                   <div className="flex justify-end mb-2"><span className="text-[9px] text-slate-400 font-bold uppercase italic">Editable Fields</span></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-5">
-                    <EditField label="Mobile Number" value={mobile} onChange={setMobile} />
+                    <EditField label="Mobile Number" value={mobile} onChange={(v) => setMobile(onlyDigits(v, 11))} placeholder="09171234567" inputMode="numeric" />
                     <ReadField label="Email Address" value={session?.email} />
                   </div>
-                  <div className="mt-5"><EditField label="Complete Address" value={address} onChange={setAddress} /></div>
+                  <div className="mt-5"><EditField label="Complete Address" value={address} onChange={setAddress} maxLength={200} /></div>
+                  {err && <p className="text-xs font-bold text-red-600 mt-3 text-right">{err}</p>}
                   <div className="mt-8 flex justify-end items-center gap-3">
                     {saved && <span className="text-xs font-bold text-emerald-600">Saved ✓</span>}
                     <button onClick={save} disabled={saving} className="bg-[#800000] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-[#600000] transition-all shadow-md text-sm disabled:opacity-60">
@@ -111,10 +119,10 @@ const ReadField = ({ label, value }) => (
     <div className="w-full p-3 bg-[#F1F5F9] border border-slate-200 rounded-lg text-slate-700 text-sm font-medium min-h-[44px]">{value || '—'}</div>
   </div>
 );
-const EditField = ({ label, value, onChange }) => (
+const EditField = ({ label, value, onChange, placeholder, inputMode, maxLength }) => (
   <div>
     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1.5">{label}</label>
-    <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-700 text-sm font-medium focus:outline-none focus:border-[#800000]" />
+    <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} inputMode={inputMode} maxLength={maxLength} className="w-full p-3 bg-white border border-slate-200 rounded-lg text-slate-700 text-sm font-medium focus:outline-none focus:border-[#800000]" />
   </div>
 );
 

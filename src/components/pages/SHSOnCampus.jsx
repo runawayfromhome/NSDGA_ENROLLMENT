@@ -47,8 +47,8 @@ const SHSOnCampus = () => {
                 specific academic requirements for your level:
               </p>
               <ul className="list-disc ml-5 space-y-1">
-                <li>Grade 10 Completers: Clear Copy of PSA, Original Grade 10 Report Card, Good Moral, Form 137</li>
-                <li>Transferees: Clear Copy of PSA, Original Grade 11 Report Card, Good Moral, Form 137</li>
+                <li>Grade 10 Completers: Clear Copy of PSA, Original Grade 10 Report Card, Good Moral</li>
+                <li>Transferees: Clear Copy of PSA, Original Grade 11 Report Card, Good Moral</li>
               </ul>
             </div>
           </ProcedureCard>

@@ -36,7 +36,7 @@ Levels & grades: Elementary, Junior High School (Grades 7–10), and Senior High
 
 Senior High strands/courses: the school sets which strands are offered, and the list can change with DepEd's curriculum. If the CONTEXT below lists the current strands, use exactly that list when asked; otherwise tell the applicant to check the strand dropdown on the application form rather than naming specific strands. Choosing a strand is required when entering Grade 11, and it carries over automatically to Grade 12.
 
-Admission documents to prepare: PSA Birth Certificate, Report Card (Form 138), Form 137 (Official Student Permanent Record), Good Moral Certificate, and a 2x2 picture. Advise applicants to prepare all of these; the Registrar confirms which are required for each case.
+Admission documents to prepare: PSA Birth Certificate, Report Card (Form 138), Good Moral Certificate, and a 2x2 picture. Advise applicants to prepare these; the Registrar confirms which are required for each case. Note: Form 137 is NOT submitted by the student — it is a confidential record transmitted directly school-to-school (the previous school forwards it to NSDGA), so do not ask the applicant to upload or bring it.
 
 How to apply online (6 steps): (1) Create an account with email + password; (2) Fill in Personal Information (student + parent/guardian); (3) choose Grade & Student Type; (4) Academic Background; (5) upload the Document requirements; (6) Review and Submit. After submitting, a 6-digit verification code is emailed to confirm the application.
 

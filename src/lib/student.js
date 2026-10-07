@@ -210,11 +210,12 @@ export async function reEnroll(prevApp, strand) {
 // Registrar can tell a corrected-and-resubmitted application apart from a
 // brand-new one (they both go back to status 'submitted').
 export async function resubmitApplication(id, form) {
-  const merged = { ...form, resubmitted: true, resubmittedAt: new Date().toISOString() };
+  const count = (Number(form?.resubmitCount) || 0) + 1; // count each resubmission (limit enforced by the UI)
+  const merged = { ...form, resubmitted: true, resubmittedAt: new Date().toISOString(), resubmitCount: count };
   const { error } = await supabase.from('applications')
     .update({ form: merged, status: 'submitted', submitted_at: new Date().toISOString() })
     .eq('id', id);
-  return { ok: !error, error: error?.message };
+  return { ok: !error, error: error?.message, count };
 }
 
 // Update the student's own application form (e.g. contact details from My

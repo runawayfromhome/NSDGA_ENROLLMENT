@@ -62,7 +62,7 @@ declare
   streets text[] := array['Bayan-bayanan Ave','J.P. Rizal St','Shoe Ave','Sumulong Hwy','Concepcion Uno','Nangka St','Tanong','Malanday','Parang','Fortune','San Roque','Industrial Valley','Marikina Heights','Jesus Dela Peña','Sto. Niño'];
   schools text[] := array['Marikina Science High School','Marikina Heights NHS','Concepcion Elementary School','Sta. Elena Elementary School','Nangka Elementary School','San Roque NHS','Parang NHS','Marikina Catholic School','Fortune Elementary School','NSDGA'];
   strands text[] := array['HT - Hospitality and Tourism','IT - Industrial Technologies','CP - Computer Programming','TECHPRO - Technical-Professional'];
-  dockeys text[] := array['photo','reportCard','form137','psa','goodMoral'];
+  dockeys text[] := array['photo','reportCard','psa','goodMoral'];
 
   i int; uid uuid; g int; grade_txt text; lvl text; is_f boolean;
   fn text; mn text; ln text; email text; st text; strand text; sect text;
