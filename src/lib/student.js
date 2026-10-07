@@ -194,13 +194,17 @@ export async function reEnroll(prevApp, strand) {
   const sy = nextSchoolYear(prevApp.school_year);
   const nextStrand = isSHSGrade(grade) ? (strand || prevApp.form?.strand || '') : '';
   if (isSHSGrade(grade) && !nextStrand) return { ok: false, error: 'Please choose a Senior High strand.' };
+  // A new year's application has no section yet — drop the previous year's
+  // staff-assigned fields (section / sectionApproved / classmates). These are
+  // set again by the Registrar on enrollment, and the DB rejects self-set ones.
+  const { section, sectionApproved, classmates, ...carry } = prevApp.form || {};
   const { data, error } = await supabase.from('applications').insert({
     student_id: u.user.id,
     school_year: sy,
     grade_level: levelOfGrade(grade),
     student_type: 'Returnee',
     status: 'submitted',
-    form: { ...prevApp.form, grade, schoolYear: sy, strand: nextStrand },
+    form: { ...carry, grade, schoolYear: sy, strand: nextStrand },
   }).select('id').single();
   if (error) return { ok: false, error: error.message };
   return { ok: true, id: data.id, grade, schoolYear: sy };

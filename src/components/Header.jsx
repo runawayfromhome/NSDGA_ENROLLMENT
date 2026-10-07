@@ -8,11 +8,7 @@ const Header = ({ showSearch = true, showProfile = true, profileName }) => {
   const { session } = useSession();
   const roleLabel = ROLE_LABELS[session?.role] || 'Guest';
   const displayName = profileName || session?.name || 'Guest User';
-  // Same avatar as the My Profile page: uploaded photo if any, else a stable
-  // generated avatar seeded by the user's name.
-  const avatarUrl = session?.profile?.photo
-    || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(session?.name || 'Guest')}`;
-  
+
   return (
     /* 
        Removed px-8 or px-10. 
@@ -47,14 +43,6 @@ const Header = ({ showSearch = true, showProfile = true, profileName }) => {
               <p className="text-[10px] text-[#800000] font-bold uppercase tracking-[1px] mt-1">
                 {roleLabel}
               </p>
-            </div>
-            <div className="relative">
-              <img
-                src={avatarUrl}
-                alt="Profile"
-                className="w-10 h-10 rounded-full object-cover bg-slate-100 border border-gray-200"
-              />
-              <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"></div>
             </div>
           </div>
         )}

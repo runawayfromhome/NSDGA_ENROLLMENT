@@ -6,7 +6,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus } from '../../../lib/student';
-import { BILLING_STATUS } from '../../../lib/billing';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
 import { nextGrade, nextSchoolYear, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
 import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup } from "react-icons/hi";
@@ -161,9 +160,6 @@ const Dashboard = () => {
                 <Card icon={HiOutlineAcademicCap} label="Grade / Program" value={app.form?.strand ? `${gradeText} · ${app.form.strand}` : gradeText} tone="text-slate-800" small />
               </div>
 
-              {/* Tuition & payment (updated by Finance/Admin; read-only) */}
-              {enrolled && <PaymentCard billing={app.billing} form={app.form} />}
-
               {!['completed', 'rejected', 'withdrawn', 'graduated', 'archived'].includes(app.status) && (
                 <>
                   <div className="flex justify-between items-end mb-6">
@@ -225,35 +221,6 @@ const Dashboard = () => {
     </div>
   );
 };
-
-const PaymentCard = ({ billing, form }) => {
-  const b = billing || {};
-  const st = BILLING_STATUS[b.status] || BILLING_STATUS.not_assessed;
-  const isVoucher = form?.voucherApplicant === 'Yes';
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-10">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-lg font-bold text-slate-800">Tuition Status</h2>
-        <span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${st.cls}`}>{st.label.toUpperCase()}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Info label="Payment Status" value={st.label} />
-        <Info label="OR Number" value={b.orNumber || '—'} />
-      </div>
-      {isVoucher && <p className="text-[12px] text-teal-700 bg-teal-50 rounded-lg px-3 py-2 mt-4">🎟️ DepEd SHS Voucher applicant{form?.voucherType ? ` (${form.voucherType})` : ''} — tuition may be partly or fully covered, subject to verification.</p>}
-      {b.remarks && <p className="text-[12px] text-slate-500 mt-3"><b>Note:</b> {b.remarks}</p>}
-      {b.status !== 'paid' && b.status !== 'voucher' && (
-        <p className="text-[11px] text-slate-400 mt-3">Payments are made at the Cashier / Finance office. This page updates once your payment is recorded.</p>
-      )}
-    </div>
-  );
-};
-const Info = ({ label, value, tone = 'text-slate-800' }) => (
-  <div>
-    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-    <p className={`text-sm font-black mt-0.5 ${tone}`}>{value}</p>
-  </div>
-);
 
 const Card = ({ icon: Icon, label, value, tone, onClick, small }) => (
   <div onClick={onClick} className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-6 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}>

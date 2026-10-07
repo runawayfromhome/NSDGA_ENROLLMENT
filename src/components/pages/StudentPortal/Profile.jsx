@@ -31,7 +31,6 @@ const Profile = () => {
 
   const f = app?.form || {};
   const fullName = `${f.firstName || ''} ${f.middleName || ''} ${f.lastName || ''} ${f.suffix || ''}`.replace(/\s+/g, ' ').trim() || session?.name || 'Student';
-  const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(fullName)}`;
 
   const save = async () => {
     if (!app) return;
@@ -59,12 +58,9 @@ const Profile = () => {
             {app && (
               <>
                 {/* Hero card */}
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-6">
-                  <img src={avatarUrl} alt="Profile" className="w-16 h-16 rounded-full border border-gray-200 bg-slate-100" />
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-800">{fullName}</h2>
-                    <p className="text-slate-500 text-sm font-medium">{f.lrn ? `LRN: ${f.lrn}` : app.grade_level}{app.student_no ? ` · Student No. ${app.student_no}` : ''}</p>
-                  </div>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                  <h2 className="text-xl font-bold text-slate-800">{fullName}</h2>
+                  <p className="text-slate-500 text-sm font-medium mt-1">{f.lrn ? `LRN: ${f.lrn}` : app.grade_level}{app.student_no ? ` · Student No. ${app.student_no}` : ''}</p>
                 </div>
 
                 {/* Personal info (read-only) */}
