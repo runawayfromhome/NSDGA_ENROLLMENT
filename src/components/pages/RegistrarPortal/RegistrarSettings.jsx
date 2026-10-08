@@ -1,4 +1,4 @@
-// Registrar account settings — Change Password + Two-Factor Authentication.
+// Registrar account settings — Change Password + Multi-Factor Authentication.
 import Header from '../../Header';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import ChangePassword from '../../ChangePassword';

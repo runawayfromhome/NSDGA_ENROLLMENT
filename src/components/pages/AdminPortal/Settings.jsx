@@ -1,4 +1,4 @@
-// Admin Settings — account security, including Two-Factor Authentication.
+// Admin Settings — account security, including Multi-Factor Authentication.
 import AdminSidebar from '../../AdminSidebar';
 import ChangePassword from '../../ChangePassword';
 import MfaSettings from '../../MfaSettings';

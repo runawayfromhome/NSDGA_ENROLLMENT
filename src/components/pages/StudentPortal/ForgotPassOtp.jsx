@@ -28,7 +28,7 @@ const ForgotPassOtp = () => {
   const onKey = (i, e) => { if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus(); };
   const onPaste = (e) => {
     const t = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
-    if (t) { e.preventDefault(); setDigits(t.padEnd(6, '').split('').slice(0, 6)); refs.current[Math.min(t.length, 5)]?.focus(); }
+    if (t) { e.preventDefault(); setDigits(Array.from({ length: 6 }, (_, k) => t[k] || '')); refs.current[Math.min(t.length, 5)]?.focus(); }
   };
 
   const verify = async (e) => {

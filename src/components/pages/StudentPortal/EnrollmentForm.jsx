@@ -182,6 +182,8 @@ const EnrollmentForm = () => {
                   <F l="Sex"><select className="ip" value={f.sex || ''} onChange={(e) => set('sex', e.target.value)} disabled={locked}><option value="">Select</option><option>Male</option><option>Female</option></select></F>
                   <F l="Date of Birth"><input className="ip" type="date" max={TODAY_ISO} value={f.dob || ''} onChange={(e) => set('dob', e.target.value)} disabled={locked} /></F>
                   <F l="Birthplace"><input className="ip" value={f.birthplace || ''} onChange={(e) => set('birthplace', placeClean(e.target.value))} maxLength={100} disabled={locked} /></F>
+                  <F l="Nationality"><input className="ip" value={f.nationality || ''} onChange={(e) => set('nationality', nameClean(e.target.value))} onBlur={(e) => set('nationality', titleCaseName(e.target.value))} placeholder="Filipino" maxLength={40} disabled={locked} /></F>
+                  <F l="Religion"><input className="ip" value={f.religion || ''} onChange={(e) => set('religion', nameClean(e.target.value))} onBlur={(e) => set('religion', titleCaseName(e.target.value))} placeholder="e.g. Roman Catholic" maxLength={50} disabled={locked} /></F>
                   <F l="Contact Number"><input className="ip" value={f.contact || ''} onChange={(e) => set('contact', onlyDigits(e.target.value, 11))} inputMode="numeric" maxLength={11} placeholder="09171234567" disabled={locked} /></F>
                   <F l="School Year"><input className="ip bg-gray-50" value={app.school_year || ''} readOnly /></F>
                 </div>

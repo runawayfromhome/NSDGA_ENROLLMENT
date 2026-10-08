@@ -78,7 +78,7 @@ const Login = () => {
         <div className="w-full max-w-md">
           {mfa ? (
             <form onSubmit={handleMfaVerify} className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Two-Factor Verification</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Multi-Factor Verification</h2>
               <p className="text-gray-500 mb-8">Enter the 6-digit code from your authenticator app.</p>
               {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 mb-4">{error}</div>}
               <div>

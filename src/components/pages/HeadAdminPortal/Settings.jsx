@@ -1,4 +1,4 @@
-// HeadAdmin account settings — Change Password + Two-Factor Authentication.
+// HeadAdmin account settings — Change Password + Multi-Factor Authentication.
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import ChangePassword from '../../ChangePassword';
 import MfaSettings from '../../MfaSettings';

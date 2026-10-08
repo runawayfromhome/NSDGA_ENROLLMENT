@@ -1,5 +1,5 @@
 // src/components/MfaSettings.jsx
-// Lets a staff member turn on Two-Factor Authentication with an authenticator
+// Lets a staff member turn on Multi-Factor Authentication with an authenticator
 // app (Google Authenticator, Authy, etc.): Enable -> scan QR -> verify code.
 // Once on, the 6-digit code is required at every login. A Disable button turns
 // it off (handy for the demo).
@@ -48,7 +48,7 @@ const MfaSettings = () => {
         {factor
           ? <HiOutlineShieldCheck className="text-[#48A675]" size={26} />
           : <HiOutlineShieldExclamation className="text-slate-400" size={26} />}
-        <h2 className="text-2xl font-extrabold text-[#800000]">Two-Factor Authentication (MFA)</h2>
+        <h2 className="text-2xl font-extrabold text-[#800000]">Multi-Factor Authentication (MFA)</h2>
       </div>
       <p className="text-sm text-slate-500 mb-6">
         Protect your account with an authenticator app. When ON, you'll enter a 6-digit code each time you log in.

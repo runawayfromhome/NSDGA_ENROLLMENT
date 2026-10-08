@@ -163,6 +163,8 @@ begin
       'sex', case when is_f then 'Female' else 'Male' end,
       'dob', to_char(make_date(2026 - (g + 6), 1 + floor(random() * 12)::int, 1 + floor(random() * 28)::int), 'YYYY-MM-DD'),
       'birthplace', 'Marikina City',
+      'nationality', 'Filipino',
+      'religion', (array['Roman Catholic','Roman Catholic','Iglesia ni Cristo','Born Again Christian','Seventh-day Adventist','Islam'])[1 + (i % 6)],
       'address', (1 + floor(random() * 120)::int)::text || ' ' || streets[1 + floor(random() * array_length(streets, 1))::int] || ', Marikina City',
       'fatherName', 'Mr. ' || ln, 'motherName', 'Mrs. ' || ln, 'guardianName', 'Mrs. ' || ln,
       'guardianContact', '09' || lpad((100000000 + i)::text, 9, '0'),

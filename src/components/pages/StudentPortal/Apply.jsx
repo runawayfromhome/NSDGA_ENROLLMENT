@@ -48,7 +48,7 @@ const GRADE1_REQUIRED_DOCS = ['photo', 'psa'];
 
 const emptyForm = {
   firstName: '', middleName: '', lastName: '', suffix: '', lrn: '',
-  sex: '', dob: '', age: '', birthplace: '', address: '', strand: '',
+  sex: '', dob: '', age: '', birthplace: '', nationality: 'Filipino', religion: '', address: '', strand: '',
   region: '', province: '', city: '', barangay: '', houseStreet: '',
   regionCode: '', provinceCode: '', cityCode: '',
   fatherName: '', motherName: '', guardianName: '', guardianContact: '',
@@ -145,6 +145,7 @@ const Apply = () => {
   const [agreedAccount, setAgreedAccount] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [captchaToken, setCaptchaToken] = useState(''); // Cloudflare Turnstile
+  const [captchaKey, setCaptchaKey] = useState(0);       // bump to remount → fresh token
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -276,7 +277,7 @@ const Apply = () => {
         schoolYear: f.schoolYear || enrollment?.activeSchoolYear || CURRENT_SCHOOL_YEAR,
         captchaToken,
       });
-      if (!res.ok) { setBusy(false); setCaptchaToken(''); return setError(res.error || 'Could not create your account.'); }
+      if (!res.ok) { setBusy(false); setCaptchaToken(''); setCaptchaKey((k) => k + 1); return setError(res.error || 'Could not create your account.'); }
       setAppId(res.appId);
       // Push everything already collected in Steps 1–4 onto the fresh draft.
       const form = { ...f, contact: acct.phone || f.contact, age: f.age || ageFromDob(f.dob) };
@@ -384,6 +385,8 @@ const Apply = () => {
             <Field label="Age"><input className="ip" value={f.age} onChange={(e) => set('age', onlyDigits(e.target.value, 3))} inputMode="numeric" placeholder="Auto-fills from birth date" /></Field>
             <Field label="Date of Birth" req><input className="ip" type="date" max={TODAY_ISO} value={f.dob} onChange={(e) => { const v = e.target.value; setF((p) => ({ ...p, dob: v, age: ageFromDob(v) })); }} /></Field>
             <Field label="Birthplace" req><input className="ip" value={f.birthplace} onChange={(e) => set('birthplace', placeClean(e.target.value))} placeholder="City, Province" maxLength={100} /></Field>
+            <Field label="Nationality"><input className="ip" value={f.nationality} onChange={(e) => set('nationality', nameClean(e.target.value))} onBlur={(e) => set('nationality', titleCaseName(e.target.value))} placeholder="Filipino" maxLength={40} /></Field>
+            <Field label="Religion"><input className="ip" value={f.religion} onChange={(e) => set('religion', nameClean(e.target.value))} onBlur={(e) => set('religion', titleCaseName(e.target.value))} placeholder="e.g. Roman Catholic" maxLength={50} /></Field>
           </div>
           <div>
             <p className="font-semibold text-xs text-gray-600 mb-2">Home Address <span className="text-red-500">*</span></p>
@@ -477,7 +480,7 @@ const Apply = () => {
             <span>I have read and agree to the <b className="text-[#800000]">Terms of Service</b> and <b className="text-[#800000]">Privacy Policy</b> of NSDGA. <span className="text-red-500">*</span></span>
           </label>
           <div className="pt-1">
-            <Turnstile onToken={setCaptchaToken} />
+            <Turnstile key={captchaKey} onToken={setCaptchaToken} />
           </div>
         </div>
       )}
@@ -518,6 +521,7 @@ const Apply = () => {
             ['Name', `${f.firstName} ${f.middleName} ${f.lastName} ${f.suffix}`.replace(/\s+/g, ' ').trim()],
             ['LRN', f.lrn], ['Email', acct.email || f.email], ['Contact', acct.phone || f.contact],
             ['Sex', f.sex], ['Age', f.age || ageFromDob(f.dob)], ['Date of Birth', f.dob], ['Birthplace', f.birthplace],
+            ['Nationality', f.nationality], ['Religion', f.religion],
             ['Home Address', f.address],
           ]} />
           <Summary title="Guardian" rows={[['Father', f.fatherName], ['Mother', f.motherName], ['Guardian', f.guardianName], ['Guardian Contact', f.guardianContact]]} />
