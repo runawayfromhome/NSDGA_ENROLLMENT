@@ -1,51 +1,73 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
 import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
 import { IoSearchOutline } from "react-icons/io5";
+import { HiOutlineCalendar } from "react-icons/hi";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { GRADES_BY_LEVEL } from '../../../lib/grades';
 import { TableSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
-  { value: 'submitted', label: 'Pending Review' },
-  { value: 'under_review', label: 'Under Review' },
+  { value: 'pending', label: 'Pending (all)' },
   { value: 'needs_correction', label: 'Needs Correction' },
   { value: 'resubmitted', label: 'Resubmitted (re-review)' },
   { value: 'enrolled', label: 'Enrolled' },
   { value: 'rejected', label: 'Rejected' },
 ];
-const LEVELS = ['Kindergarten', 'Elementary', 'Junior High School', 'Senior High School'];
+const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const selCls = 'bg-[#F1F3F6] rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 border-none outline-none';
 const PAGE_SIZE = 10;
 
 const Applications = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [apps, setApps] = useState(null);
-  const [q, setQ] = useState('');
-  const [status, setStatus] = useState('all');
-  const [grade, setGrade] = useState('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // Seed every filter from the URL so a Dashboard card link, a bookmark, or the
+  // browser Back button all restore the exact same filtered view.
+  const [q, setQ] = useState(searchParams.get('q') || '');
+  const [status, setStatus] = useState(searchParams.get('status') || 'all');
+  const [grade, setGrade] = useState(searchParams.get('grade') || 'all');
+  const [gradeNum, setGradeNum] = useState(searchParams.get('g') || 'all'); // specific grade within a level
+  const [dateFrom, setDateFrom] = useState(searchParams.get('from') || '');
+  const [dateTo, setDateTo] = useState(searchParams.get('to') || '');
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  // Keep the URL in sync with the filters (replace, so Back returns to the list
+  // in its filtered state instead of piling up history entries).
+  useEffect(() => {
+    const p = {};
+    if (q) p.q = q;
+    if (status !== 'all') p.status = status;
+    if (grade !== 'all') p.grade = grade;
+    if (gradeNum !== 'all') p.g = gradeNum;
+    if (dateFrom) p.from = dateFrom;
+    if (dateTo) p.to = dateTo;
+    setSearchParams(p, { replace: true });
+  }, [q, status, grade, gradeNum, dateFrom, dateTo, setSearchParams]);
   // Reset how many rows are shown whenever the filters change.
-  useEffect(() => { setVisible(PAGE_SIZE); }, [q, status, grade, dateFrom, dateTo]);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [q, status, grade, gradeNum, dateFrom, dateTo]);
 
-  const anyFilter = q || status !== 'all' || grade !== 'all' || dateFrom || dateTo;
-  const clear = () => { setQ(''); setStatus('all'); setGrade('all'); setDateFrom(''); setDateTo(''); };
+  // Changing the level resets the specific-grade sub-filter.
+  const onLevel = (v) => { setGrade(v); setGradeNum('all'); };
+  const anyFilter = q || status !== 'all' || grade !== 'all' || gradeNum !== 'all' || dateFrom || dateTo;
+  const clear = () => { setQ(''); setStatus('all'); setGrade('all'); setGradeNum('all'); setDateFrom(''); setDateTo(''); };
 
   const filtered = (apps || []).filter((a) => {
     const s = (applicantName(a) + ' ' + a.id + ' ' + (a.grade_level || '')).toLowerCase();
     if (!s.includes(q.toLowerCase())) return false;
-    if (status === 'resubmitted') {
+    if (status === 'pending') {
+      if (!['submitted', 'under_review', 'needs_correction'].includes(a.status)) return false;
+    } else if (status === 'resubmitted') {
       if (!(a.status === 'submitted' && a.form?.resubmitted)) return false;
     } else if (status !== 'all' && a.status !== status) return false;
     if (grade !== 'all' && a.grade_level !== grade) return false;
+    if (gradeNum !== 'all' && a.form?.grade !== gradeNum) return false;
     if (dateFrom || dateTo) {
       // Compare using the LOCAL date (matches the "Date Submitted" column).
       const d = a.created_at ? new Date(a.created_at).toLocaleDateString('en-CA') : '';
@@ -85,13 +107,35 @@ const Applications = () => {
                 </select>
               </Field>
               <Field label="Grade Level">
-                <select value={grade} onChange={(e) => setGrade(e.target.value)} className={selCls}>
+                <select value={grade} onChange={(e) => onLevel(e.target.value)} className={selCls}>
                   <option value="all">All Levels</option>
                   {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
               </Field>
-              <Field label="From"><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={selCls} /></Field>
-              <Field label="To"><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={selCls} /></Field>
+              {grade !== 'all' && (
+                <Field label="Grade">
+                  <select value={gradeNum} onChange={(e) => setGradeNum(e.target.value)} className={selCls}>
+                    <option value="all">All Grades</option>
+                    {(GRADES_BY_LEVEL[grade] || []).map((g) => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+              )}
+              <Field label="From">
+                <div className="flex items-center gap-2 bg-[#F1F3F6] rounded-xl px-3 py-2.5">
+                  <HiOutlineCalendar className="text-slate-400 shrink-0" size={16} />
+                  <input type="date" value={dateFrom} max={dateTo || undefined}
+                    onChange={(e) => setDateFrom(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()}
+                    className="dateip" aria-label="From date" />
+                </div>
+              </Field>
+              <Field label="To">
+                <div className="flex items-center gap-2 bg-[#F1F3F6] rounded-xl px-3 py-2.5">
+                  <HiOutlineCalendar className="text-slate-400 shrink-0" size={16} />
+                  <input type="date" value={dateTo} min={dateFrom || undefined}
+                    onChange={(e) => setDateTo(e.target.value)} onClick={(e) => e.currentTarget.showPicker?.()}
+                    className="dateip" aria-label="To date" />
+                </div>
+              </Field>
               {anyFilter && <button onClick={clear} className="px-4 py-2.5 text-[#800000] font-bold text-sm hover:bg-[#800000]/5 rounded-lg cursor-pointer">Clear filters</button>}
               <div className="ml-auto self-center text-sm font-semibold text-slate-500">{apps ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}` : ''}</div>
             </div>
@@ -165,6 +209,11 @@ const Applications = () => {
           </ApplicationCard>
         </main>
       </div>
+      <style>{`
+        .dateip { background: transparent; border: none; outline: none; font-size: 0.875rem; font-weight: 600; color: #475569; cursor: pointer; }
+        .dateip::-webkit-calendar-picker-indicator { display: none; }
+        .dateip:focus { color: #800000; }
+      `}</style>
     </div>
   );
 };

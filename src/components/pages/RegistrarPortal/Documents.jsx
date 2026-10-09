@@ -2,12 +2,13 @@
 // applications. Shows how many required docs each applicant uploaded, what's
 // missing, and links to the application to view/verify them.
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../Header';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import { LuSearch } from "react-icons/lu";
 import { listApplications, applicantName } from '../../../lib/registrar';
 import { REQUIRED_DOCS } from '../../../lib/student';
+import { GRADES_BY_LEVEL } from '../../../lib/grades';
 import { TableSkeleton } from '../../Skeleton';
 
 const STATUS_STYLE = {
@@ -15,9 +16,9 @@ const STATUS_STYLE = {
   'Pending Review': 'bg-blue-50 text-blue-600',
   'Incomplete': 'bg-amber-50 text-amber-700',
   'Enrolled - Incomplete': 'bg-rose-100 text-rose-700',
-  'No Documents': 'bg-slate-100 text-slate-400',
 };
-const FILTERS = ['All', 'Complete', 'Pending Review', 'Incomplete', 'Enrolled - Incomplete', 'No Documents'];
+const FILTERS = ['All', 'Complete', 'Pending Review', 'Incomplete', 'Enrolled - Incomplete'];
+const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const PAGE_SIZE = 10;
 
 function summarize(app) {
@@ -30,8 +31,7 @@ function summarize(app) {
   // An already-enrolled student who still owes documents is flagged distinctly
   // so the registrar can follow up — this outranks the plain doc-only statuses.
   if (enrolled && missing.length) status = 'Enrolled - Incomplete';
-  else if (uploaded === 0) status = 'No Documents';
-  else if (missing.length) status = 'Incomplete';
+  else if (missing.length) status = 'Incomplete'; // includes 0-uploaded (the X/4 column still shows 0)
   else if (verified === REQUIRED_DOCS.length) status = 'Complete';
   else status = 'Pending Review';
   return { uploaded, verified, missing, status, total: REQUIRED_DOCS.length };
@@ -39,17 +39,37 @@ function summarize(app) {
 
 const Documents = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [apps, setApps] = useState(null);
-  const [q, setQ] = useState('');
-  const [filter, setFilter] = useState('All');
+  // Seed filters from the URL so a bookmark / the Back button restores the view.
+  const [q, setQ] = useState(searchParams.get('q') || '');
+  const [filter, setFilter] = useState(searchParams.get('status') || 'All');
+  const [grade, setGrade] = useState(searchParams.get('grade') || 'all');
+  const [gradeNum, setGradeNum] = useState(searchParams.get('g') || 'all'); // specific grade within a level
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
-  useEffect(() => { setVisible(PAGE_SIZE); }, [q, filter]);
+  useEffect(() => { setVisible(PAGE_SIZE); }, [q, filter, grade, gradeNum]);
+  // Keep the URL in sync with the filters (replace → Back returns here filtered).
+  useEffect(() => {
+    const p = {};
+    if (q) p.q = q;
+    if (filter !== 'All') p.status = filter;
+    if (grade !== 'all') p.grade = grade;
+    if (gradeNum !== 'all') p.g = gradeNum;
+    setSearchParams(p, { replace: true });
+  }, [q, filter, grade, gradeNum, setSearchParams]);
+
+  // Changing the level resets the specific-grade sub-filter.
+  const onLevel = (v) => { setGrade(v); setGradeNum('all'); };
+  const anyFilter = q || filter !== 'All' || grade !== 'all' || gradeNum !== 'all';
+  const clear = () => { setQ(''); setFilter('All'); setGrade('all'); setGradeNum('all'); };
 
   const rows = useMemo(() => (apps || []).map((a) => ({ app: a, sum: summarize(a) })), [apps]);
   const filtered = rows.filter(({ app, sum }) => {
     if (filter !== 'All' && sum.status !== filter) return false;
+    if (grade !== 'all' && app.grade_level !== grade) return false;
+    if (gradeNum !== 'all' && app.form?.grade !== gradeNum) return false;
     const s = (applicantName(app) + ' ' + (app.form?.lrn || '') + ' ' + app.grade_level).toLowerCase();
     return s.includes(q.toLowerCase());
   });
@@ -70,6 +90,22 @@ const Documents = () => {
                 {FILTERS.map((f) => <option key={f}>{f}</option>)}
               </select>
             </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade Level</label>
+              <select value={grade} onChange={(e) => onLevel(e.target.value)} className="bg-[#F1F3F6] p-3.5 pr-8 rounded-xl text-sm font-bold text-slate-600 border-none outline-none w-52">
+                <option value="all">All Levels</option>
+                {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+            {grade !== 'all' && (
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Grade</label>
+                <select value={gradeNum} onChange={(e) => setGradeNum(e.target.value)} className="bg-[#F1F3F6] p-3.5 pr-8 rounded-xl text-sm font-bold text-slate-600 border-none outline-none w-44">
+                  <option value="all">All Grades</option>
+                  {(GRADES_BY_LEVEL[grade] || []).map((g) => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+            )}
             <div className="flex-1 min-w-[240px]">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 block mb-2">Search</label>
               <div className="relative">
@@ -78,6 +114,8 @@ const Documents = () => {
                   className="w-full bg-[#F1F3F6] border-none rounded-xl py-3.5 pl-14 pr-6 text-sm font-medium outline-none" />
               </div>
             </div>
+            {anyFilter && <button onClick={clear} className="px-4 py-2.5 text-[#800000] font-bold text-sm hover:bg-[#800000]/5 rounded-lg cursor-pointer">Clear filters</button>}
+            <div className="self-center text-sm font-semibold text-slate-500 whitespace-nowrap">{apps ? `${filtered.length} result${filtered.length === 1 ? '' : 's'}` : ''}</div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -103,7 +141,7 @@ const Documents = () => {
                         <div className="text-[10px] text-slate-400 font-bold uppercase">{app.form?.lrn ? `LRN: ${app.form.lrn}` : app.grade_level}</div>
                       </td>
                       <td className="py-5 px-6 text-sm font-medium text-slate-600">{app.student_type}</td>
-                      <td className="py-5 px-6 text-sm font-bold text-slate-700">{sum.uploaded} / {sum.total}<span className="text-[11px] font-medium text-emerald-600 ml-2">{sum.verified} verified</span></td>
+                      <td className="py-5 px-6 text-sm font-bold text-slate-700">{sum.uploaded} / {sum.total}<span className={`text-[11px] font-medium ml-2 ${sum.verified ? 'text-emerald-600' : 'text-slate-400'}`}>{sum.verified} verified</span></td>
                       <td className="py-5 px-6 text-[12px] text-slate-500 max-w-[220px]">{sum.missing.length ? sum.missing.join(', ') : '—'}</td>
                       <td className="py-5 px-6"><span className={`inline-flex whitespace-nowrap px-4 py-1.5 rounded-full text-[10px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span></td>
                       <td className="py-5 px-6 text-right">
@@ -127,7 +165,7 @@ const Documents = () => {
                     </div>
                     <span className={`shrink-0 inline-flex whitespace-nowrap px-3 py-1.5 rounded-full text-[9px] font-black ${STATUS_STYLE[sum.status]}`}>{sum.status}</span>
                   </div>
-                  <p className="text-[12px] text-slate-600 mt-2">{sum.uploaded} / {sum.total} uploaded · <span className="text-emerald-600 font-semibold">{sum.verified} verified</span></p>
+                  <p className="text-[12px] text-slate-600 mt-2">{sum.uploaded} / {sum.total} uploaded · <span className={`font-semibold ${sum.verified ? 'text-emerald-600' : 'text-slate-400'}`}>{sum.verified} verified</span></p>
                   {sum.missing.length > 0 && <p className="text-[11px] text-slate-400 mt-0.5">Missing: {sum.missing.join(', ')}</p>}
                   <button onClick={() => navigate('/RegistrarPortal/Applications/' + app.id)} className="mt-3 w-full py-2 bg-[#800000] text-white rounded-lg text-[11px] font-black hover:bg-[#600000] cursor-pointer">View / Verify</button>
                 </div>
