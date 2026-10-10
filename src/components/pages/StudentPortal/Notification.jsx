@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { HiOutlineExclamationCircle, HiOutlineInformationCircle, HiOutlineCheckCircle, HiOutlineXCircle, HiOutlineClipboardList } from "react-icons/hi";
-import { getMyApplication } from '../../../lib/student';
+import { getMyApplication, REQUIRED_DOCS } from '../../../lib/student';
 import { CardSkeleton } from '../../Skeleton';
 
 const timeAgo = (iso) => {
@@ -33,6 +33,19 @@ function buildNotifications(app) {
     };
     const n = map[app.status];
     if (n) list.unshift({ ...n, time: timeAgo(app.reviewed_at || app.created_at) });
+  }
+  // Documents the Registrar returned for re-upload — surface prominently even for
+  // an already-enrolled student (their status won't be 'needs_correction').
+  const rejectedDocs = app.documents
+    ? REQUIRED_DOCS.filter((d) => app.documents[d.key]?.status === 'rejected').map((d) => d.label)
+    : [];
+  if (rejectedDocs.length) {
+    list.unshift({
+      icon: HiOutlineExclamationCircle, tone: 'text-red-500',
+      title: 'Action needed: re-upload documents',
+      desc: `The Registrar returned these for correction: ${rejectedDocs.join(', ')}. Please upload a corrected copy in My Documents.`,
+      time: 'recently',
+    });
   }
   return list;
 }
