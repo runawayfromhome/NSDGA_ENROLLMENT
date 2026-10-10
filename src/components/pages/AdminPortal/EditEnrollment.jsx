@@ -89,6 +89,12 @@ const EditEnrollment = () => {
             Current status: <b className={seasonStatus(data).open ? 'text-emerald-600' : 'text-red-600'}>{seasonStatus(data).label}</b>
             <span className="text-gray-400"> — leave the dates blank to control it with the toggle only. <b>All new applicants and new sections are filed under the Active School Year</b> — use “Next year →” to advance it when a new enrollment season begins.</span>
           </p>
+          <label className="block mb-5">
+            <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Max Sections per Grade / Strand</span>
+            <input className="ip w-40" type="number" min="1" max="100" value={data.maxSectionsPerGrade ?? 20}
+              onChange={(e) => set('maxSectionsPerGrade', e.target.value === '' ? '' : Math.max(1, Math.min(100, Number(e.target.value) || 1)))} />
+            <span className="block text-[11px] text-gray-400 mt-1.5">Anti-spam cap on how many sections the Registrar may create per grade (per strand for Senior High). Default <b>20</b>. Raise it only if a grade genuinely needs more.</span>
+          </label>
           <label className="block">
             <span className="block font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">Message shown when closed</span>
             <textarea className="ip" style={{ minHeight: 80 }} value={data.closedMessage} onChange={(e) => set('closedMessage', e.target.value)} />

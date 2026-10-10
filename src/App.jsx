@@ -39,6 +39,7 @@ const RegistrarSettings = lazy(() => import('./components/pages/RegistrarPortal/
 const StudentRecords = lazy(() => import('./components/pages/RegistrarPortal/StudentRecords'));
 const StudentProfile = lazy(() => import('./components/pages/RegistrarPortal/StudentProfile'));
 const Sections = lazy(() => import('./components/pages/RegistrarPortal/Sections'));
+const RegistrarHistory = lazy(() => import('./components/pages/RegistrarPortal/History'));
 const Document = lazy(() => import('./components/pages/RegistrarPortal/Documents'));
 const DocuStudentProfile = lazy(() => import('./components/pages/RegistrarPortal/DocuStudentProfile'));
 const EditContactUs = lazy(() => import('./components/pages/AdminPortal/EditContactUs'));
@@ -108,6 +109,7 @@ function App() {
       <Route path="/RegistrarPortal/StudentRecords" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentRecords /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Student/:studentId" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentProfile /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Sections" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Sections /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/History" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><RegistrarHistory /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Documents" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Document /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/DocuStudentProfile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><DocuStudentProfile /></ProtectedRoute>} />
 

@@ -8,6 +8,7 @@ import Header from '../../Header';
 import { LuSearch } from "react-icons/lu";
 import { listStudents, applicantName, APP_DISPLAY, bulkArchive, latestAppDates } from '../../../lib/registrar';
 import { ALL_GRADES } from '../../../lib/grades';
+import { getActiveSchoolYear } from '../../../lib/content';
 import { TableSkeleton } from '../../Skeleton';
 import { useMfaLock } from '../../MfaLock';
 
@@ -24,6 +25,7 @@ const STATUS_OPTIONS = [
 const StudentRecords = () => {
   const navigate = useNavigate();
   const [rows, setRows] = useState(null);
+  const [activeYear, setActiveYear] = useState(''); // admin-set school year — registrar sees only this year
   const [latest, setLatest] = useState({}); // student_id -> newest app created_at
   const [q, setQ] = useState('');
   const [grade, setGrade] = useState('All Grades');
@@ -36,11 +38,13 @@ const StudentRecords = () => {
 
   const load = () => { listStudents().then(setRows); latestAppDates().then(setLatest); };
   useEffect(() => { load(); }, []);
+  useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
   useEffect(() => { setVisible(PAGE_SIZE); setSel({}); }, [q, grade, status]);
 
   const grades = useMemo(() => ['All Grades', ...ALL_GRADES], []);
 
   const filtered = (rows || []).filter((r) => {
+    if (activeYear && r.school_year !== activeYear) return false; // registrar sees only the admin's active year
     // A 'completed' record that a re-enrollment has superseded is stale history —
     // hide it here (it lives in the student's profile timeline) so it can't be
     // mistaken for a leftover and bulk-archived by accident.
@@ -72,9 +76,12 @@ const StudentRecords = () => {
       <div className="flex-1 ml-0 lg:ml-64 flex flex-col">
         <Header showSearch={false} />
         <main className="p-8 md:p-12 max-w-[1400px] w-full mx-auto space-y-6">
-          <div className="flex flex-wrap justify-between items-center gap-3">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Student Records</h1>
-            <span className="text-sm font-bold text-slate-500">{rows ? `${filtered.length} shown` : ''}</span>
+          <div>
+            <div className="flex flex-wrap justify-between items-center gap-3">
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Student Records</h1>
+              <span className="text-sm font-bold text-slate-500">{rows ? `${filtered.length} shown` : ''}</span>
+            </div>
+            <p className="text-slate-500 text-sm mt-1">Records for Academic Year <b className="text-slate-700">{activeYear || '…'}</b> <span className="text-[11px] text-slate-400">(set by Admin)</span>.</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-6">

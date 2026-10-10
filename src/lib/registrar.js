@@ -70,7 +70,20 @@ export async function getApplication(id) {
 export async function setUnderReview(id) {
   const { error } = await supabase.from('applications')
     .update({ status: 'under_review' }).eq('id', id);
+  if (!error) { const app = await getApplication(id); logAction('REVIEW', `Marked under review: ${app ? applicantName(app) : id}`); }
   return { ok: !error, error: error?.message };
+}
+
+// The signed-in staff member's own activity feed (from audit_log). Login/logout
+// rows are filtered out — this is their action history, not a session log.
+export async function listMyActivity(limit = 300) {
+  const { data: u } = await supabase.auth.getUser();
+  const email = u?.user?.email;
+  if (!email) return [];
+  const { data, error } = await supabase.from('audit_log')
+    .select('*').eq('email', email).order('created_at', { ascending: false }).limit(limit);
+  if (error) return [];
+  return (data || []).filter((r) => !['LOGIN', 'LOGOUT'].includes(r.action));
 }
 
 export async function returnForCorrection(id, note) {
@@ -318,6 +331,7 @@ async function revertSectionToDraft(section) {
 
 export async function deleteSection(id) {
   const { error } = await supabase.from('sections').delete().eq('id', id);
+  if (!error) logAction('SECTION_DELETE', 'Deleted a section');
   return { ok: !error, error: error?.message };
 }
 
@@ -355,6 +369,10 @@ export async function assignToSection(apps, sectionName, section) {
     if (error) return { ok: false, error: error.message };
   }
   if (section && sectionStatus(section) !== 'draft') await revertSectionToDraft(section);
+  logAction(sectionName ? 'SECTION_ASSIGN' : 'SECTION_UNASSIGN',
+    sectionName
+      ? `Assigned ${apps.length} student${apps.length === 1 ? '' : 's'} to ${section?.grade ? section.grade + ' · ' : ''}${sectionName}`
+      : `Removed ${apps.length} student${apps.length === 1 ? '' : 's'} from their section`);
   return { ok: true };
 }
 

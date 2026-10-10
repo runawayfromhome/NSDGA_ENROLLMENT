@@ -4,6 +4,18 @@
 import { supabase } from './supabase';
 import { nextGrade, nextSchoolYear, levelOfGrade, isSHSGrade } from './grades';
 
+// Surface the REAL error an Edge Function returned. supabase-js collapses any
+// non-2xx response into a generic FunctionsHttpError ("Edge Function returned a
+// non-2xx status code"); the actual { error } message lives in the response
+// body, reachable via error.context.
+async function fnError(error, fallback) {
+  try {
+    const body = await error?.context?.json?.();
+    if (body?.error) return body.error;
+  } catch { /* body not JSON — fall through */ }
+  return error?.message || fallback;
+}
+
 // The application lifecycle, in order, with friendly labels.
 export const APP_STEPS = [
   { key: 'submitted', label: 'Submitted' },
@@ -79,10 +91,8 @@ export async function applyAsStudent({ email, password, contact, level, studentT
   const { data, error } = await supabase.functions.invoke('create-applicant', {
     body: { email: clean, password, contact, level, studentType, form },
   });
-  if (error && !(data && data.error)) {
-    return { ok: false, error: error.message || 'Could not submit — is the create-applicant function deployed?' };
-  }
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not submit — is the create-applicant function deployed?') };
+  if (data?.error) return { ok: false, error: data.error };
 
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
@@ -98,8 +108,8 @@ export async function createApplicantAccount({ firstName, middleName, lastName, 
   const { data, error } = await supabase.functions.invoke('create-applicant', {
     body: { email: clean, password, contact: phone, level: null, studentType: null, form, captchaToken },
   });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not create your account — is create-applicant deployed?' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not create your account — is create-applicant deployed?') };
+  if (data?.error) return { ok: false, error: data.error };
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
   return { ok: true, appId: data.appId, userId: data.userId };
@@ -118,16 +128,16 @@ export async function saveApplicationDraft(id, { form, grade_level, student_type
 // Email a 6-digit code to the signed-in applicant.
 export async function requestSignupOtp() {
   const { data, error } = await supabase.functions.invoke('send-otp', { body: {} });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not send the code.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true, sentTo: data.sentTo };
 }
 
 // Verify the code → completes registration (draft becomes submitted).
 export async function verifySignupOtp(code) {
   const { data, error } = await supabase.functions.invoke('verify-otp', { body: { code } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Verification failed.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Verification failed.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 
@@ -250,24 +260,24 @@ export async function setNewPassword(password) {
 // whether the account exists).
 export async function sendResetOtp(email) {
   const { data, error } = await supabase.functions.invoke('send-reset-otp', { body: { email: (email || '').trim().toLowerCase() } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not send the code.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 
 // Step 2: verify the code (does NOT consume it — the final step re-checks).
 export async function verifyResetOtp(email, code) {
   const { data, error } = await supabase.functions.invoke('reset-password', { body: { email: (email || '').trim().toLowerCase(), code } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Verification failed.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Verification failed.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 
 // Step 3: set the new password using the verified code.
 export async function resetPasswordWithOtp(email, code, newPassword) {
   const { data, error } = await supabase.functions.invoke('reset-password', { body: { email: (email || '').trim().toLowerCase(), code, newPassword } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Reset failed.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Reset failed.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 

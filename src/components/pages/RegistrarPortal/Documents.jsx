@@ -9,6 +9,7 @@ import { LuSearch } from "react-icons/lu";
 import { listApplications, applicantName } from '../../../lib/registrar';
 import { REQUIRED_DOCS } from '../../../lib/student';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
+import { getActiveSchoolYear } from '../../../lib/content';
 import { TableSkeleton } from '../../Skeleton';
 
 const STATUS_STYLE = {
@@ -41,6 +42,7 @@ const Documents = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [apps, setApps] = useState(null);
+  const [activeYear, setActiveYear] = useState(''); // admin-set school year — registrar sees only this year
   // Seed filters from the URL so a bookmark / the Back button restores the view.
   const [q, setQ] = useState(searchParams.get('q') || '');
   const [filter, setFilter] = useState(searchParams.get('status') || 'All');
@@ -49,6 +51,7 @@ const Documents = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
   useEffect(() => { setVisible(PAGE_SIZE); }, [q, filter, grade, gradeNum]);
   // Keep the URL in sync with the filters (replace → Back returns here filtered).
   useEffect(() => {
@@ -67,6 +70,7 @@ const Documents = () => {
 
   const rows = useMemo(() => (apps || []).map((a) => ({ app: a, sum: summarize(a) })), [apps]);
   const filtered = rows.filter(({ app, sum }) => {
+    if (activeYear && app.school_year !== activeYear) return false; // registrar sees only the admin's active year
     if (filter !== 'All' && sum.status !== filter) return false;
     if (grade !== 'all' && app.grade_level !== grade) return false;
     if (gradeNum !== 'all' && app.form?.grade !== gradeNum) return false;
@@ -82,6 +86,7 @@ const Documents = () => {
         <Header showSearch={false} />
         <main className="p-8 md:p-12 max-w-[1400px] w-full mx-auto space-y-6">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-800 tracking-tight">Documents</h1>
+          <p className="text-slate-500 text-sm -mt-4">Document submissions for Academic Year <b className="text-slate-700">{activeYear || '…'}</b> <span className="text-[11px] text-slate-400">(set by Admin)</span>.</p>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-6">
             <div className="flex flex-col gap-2">

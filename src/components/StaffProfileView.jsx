@@ -26,11 +26,15 @@ const StaffProfileView = () => {
   const fullName = [p.firstName, p.middleName, p.lastName].filter(Boolean).join(' ') || session.name;
   const roleLabel = ROLE_LABEL[session.role] || session.role;
   const email = session.email;
-  // Match the navbar icon exactly: uploaded photo if any, else the same
-  // generated avatar seeded by the account name (not the full profile name).
-  const avatar = p.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(session.name)}`;
+  // Profile photo = the 2x2 ID picture submitted during ProfileSetup (p.photo).
+  // No photo → show initials (not a random generated avatar).
+  const avatar = p.photo || null;
+  const initials = (fullName || session.name || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
-  const [contact, setContact] = useState({ mobile: p.mobile || '', address: p.address || '' });
+  const [contact, setContact] = useState({
+    mobile: p.mobile || '', address: p.address || '', secondaryEmail: p.secondaryEmail || '',
+    emergencyName: p.emergencyName || '', emergencyNumber: p.emergencyNumber || '',
+  });
   const [saved, setSaved] = useState(false);
 
   const handleSave = async () => {
@@ -45,8 +49,8 @@ const StaffProfileView = () => {
       {/* Header card */}
       <RegistrarProfileCard>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8">
-          <div className="w-32 h-32 rounded-2xl overflow-hidden bg-amber-100 flex items-center justify-center shrink-0">
-            <img src={avatar} alt="Profile Avatar" className="w-full h-full object-cover" />
+          <div className="w-32 h-32 rounded-2xl overflow-hidden bg-[#800000]/10 flex items-center justify-center shrink-0">
+            {avatar ? <img src={avatar} alt="2x2 Photo" className="w-full h-full object-cover" /> : <span className="text-4xl font-black text-[#800000]">{initials}</span>}
           </div>
           <div className="space-y-2 text-center sm:text-left">
             <h1 className="text-4xl font-bold text-[#4A1010]">{fullName}</h1>
@@ -73,6 +77,7 @@ const StaffProfileView = () => {
               <Field label="Gender" value={val(p.sex)} />
               <Field label="Birthdate" value={fmtDate(p.dob)} />
               <Field label="Nationality" value={val(p.nationality)} />
+              <Field label="Civil Status" value={val(p.civilStatus)} />
             </div>
           </RegistrarPersonInfoCard>
         </div>
@@ -88,9 +93,23 @@ const StaffProfileView = () => {
                 <Field label="Date Hired" value={fmtDate(p.dateHired)} />
                 <Field label="Employment Status" value={val(p.employmentType)} />
               </div>
+              <Field label="Immediate Supervisor" value={val(p.supervisor)} />
             </div>
           </RegistrarProfDetailsCard>
         </div>
+      </div>
+
+      {/* Credentials & Qualifications */}
+      <div className="space-y-4">
+        <SectionTitle icon={<LuIdCard size={20} />}>Credentials &amp; Qualifications</SectionTitle>
+        <RegistrarPersonInfoCard>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-6 gap-x-4">
+            <Field label="Highest Educational Attainment" value={val(p.education)} />
+            <Field label="Course / Degree" value={val(p.course)} />
+            <Field label="PRC License No." value={val(p.prcLicense)} />
+            <Field label="Certifications" value={val(p.certifications)} />
+          </div>
+        </RegistrarPersonInfoCard>
       </div>
 
       {/* Contact */}
@@ -111,7 +130,10 @@ const StaffProfileView = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             <ReadonlyField label="Email Address" value={email} />
             <EditableField label="Phone Number" value={contact.mobile} onChange={(v) => setContact({ ...contact, mobile: v })} />
+            <EditableField label="Secondary Email" value={contact.secondaryEmail} onChange={(v) => setContact({ ...contact, secondaryEmail: v })} />
             <EditableField label="Home Address" value={contact.address} onChange={(v) => setContact({ ...contact, address: v })} />
+            <EditableField label="Emergency Contact Name" value={contact.emergencyName} onChange={(v) => setContact({ ...contact, emergencyName: v })} />
+            <EditableField label="Emergency Contact Number" value={contact.emergencyNumber} onChange={(v) => setContact({ ...contact, emergencyNumber: v })} />
           </div>
         </RegistarContactInfoCard>
       </div>
