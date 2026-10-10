@@ -18,6 +18,14 @@ export function nextGrade(grade) {
   return (i < 0 || i === ORDER.length - 1) ? null : ORDER[i + 1];
 }
 
+// The grade a student must have completed to enter `grade` (e.g. Grade 10 → Grade 9,
+// Grade 7 → Grade 6, Grade 1 → Kindergarten). '' if unknown.
+export function prevGrade(grade) {
+  if (grade === 'Grade 1') return 'Kindergarten';
+  const i = ORDER.indexOf(grade);
+  return i > 0 ? ORDER[i - 1] : '';
+}
+
 // Which level a specific grade belongs to.
 export function levelOfGrade(grade) {
   if (grade === 'Kinder') return 'Kindergarten';
@@ -28,8 +36,15 @@ export function levelOfGrade(grade) {
   return '';
 }
 
-// Senior High grades require a strand.
-export const SHS_STRANDS = ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL'];
+// Senior High courses (DepEd Strengthened SHS / Tech-Pro curriculum). This is
+// only the built-in DEFAULT — Admin can add/edit the live list in the SHS
+// Courses page, which is what the Apply form and sections actually read.
+export const SHS_STRANDS = [
+  'HT - Hospitality and Tourism',
+  'IT - Industrial Technologies',
+  'CP - Computer Programming',
+  'TECHPRO - Technical-Professional',
+];
 export const isSHSGrade = (grade) => levelOfGrade(grade) === 'Senior High School';
 
 // "2026-2027" -> "2027-2028".

@@ -4,10 +4,12 @@
 // go in the public `site-images` Storage bucket.
 import { supabase } from './supabase';
 import { logAction } from '../auth/authStore';
+import { SHS_STRANDS } from './grades';
 
 const SECTION_LABEL = {
   enrollment: 'Enrollment & Announcements', contact: 'Contact Info',
   events: 'School Events', board: 'Executive Board', hero: 'Homepage', about: 'About Page',
+  strands: 'SHS Courses (Strands)',
 };
 
 // Read a section's JSON (public — anyone can read).
@@ -101,6 +103,24 @@ export function seasonStatus(e) {
 export async function getActiveSchoolYear() {
   const e = await getEnrollment();
   return e.activeSchoolYear || '2026-2027';
+}
+
+// --- SHS Courses / Strands (managed by Admin) -------------------------------
+// The list of Senior High strands offered. Editable by Admin because DepEd can
+// revise the SHS curriculum. Stored as a simple array of strings so existing
+// applications/sections (which save the strand as a plain string) stay valid.
+// Falls back to the built-in defaults until Admin saves a custom list.
+export const DEFAULT_STRANDS = SHS_STRANDS;
+
+export async function getStrands() {
+  const c = await getSection('strands');
+  const items = Array.isArray(c.items) ? c.items.map((s) => String(s).trim()).filter(Boolean) : [];
+  return items.length ? items : DEFAULT_STRANDS;
+}
+
+export async function saveStrands(items) {
+  const clean = (items || []).map((s) => String(s).trim()).filter(Boolean);
+  return saveSection('strands', { items: clean });
 }
 
 export async function saveEnrollment(data) {

@@ -10,11 +10,11 @@ import {
   getMyApplication, saveApplicationDraft, resubmitApplication, uploadStudentDoc,
 } from '../../../lib/student';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
+import { getStrands } from '../../../lib/content';
 import { CardSkeleton } from '../../Skeleton';
 
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
-const SHS_STRANDS = ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL'];
 const DOCS = [
   { key: 'photo', label: '2x2 Picture', hint: 'High-quality, white background' },
   { key: 'reportCard', label: 'Report Card', hint: 'Scanned copy of latest grades' },
@@ -33,6 +33,9 @@ const EnrollmentForm = () => {
   const [uploading, setUploading] = useState('');
   const [busy, setBusy] = useState('');
   const [msg, setMsg] = useState('');
+  const [shsStrands, setShsStrands] = useState([]);
+
+  useEffect(() => { getStrands().then(setShsStrands); }, []);
 
   const load = async () => {
     const a = await getMyApplication();
@@ -110,7 +113,7 @@ const EnrollmentForm = () => {
                   <F l="Education Level"><select className="ip" value={level} onChange={(e) => { setLevel(e.target.value); set('grade', ''); }} disabled={locked}><option value="">Select</option>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select></F>
                   <F l="Grade Level Applying For"><select className="ip" value={f.grade || ''} onChange={(e) => set('grade', e.target.value)} disabled={locked || !level}><option value="">Select</option>{(GRADES_BY_LEVEL[level] || []).map((g) => <option key={g}>{g}</option>)}</select></F>
                   <F l="Student Type"><select className="ip" value={studentType} onChange={(e) => setStudentType(e.target.value)} disabled={locked}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></F>
-                  {isSHS && <F l="Preferred Strand"><select className="ip" value={f.strand || ''} onChange={(e) => set('strand', e.target.value)} disabled={locked}><option value="">Select</option>{SHS_STRANDS.map((s) => <option key={s}>{s}</option>)}</select></F>}
+                  {isSHS && <F l="Preferred Strand"><select className="ip" value={f.strand || ''} onChange={(e) => set('strand', e.target.value)} disabled={locked}><option value="">Select</option>{shsStrands.map((s) => <option key={s}>{s}</option>)}</select></F>}
                 </div>
               </Card>
 

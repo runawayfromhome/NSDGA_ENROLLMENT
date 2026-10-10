@@ -18,7 +18,6 @@ const JHSOnline = lazy(() => import('./components/pages/JHSOnline'));
 const Calendar = lazy(() => import('./components/pages/Calendar'));
 const About = lazy(() => import('./components/pages/About'));
 const Login = lazy(() => import('./components/pages/StudentPortal/Login'));
-const Signup = lazy(() => import('./components/pages/StudentPortal/Signup'));
 const ForgotPass = lazy(() => import('./components/pages/StudentPortal/ForgotPass'));
 const ForgotPassOtp = lazy(() => import('./components/pages/StudentPortal/ForgotPassOtp'));
 const CreateNewPass = lazy(() => import('./components/pages/StudentPortal/CreateNewPass'));
@@ -48,6 +47,7 @@ const EditSchoolEvent = lazy(() => import('./components/pages/AdminPortal/EditSc
 const EditExecutiveBoard = lazy(() => import('./components/pages/AdminPortal/EditExecutiveBoard'));
 const EditAcademicSched = lazy(() => import('./components/pages/AdminPortal/EditAcademicSched'));
 const EditEnrollment = lazy(() => import('./components/pages/AdminPortal/EditEnrollment'));
+const EditStrands = lazy(() => import('./components/pages/AdminPortal/EditStrands'));
 const SectionApprovals = lazy(() => import('./components/pages/AdminPortal/SectionApprovals'));
 const Billing = lazy(() => import('./components/pages/AdminPortal/Billing'));
 const StudentMfa = lazy(() => import('./components/pages/AdminPortal/StudentMfa'));
@@ -87,7 +87,6 @@ function App() {
       <Route path="/StudentPortal/Apply" element={<Apply />} />
       <Route path="/StudentPortal/VerifyOtp" element={<VerifyOtp />} />
       <Route path="/StudentPortal/EnrollmentForm" element={<ProtectedRoute allow={['student']}><EnrollmentForm /></ProtectedRoute>} />
-      <Route path="/StudentPortal/Signup" element={<Signup />} />
       <Route path="/StudentPortal/ForgotPass" element={<ForgotPass />} />
       <Route path="/StudentPortal/ForgotPassOtp" element={<ForgotPassOtp />} />
       <Route path="/StudentPortal/CreateNewPass" element={<CreateNewPass />} />
@@ -129,6 +128,7 @@ function App() {
       <Route path="/AdminPortal/EditExecutiveBoard" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditExecutiveBoard /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditAcademicSched" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditAcademicSched /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditEnrollment" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditEnrollment /></AdminLayout></ProtectedRoute>} />
+      <Route path="/AdminPortal/EditStrands" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditStrands /></AdminLayout></ProtectedRoute>} />
 
       {/* HeadAdmin portal — login public; management pages require the headadmin role */}
       <Route path="/HeadAdminPortal/Login" element={<HeadAdminLogin />} />

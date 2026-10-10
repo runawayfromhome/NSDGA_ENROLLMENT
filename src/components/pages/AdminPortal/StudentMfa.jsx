@@ -1,26 +1,37 @@
-// Admin → Student 2FA. Account recovery for students who lost their authenticator
+// Admin → Student MFA. Account recovery for students who lost their authenticator
 // and are locked out. Lists enrolled students (searchable); removing MFA requires
 // an emailed OTP step-up (handled by RemoveMfaSection + admin-remove-mfa).
 import { useEffect, useState } from 'react';
 import AdminSidebar from '../../AdminSidebar';
 import { listStudents, applicantName } from '../../../lib/registrar';
+import { ALL_GRADES } from '../../../lib/grades';
 import { TableSkeleton } from '../../Skeleton';
 import { useMfaLock } from '../../MfaLock';
 import RemoveMfaSection from '../../RemoveMfaSection';
 
+const PAGE_SIZE = 20; // students shown per "page"; "Load more" reveals the next batch
+
 const StudentMfa = () => {
   const [rows, setRows] = useState(null);
   const [q, setQ] = useState('');
+  const [gradeFilter, setGradeFilter] = useState('');
+  const [shown, setShown] = useState(PAGE_SIZE);
   const [target, setTarget] = useState(null); // { id (student_id), name }
   const { locked, banner } = useMfaLock('/AdminPortal/Settings');
 
   useEffect(() => { listStudents().then(setRows); }, []);
+  // Any change to the search/filter starts the list back at the first page.
+  useEffect(() => { setShown(PAGE_SIZE); }, [q, gradeFilter]);
+
+  const gradeOf = (r) => r.form?.grade || r.grade_level || '';
 
   const filtered = (rows || []).filter((r) => {
     if (r.status !== 'enrolled') return false; // verified/active students only
+    if (gradeFilter && gradeOf(r) !== gradeFilter) return false;
     const s = (applicantName(r) + ' ' + (r.student_no || '') + ' ' + (r.form?.lrn || '')).toLowerCase();
     return s.includes(q.trim().toLowerCase());
   });
+  const visible = filtered.slice(0, shown);
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
@@ -29,7 +40,7 @@ const StudentMfa = () => {
         <main className="p-6 md:p-12 max-w-[1100px] w-full">
           <div className="flex items-center gap-4 mb-2">
             <div className="w-2 h-10 bg-[#800000]" />
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Student 2FA</h1>
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Student MFA</h1>
           </div>
           <p className="text-gray-500 text-sm ml-6 mb-6 max-w-2xl">
             Remove a student's Two-Factor Authentication if they lost their authenticator and are locked out.
@@ -38,14 +49,21 @@ const StudentMfa = () => {
 
           {banner}
 
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, Student No., or LRN…"
-            className="w-full md:w-96 px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm mb-5 outline-none focus:border-[#800000]" />
+          <div className="flex flex-col md:flex-row gap-3 mb-5">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, Student No., or LRN…"
+              className="w-full md:w-96 px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm outline-none focus:border-[#800000]" />
+            <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)}
+              className="w-full md:w-52 px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm outline-none focus:border-[#800000] cursor-pointer">
+              <option value="">All grade levels</option>
+              {ALL_GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
 
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 md:p-6">
             {rows === null ? <TableSkeleton rows={6} cols={3} /> : (
               <div className="divide-y divide-gray-50">
                 {filtered.length === 0 && <p className="py-8 text-center text-slate-400 text-sm">No enrolled students match.</p>}
-                {filtered.map((r) => (
+                {visible.map((r) => (
                   <div key={r.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-slate-700 truncate">{applicantName(r)}</p>
@@ -55,6 +73,18 @@ const StudentMfa = () => {
                       className="shrink-0 px-4 py-2 rounded-lg text-[12px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 cursor-pointer">Remove MFA</button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {rows !== null && filtered.length > 0 && (
+              <div className="flex flex-col items-center gap-3 pt-5 mt-2 border-t border-gray-50">
+                <p className="text-[11px] text-slate-400">Showing {visible.length} of {filtered.length} enrolled students</p>
+                {visible.length < filtered.length && (
+                  <button onClick={() => setShown((n) => n + PAGE_SIZE)}
+                    className="px-6 py-2.5 rounded-xl text-[13px] font-bold bg-[#800000] text-white hover:bg-[#600000] cursor-pointer shadow-sm">
+                    Load more
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -30,10 +30,11 @@ export const ENROLLED_STATUSES = ['enrolled', 'completed'];
 export const isEnrolledStatus = (s) => ENROLLED_STATUSES.includes(s);
 
 // Admission documents the student must submit.
+// Form 137 is intentionally excluded — it is a confidential record transmitted
+// school-to-school, never uploaded or handled by the student.
 export const REQUIRED_DOCS = [
   { key: 'photo', label: '2x2 Picture' },
   { key: 'reportCard', label: 'Report Card (Form 138)' },
-  { key: 'form137', label: 'Form 137' },
   { key: 'psa', label: 'PSA Birth Certificate' },
   { key: 'goodMoral', label: 'Good Moral Certificate' },
 ];

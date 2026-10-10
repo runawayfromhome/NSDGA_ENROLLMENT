@@ -39,7 +39,7 @@ const Home = () => {
               visionary leaders of tomorrow through the lens of classical academic excellence.
             </p>
             <NavLink
-              to="/StudentPortal/Signup"
+              to="/StudentPortal/Apply"
               className="btn btn-sm sm:btn-md md:btn-lg rounded-xl bg-[#600000] hover:bg-white hover:text-[#600000] border-none text-white px-6 sm:px-8 md:px-12 h-auto py-3 md:py-5 inline-flex items-center gap-2 md:gap-4 shadow-2xl transition-all text-sm md:text-lg font-semibold"
             >
               <span>Apply Now</span>
