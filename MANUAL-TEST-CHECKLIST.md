@@ -238,4 +238,4 @@
 5. ______________________________________________________________
 
 ---
-*Reminder bago mag-production: i-drop ang `demo_password`, tanggalin ang seed-test-data function, i-run lahat ng SQL migrations (kasama `sections3.sql`), i-deploy lahat ng edge functions (kasama `admin-set-password`, `create-staff`), at gumamit ng dedicated production Supabase project + DB backups.*
+*Reminder bago mag-production: ✅ na-drop na ang `demo_password` (2026-10-11); tanggalin ang seed-test-data function, i-run lahat ng SQL migrations (kasama `sections3.sql`), i-deploy lahat ng edge functions (kasama `admin-set-password`, `create-staff`), at gumamit ng dedicated production Supabase project + DB backups.*

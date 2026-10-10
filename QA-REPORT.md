@@ -145,7 +145,7 @@ Deploy-safe. Two non-blocking build warnings, both **performance**, not defects:
 ## 6. Security / Production Notes (carried forward, not new bugs)
 
 - **Audit log is client-written and permissive.** `audit_log` INSERT must allow the unauthenticated client (so *failed logins* can be recorded), which means a technical user could forge entries. Acceptable for a prototype; for production, move audit writes to server-side (Edge Function / DB trigger) or a restricted role. *(A footnote to this effect is shown on the Audit & Activity Log page.)*
-- **`demo_password` plaintext column** on `profiles` — dev-only; **drop before production**: `alter table public.profiles drop column demo_password;`
+- **`demo_password` plaintext column** on `profiles` — ✅ **REMOVED** (dropped 2026-10-11 after a security review found the plaintext value served in the `profiles` response). The current seed no longer stores it; see `supabase/harden-production.sql`.
 - **MFA disabled** (`MFA_REQUIRED_ROLES = []`) — re-enable for production and remove the demo MFA bypass.
 - **`seed-test-data` Edge Function** is a TEST utility — **delete before production**.
 

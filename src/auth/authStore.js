@@ -307,7 +307,20 @@ export async function verifyMfaChallenge(factorId, code) {
   const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
   if (chErr) return { ok: false, error: chErr.message };
   const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
-  return { ok: !vErr, error: vErr ? 'Invalid authenticator code.' : null };
+  if (vErr) { await recordMfaFail('Invalid authenticator code (step-up)'); return { ok: false, error: 'Invalid authenticator code.' }; }
+  return { ok: true, error: null };
+}
+
+// Record a failed MFA attempt to the audit log (fuels the HeadAdmin alert in
+// mfaAlerts). Best-effort — never blocks the flow.
+async function recordMfaFail(reason) {
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u?.user) return;
+    const p = await fetchProfileById(u.user.id);
+    if (!p) return;
+    await recordAudit({ email: p.email, name: p.name, role: p.role, action: 'MFA_FAIL', status: 'FAILED', reason: reason || 'Invalid authenticator code' });
+  } catch { /* logging must never break auth */ }
 }
 
 export async function changePassword(newPassword) {
@@ -319,11 +332,30 @@ export async function verifyMfaLogin(factorId, code) {
   const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
   if (chErr) return { ok: false, error: chErr.message };
   const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
-  if (vErr) return { ok: false, error: 'Invalid code. Please try again.' };
+  if (vErr) { await recordMfaFail('Invalid authenticator code at login'); return { ok: false, error: 'Invalid code. Please try again.' }; }
   const { data: u } = await supabase.auth.getUser();
   const profile = await fetchProfileById(u.user.id);
   await recordAudit({ email: profile.email, name: profile.name, role: profile.role, action: 'LOGIN', status: 'SUCCESS' });
   return { ok: true, profile };
+}
+
+// HeadAdmin alert: scan the last hour of MFA_FAIL rows and flag users with a
+// brute-force pattern — 5+ failures in 5 minutes, or 20+ in the last hour.
+export async function mfaAlerts() {
+  const sinceHour = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase.from('audit_log')
+    .select('email, name, created_at')
+    .eq('action', 'MFA_FAIL').gte('created_at', sinceHour)
+    .order('created_at', { ascending: false }).limit(2000);
+  if (error) return [];
+  const now = Date.now();
+  const byUser = {};
+  (data || []).forEach((r) => {
+    const u = byUser[r.email] || (byUser[r.email] = { email: r.email, name: r.name, hour: 0, fiveMin: 0, lastAt: r.created_at });
+    u.hour += 1;
+    if (now - new Date(r.created_at).getTime() <= 5 * 60 * 1000) u.fiveMin += 1;
+  });
+  return Object.values(byUser).filter((u) => u.fiveMin >= 5 || u.hour >= 20);
 }
 
 export async function signOutWithAudit(sessionInfo) {

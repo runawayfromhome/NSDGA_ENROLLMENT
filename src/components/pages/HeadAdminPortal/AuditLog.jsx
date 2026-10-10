@@ -5,10 +5,10 @@
 // time-period filter (day/week/month/year), and paginated "Load more".
 import { useMemo, useState, useEffect } from 'react';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
-import { getAuditLog } from '../../../auth/authStore';
+import { getAuditLog, mfaAlerts } from '../../../auth/authStore';
 
 const ACTION_LABEL = {
-  LOGIN: 'Login', LOGOUT: 'Logout',
+  LOGIN: 'Login', LOGOUT: 'Logout', MFA_FAIL: 'MFA failed',
   ENROLL: 'Enroll', REJECT: 'Reject', RETURN: 'Return for correction',
   COMPLETE: 'Mark completed', GRADUATED: 'Graduate', WITHDRAWN: 'Withdraw', ARCHIVED: 'Archive',
   REACTIVATE: 'Reactivate', READMIT: 'Re-admit',
@@ -22,7 +22,7 @@ const ACTION_LABEL = {
 // Which actions belong to each activity group (for the Activity-type filter).
 const CATEGORY_OF = {};
 const CATEGORIES = {
-  auth: ['LOGIN', 'LOGOUT'],
+  auth: ['LOGIN', 'LOGOUT', 'MFA_FAIL'],
   enrollment: ['ENROLL', 'REJECT', 'RETURN'],
   lifecycle: ['COMPLETE', 'GRADUATED', 'WITHDRAWN', 'ARCHIVED', 'REACTIVATE', 'READMIT'],
   sections: ['SECTION_APPROVE', 'SECTION_UNAPPROVE'],
@@ -83,8 +83,10 @@ const AuditLog = () => {
   const [activity, setActivity] = useState('all');
   const [period, setPeriod] = useState('today');
   const [visible, setVisible] = useState(PAGE);
+  const [alerts, setAlerts] = useState([]);
 
   useEffect(() => { (async () => setLog(await getAuditLog()))(); }, []);
+  useEffect(() => { mfaAlerts().then(setAlerts); }, []);
   useEffect(() => { setVisible(PAGE); }, [search, roleFilter, statusFilter, activity, period]);
 
   const rows = useMemo(() => log.filter((r) => {
@@ -113,6 +115,17 @@ const AuditLog = () => {
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Audit &amp; Activity Log</h1>
             <p className="text-slate-500 text-sm">Every sign-in and every action staff take across the system.</p>
           </div>
+
+          {alerts.length > 0 && (
+            <div className="mb-8 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+              <p className="font-black text-red-700 flex items-center gap-2 mb-2">⚠️ Possible MFA brute-force</p>
+              <ul className="space-y-1 text-sm text-red-700">
+                {alerts.map((a) => (
+                  <li key={a.email}><b>{a.name || a.email}</b> — {a.fiveMin >= 5 ? `${a.fiveMin} failed MFA codes in the last 5 minutes` : `${a.hour} failed MFA codes in the last hour`}. Consider disabling the account or resetting its MFA.</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 max-w-3xl">
             <StatTile label="Logins Today" value={loginsToday} />
