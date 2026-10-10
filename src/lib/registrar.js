@@ -22,6 +22,13 @@ export const APP_DISPLAY = {
 // Statuses where a student's portal access is revoked (still fully reversible).
 export const DEPROVISIONED = ['withdrawn', 'graduated', 'archived'];
 
+// A registrar may only ACT on an application that is still in review. Guarding the
+// decisive updates on this set prevents two registrars from handling the same
+// application at once — the second one's update hits 0 rows and is reported as
+// "already handled" instead of silently overwriting the first decision.
+const ACTIONABLE = ['submitted', 'under_review', 'needs_correction'];
+const ALREADY_HANDLED = 'This application was already handled by another registrar. Please refresh to see its current status.';
+
 // Fire-and-forget email to a student via the `notify` Edge Function. Failures
 // never block the registrar's action (the DB change is what matters).
 export async function notifyStudent(studentId, subject, html) {
@@ -68,10 +75,12 @@ export async function getApplication(id) {
 }
 
 export async function setUnderReview(id) {
-  const { error } = await supabase.from('applications')
-    .update({ status: 'under_review' }).eq('id', id);
-  if (!error) { const app = await getApplication(id); logAction('REVIEW', `Marked under review: ${app ? applicantName(app) : id}`); }
-  return { ok: !error, error: error?.message };
+  const { data, error } = await supabase.from('applications')
+    .update({ status: 'under_review' }).eq('id', id).in('status', ACTIONABLE).select('id');
+  if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: ALREADY_HANDLED };
+  const app = await getApplication(id); logAction('REVIEW', `Marked under review: ${app ? applicantName(app) : id}`);
+  return { ok: true };
 }
 
 // The signed-in staff member's own activity feed (from audit_log). Login/logout
@@ -88,10 +97,11 @@ export async function listMyActivity(limit = 300) {
 
 export async function returnForCorrection(id, note) {
   const msg = note || 'Please review and resubmit your application.';
-  const { error } = await supabase.from('applications')
+  const { data, error } = await supabase.from('applications')
     .update({ status: 'needs_correction', review_note: msg, reviewed_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id).in('status', ACTIONABLE).select('id');
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: ALREADY_HANDLED };
   const app = await getApplication(id);
   logAction('RETURN', `Returned for correction: ${app ? applicantName(app) : id}`);
   if (app) notifyStudent(app.student_id, 'Action needed on your NSDGA application',
@@ -101,10 +111,11 @@ export async function returnForCorrection(id, note) {
 
 export async function rejectApplication(id, note) {
   const msg = note || 'We regret to inform you that your application was not accepted.';
-  const { error } = await supabase.from('applications')
+  const { data, error } = await supabase.from('applications')
     .update({ status: 'rejected', review_note: msg, reviewed_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id).in('status', ACTIONABLE).select('id');
   if (error) return { ok: false, error: error.message };
+  if (!data || data.length === 0) return { ok: false, error: ALREADY_HANDLED };
   const app = await getApplication(id);
   logAction('REJECT', `Rejected application: ${app ? applicantName(app) : id}`);
   if (app) notifyStudent(app.student_id, 'Update on your NSDGA application',
@@ -127,14 +138,18 @@ export async function enrollApplication(id, note) {
   let student_no = reuse, lastErr = null;
   for (let attempt = 0; attempt < 6; attempt++) {
     if (!student_no) student_no = await nextStudentNo(app.school_year);
-    const { error } = await supabase.from('applications').update({
+    const { data, error } = await supabase.from('applications').update({
       status: 'enrolled',
       student_no,
       reviewed_by: user?.id || null,
       reviewed_at: new Date().toISOString(),
       review_note: msg,
-    }).eq('id', id);
-    if (!error) { lastErr = null; break; }
+    }).eq('id', id).in('status', ACTIONABLE).select('id');
+    if (!error) {
+      // 0 rows → another registrar already enrolled/rejected/returned this one.
+      if (!data || data.length === 0) return { ok: false, error: ALREADY_HANDLED };
+      lastErr = null; break;
+    }
     lastErr = error;
     if (error.code === '23505' && !reuse) { student_no = null; continue; } // number taken → retry
     break;
