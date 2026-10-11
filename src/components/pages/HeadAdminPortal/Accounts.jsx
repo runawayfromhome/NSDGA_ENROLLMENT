@@ -12,7 +12,7 @@ import ResetPasswordSection from '../../ResetPasswordSection';
 import { useSession } from '../../../contexts/useSession';
 import {
   getStaffAccounts, createAccount, setDisabled, verifyAccount, returnProfile,
-  getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, STATUS,
+  getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, getAccountUsage, STATUS,
 } from '../../../auth/authStore';
 import { isPasswordValid } from '../../../lib/password';
 
@@ -80,6 +80,7 @@ const Accounts = () => {
   const { session } = useSession();
   const [accounts, setAccounts] = useState([]);
   const [tab, setTab] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'registrar' });
   const [error, setError] = useState('');
@@ -88,8 +89,9 @@ const Accounts = () => {
   const [presence, setPresence] = useState({});
   const [now, setNow] = useState(() => Date.now());
   const [mfaOn, setMfaOn] = useState(true); // Head Admin must have MFA before changes
+  const [usage, setUsage] = useState(null); // active-vs-cap per role
 
-  const refresh = async () => setAccounts(await getStaffAccounts());
+  const refresh = async () => { setAccounts(await getStaffAccounts()); getAccountUsage().then(setUsage); };
   useEffect(() => { refresh(); getMfaFactor().then((f) => setMfaOn(!!f)); }, []);
   useEffect(() => {
     const load = async () => { setPresence(await getPresence()); setNow(Date.now()); };
@@ -121,7 +123,7 @@ const Accounts = () => {
     disabled: accounts.filter((a) => a.disabled).length,
   }), [accounts]);
 
-  const rows = accounts.filter((a) => matchesTab(a, tab));
+  const rows = accounts.filter((a) => matchesTab(a, tab) && (roleFilter === 'all' || a.role === roleFilter));
   const afterAction = async () => { await refresh(); setManage(null); };
 
   return (
@@ -161,6 +163,25 @@ const Accounts = () => {
             <StatTile label="Verified" value={counts.verified} accent="text-[#48A675]" />
           </div>
 
+          {/* Active accounts vs limit (per role) */}
+          {usage && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 mb-8">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest w-full sm:w-auto">Active vs limit</p>
+                {[['headadmin', 'Head Admin'], ['admin', 'Admin'], ['registrar', 'Registrar']].map(([k, label]) => {
+                  const u = usage[k]; if (!u) return null;
+                  const full = u.active >= u.cap;
+                  return (
+                    <span key={k} className={`px-4 py-2 rounded-xl border text-sm font-bold ${full ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-100 bg-gray-50 text-slate-600'}`}>
+                      {label}: {u.active}/{u.cap}{full ? ' · full' : ''}
+                    </span>
+                  );
+                })}
+                <NavLink to="/HeadAdminPortal/Settings" className="sm:ml-auto self-center text-[12px] font-bold text-[#800000] hover:underline">Adjust limits →</NavLink>
+              </div>
+            </div>
+          )}
+
           {showForm && (
             <form onSubmit={handleCreate} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 md:p-8 mb-8">
               <h2 className="text-lg font-bold text-slate-800 mb-1">Create Staff Account</h2>
@@ -181,13 +202,19 @@ const Accounts = () => {
             </form>
           )}
 
-          <div className="flex flex-wrap gap-2 mb-5">
+          <div className="flex flex-wrap items-center gap-2 mb-5">
             {TABS.map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={`px-4 py-2 rounded-full text-[12px] font-bold transition-colors cursor-pointer ${tab === t.key ? 'bg-[#800000] text-white' : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-50'}`}>
                 {t.label} <span className={tab === t.key ? 'opacity-80' : 'text-slate-400'}>({counts[t.key]})</span>
               </button>
             ))}
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+              className="sm:ml-auto px-4 py-2 bg-white border border-gray-200 rounded-full text-[12px] font-bold text-slate-500 outline-none cursor-pointer focus:border-[#800000]">
+              <option value="all">All Roles</option>
+              <option value="registrar">Registrar</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           {/* Table (desktop) + cards (mobile) */}

@@ -62,11 +62,77 @@ export async function getStaffAccounts() {
   return data;
 }
 
+// ---- Active-account limits (per staff role) --------------------------------
+// How many VERIFIED + ENABLED accounts a role may have at once. HeadAdmin-set,
+// stored in site_content('account_limits'); defaults below. Students are never
+// capped. Enforced when an account would BECOME active (verify / enable / role
+// change) — creating a pending account is always allowed. Backed server-side by
+// the trg_enforce_account_limit trigger (supabase/account-limits.sql).
+export const ACCOUNT_LIMIT_DEFAULTS = { headadmin: 2, admin: 4, registrar: 15 };
+const LIMITED_ROLES = ['headadmin', 'admin', 'registrar'];
+
+export async function getAccountLimits() {
+  const { data } = await supabase.from('site_content').select('content').eq('section', 'account_limits').maybeSingle();
+  return { ...ACCOUNT_LIMIT_DEFAULTS, ...(data?.content || {}) };
+}
+
+// Saving account limits is step-up protected (emailed code), since raising a cap
+// could let someone add rogue staff. admin-account-limits Edge Function:
+//   { }               → emails a 6-digit code to the HeadAdmin
+//   { limits, code }   → verifies the code, then writes the new limits
+export async function requestAccountLimitsOtp() {
+  const { data, error } = await supabase.functions.invoke('admin-account-limits', { body: {} });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true, sentTo: data.sentTo };
+}
+export async function saveAccountLimitsWithOtp(limits, code) {
+  const { data, error } = await supabase.functions.invoke('admin-account-limits', { body: { limits, code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not save the limits.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  const l = data.limits || {};
+  logAction('CONTENT_EDIT', `Updated account limits: HeadAdmin ${l.headadmin} · Admin ${l.admin} · Registrar ${l.registrar}`);
+  return { ok: true, limits: l };
+}
+
+// Count of active (verified + enabled) accounts per limited role, with the cap.
+export async function getAccountUsage() {
+  const limits = await getAccountLimits();
+  const { data } = await supabase.from('profiles').select('role, status, disabled').in('role', LIMITED_ROLES);
+  const out = {};
+  for (const r of LIMITED_ROLES) {
+    const active = (data || []).filter((p) => p.role === r && p.status === STATUS.VERIFIED && !p.disabled).length;
+    out[r] = { active, cap: Number(limits[r]) || 0 };
+  }
+  return out;
+}
+
+// Returns { ok } or { ok:false, error } — blocks if the role is already at its
+// active cap. `excludeId` ignores one account (e.g. the one being changed).
+async function enforceActiveCap(role, excludeId = null) {
+  if (!LIMITED_ROLES.includes(role)) return { ok: true }; // students unlimited
+  const limits = await getAccountLimits();
+  const cap = Number(limits[role]) || 0;
+  let q = supabase.from('profiles').select('id', { count: 'exact', head: true })
+    .eq('role', role).eq('status', STATUS.VERIFIED).eq('disabled', false);
+  if (excludeId) q = q.neq('id', excludeId);
+  const { count, error } = await q;
+  if (error) return { ok: true }; // fail-open: never block account ops on a count error
+  if ((count || 0) >= cap) {
+    const label = role === 'headadmin' ? 'Head Administrator' : role.charAt(0).toUpperCase() + role.slice(1);
+    return { ok: false, error: `Active ${label} limit reached (${cap}). Disable an existing ${label} account first, or raise the limit in Settings → Account Limits.` };
+  }
+  return { ok: true };
+}
+
 // Create a staff account. Uses a Supabase Edge Function (`create-staff`) so it
 // works with public sign-ups DISABLED. (Deployed in the #4 lockdown step — until
 // then this returns a helpful error.)
 export async function createAccount({ name, email, password, role }) {
   if (!name || !email || !password || !role) return { ok: false, error: 'All fields are required.' };
+  // Creating only makes a PENDING account (not active), so it is never capped
+  // here — the active-account cap is enforced when the account would BECOME
+  // active: at verify / enable / role change.
   const { data, error } = await supabase.functions.invoke('create-staff', {
     body: { name, email, password, role },
   });
@@ -85,6 +151,14 @@ async function targetName(id) {
 
 // HeadAdmin actions (RLS + the enforce trigger allow these only for HeadAdmin).
 export async function setDisabled(id, disabled) {
+  // Re-enabling a VERIFIED account makes it active again — respect the role cap.
+  if (disabled === false) {
+    const p = await fetchProfileById(id);
+    if (p?.status === STATUS.VERIFIED) {
+      const cap = await enforceActiveCap(p.role, id);
+      if (!cap.ok) return cap;
+    }
+  }
   const { error } = await supabase.from('profiles').update({ disabled }).eq('id', id);
   if (!error) logAction(disabled ? 'ACCOUNT_DISABLE' : 'ACCOUNT_ENABLE', `${disabled ? 'Disabled' : 'Enabled'} account: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
@@ -105,6 +179,14 @@ export async function requestAdminOtp() {
   return { ok: true, sentTo: data.sentTo };
 }
 export async function changeRoleWithOtp(targetUserId, newRole, code, targetName) {
+  // Moving an ACTIVE account into a role that's already at its cap would push it
+  // over — block before spending the OTP. (excludeId: this account doesn't count
+  // toward the destination unless it's already that role.)
+  const p = await fetchProfileById(targetUserId);
+  if (p && p.status === STATUS.VERIFIED && !p.disabled && p.role !== newRole) {
+    const cap = await enforceActiveCap(newRole, targetUserId);
+    if (!cap.ok) return cap;
+  }
   const { data, error } = await supabase.functions.invoke('admin-role-change', { body: { targetUserId, newRole, code } });
   if (error && !(data && data.error)) return { ok: false, error: error.message || 'Role change failed.' };
   if (data && data.error) return { ok: false, error: data.error };
@@ -144,6 +226,12 @@ export async function removeUserMfa(targetUserId, code, targetName) {
 }
 
 export async function verifyAccount(id) {
+  // Verifying makes the account active — respect the role cap.
+  const p = await fetchProfileById(id);
+  if (p) {
+    const cap = await enforceActiveCap(p.role, id);
+    if (!cap.ok) return cap;
+  }
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.VERIFIED, verified_at: new Date().toISOString() }).eq('id', id);
   if (!error) logAction('ACCOUNT_VERIFY', `Verified account: ${await targetName(id)}`);
@@ -280,12 +368,14 @@ export async function activateMfa(factorId, code) {
   if (chErr) return { ok: false, error: chErr.message };
   const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
   if (vErr) return { ok: false, error: 'That code was not accepted. Check the app and try again.' };
+  logAction('MFA_ENABLE', 'Enabled Multi-Factor Authentication');
   return { ok: true };
 }
 
 // Turn MFA off.
 export async function disableMfa(factorId) {
   const { error } = await supabase.auth.mfa.unenroll({ factorId });
+  if (!error) logAction('MFA_DISABLE', 'Disabled Multi-Factor Authentication');
   return { ok: !error, error: error?.message };
 }
 
@@ -325,6 +415,7 @@ async function recordMfaFail(reason) {
 
 export async function changePassword(newPassword) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (!error) logAction('PASSWORD_CHANGE', 'Changed own password');
   return { ok: !error, error: error?.message };
 }
 

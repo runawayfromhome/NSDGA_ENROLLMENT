@@ -8,6 +8,7 @@ import {
   HiOutlineDocumentText,
   HiOutlineFolder,
   HiOutlineBell,
+  HiOutlineClock,
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineLogout,
@@ -25,6 +26,7 @@ const FULL_MENU = [
   { name: 'Enrollment Form', icon: HiOutlineDocumentText, path: '/StudentPortal/EnrollmentForm' },
   { name: 'Documents', icon: HiOutlineFolder, path: '/StudentPortal/Documents' },
   { name: 'Notifications', icon: HiOutlineBell, path: '/StudentPortal/Notifications' },
+  { name: 'Activity', icon: HiOutlineClock, path: '/StudentPortal/Activity' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/StudentPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/StudentPortal/Settings' },
 ];

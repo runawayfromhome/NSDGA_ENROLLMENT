@@ -3,6 +3,7 @@
 // application, and read/track it. Backed by Supabase Auth + `applications`.
 import { supabase } from './supabase';
 import { nextGrade, nextSchoolYear, levelOfGrade, isSHSGrade } from './grades';
+import { logAction, recordAudit } from '../auth/authStore';
 
 // Surface the REAL error an Edge Function returned. supabase-js collapses any
 // non-2xx response into a generic FunctionsHttpError ("Edge Function returned a
@@ -72,6 +73,7 @@ export async function uploadStudentDoc(appId, docKey, file) {
   const documents = { ...(app?.documents || {}), [docKey]: { path, name: file.name, size: file.size, uploadedAt: new Date().toISOString(), status: 'uploaded' } };
   const { error } = await supabase.from('applications').update({ documents }).eq('id', appId);
   if (error) return { ok: false, error: error.message };
+  logAction('DOC_UPLOAD', `Uploaded document (${docKey})`);
   return { ok: true, documents };
 }
 
@@ -96,6 +98,7 @@ export async function applyAsStudent({ email, password, contact, level, studentT
 
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
+  logAction('APPLY_SUBMIT', `Submitted application${level ? ' for ' + level : ''}`);
   return { ok: true, userId: data.userId };
 }
 
@@ -112,6 +115,7 @@ export async function createApplicantAccount({ firstName, middleName, lastName, 
   if (data?.error) return { ok: false, error: data.error };
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
+  logAction('APPLY_SIGNUP', 'Created applicant account');
   return { ok: true, appId: data.appId, userId: data.userId };
 }
 
@@ -138,6 +142,7 @@ export async function verifySignupOtp(code) {
   const { data, error } = await supabase.functions.invoke('verify-otp', { body: { code } });
   if (error) return { ok: false, error: await fnError(error, 'Verification failed.') };
   if (data?.error) return { ok: false, error: data.error };
+  logAction('APPLY_SUBMIT', 'Submitted application (email verified)');
   return { ok: true };
 }
 
@@ -145,13 +150,18 @@ export async function verifySignupOtp(code) {
 export async function signInStudent(email, password) {
   const clean = (email || '').trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
-  if (error) return { ok: false, error: 'Invalid email or password.' };
-  const { data: profile } = await supabase.from('profiles').select('role, disabled').eq('id', data.user.id).single();
+  if (error) {
+    await recordAudit({ email: clean, name: clean, role: 'student', action: 'LOGIN', status: 'FAILED', reason: 'Invalid email or password' });
+    return { ok: false, error: 'Invalid email or password.' };
+  }
+  const { data: profile } = await supabase.from('profiles').select('role, disabled, name').eq('id', data.user.id).single();
   if (!profile || profile.role !== 'student') {
+    await recordAudit({ email: clean, name: profile?.name || clean, role: profile?.role || 'unknown', action: 'LOGIN', status: 'FAILED', reason: 'Wrong portal (not a student account)' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This is the Student portal. Please use your staff portal instead.' };
   }
   if (profile.disabled) {
+    await recordAudit({ email: clean, name: profile.name, role: 'student', action: 'LOGIN', status: 'FAILED', reason: 'Account disabled' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This account has been disabled. Please contact the Registrar.' };
   }
@@ -160,9 +170,11 @@ export async function signInStudent(email, password) {
     .select('status').eq('student_id', data.user.id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (app && ['withdrawn', 'graduated', 'archived'].includes(app.status)) {
+    await recordAudit({ email: clean, name: profile.name, role: 'student', action: 'LOGIN', status: 'FAILED', reason: 'Inactive student account' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This student account is inactive. Please contact the Registrar.' };
   }
+  await recordAudit({ email: clean, name: profile.name, role: 'student', action: 'LOGIN', status: 'SUCCESS' });
   return { ok: true, userId: data.user.id };
 }
 
@@ -229,6 +241,7 @@ export async function resubmitApplication(id, form) {
   const { error } = await supabase.from('applications')
     .update({ form: merged, status: 'submitted', submitted_at: new Date().toISOString() })
     .eq('id', id);
+  if (!error) logAction('APPLY_RESUBMIT', `Resubmitted application (attempt ${count})`);
   return { ok: !error, error: error?.message, count };
 }
 

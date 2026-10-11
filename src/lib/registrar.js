@@ -188,6 +188,10 @@ async function nextStudentNo(schoolYear) {
 export async function setDocumentStatus(app, key, status) {
   const documents = { ...(app.documents || {}), [key]: { ...(app.documents?.[key] || {}), status } };
   const { error } = await supabase.from('applications').update({ documents }).eq('id', app.id);
+  if (!error && (status === 'verified' || status === 'rejected')) {
+    logAction(status === 'verified' ? 'DOC_VERIFY' : 'DOC_REJECT',
+      `${status === 'verified' ? 'Verified' : 'Rejected'} document (${key}): ${applicantName(app)}`);
+  }
   return { ok: !error, error: error?.message };
 }
 

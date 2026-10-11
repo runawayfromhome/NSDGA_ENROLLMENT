@@ -15,6 +15,7 @@ import {
   HiOutlineClipboardCheck,
   HiOutlineCurrencyDollar,
   HiOutlineShieldCheck,
+  HiOutlineClock,
   HiOutlineUser,
   HiOutlineCog,
   HiOutlineLogout,
@@ -32,6 +33,7 @@ const MENU = [
   { name: 'Section Approvals', icon: HiOutlineClipboardCheck, path: '/AdminPortal/SectionApprovals' },
   { name: 'Finance Export', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
   { name: 'Manage Student', icon: HiOutlineShieldCheck, path: '/AdminPortal/ManageStudent' },
+  { name: 'My Activity', icon: HiOutlineClock, path: '/AdminPortal/Activity' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/AdminPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/AdminPortal/Settings' },
 ];

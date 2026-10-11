@@ -9,8 +9,10 @@ import {
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const LEVELS = ['Kindergarten', 'Elementary', 'Junior High School', 'Senior High School'];
-const LEVEL_SHORT = { 'Kindergarten': 'Kinder', 'Elementary': 'Elementary', 'Junior High School': 'Junior High', 'Senior High School': 'Senior High' };
+// Kindergarten is admitted face-to-face (not online), so grade_level is never
+// 'Kindergarten' — keep the breakdown to the levels the system actually handles.
+const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
+const LEVEL_SHORT = { 'Elementary': 'Elementary', 'Junior High School': 'Junior High', 'Senior High School': 'Senior High' };
 const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 
@@ -150,7 +152,7 @@ const Reports = () => {
 
             <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 md:p-8">
               <h2 className="text-lg font-bold text-slate-800 mb-6">Enrolled by Level (%)</h2>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {byLevelEnrolled.map((b) => (
                   <div key={b.label} className="text-center">
                     <p className="text-4xl font-black text-[#800000]">{b.value}%</p>
