@@ -112,7 +112,7 @@ export async function changeRoleWithOtp(targetUserId, newRole, code, targetName)
     `${newRole === 'headadmin' ? 'Promoted to HeadAdmin' : 'Changed role to ' + newRole}: ${targetName || targetUserId}`);
   return { ok: true };
 }
-// admin-set-password Edge Function (HeadAdmin-only + OTP): reset a staff password.
+// admin-set-password Edge Function (HeadAdmin→staff, Admin→student; OTP step-up): reset a password.
 export async function requestSetPasswordOtp() {
   const { data, error } = await supabase.functions.invoke('admin-set-password', { body: {} });
   if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };

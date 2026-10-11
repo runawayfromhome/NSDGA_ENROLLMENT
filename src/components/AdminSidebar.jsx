@@ -30,8 +30,8 @@ const MENU = [
   { name: 'Academic Schedule', icon: HiOutlineAcademicCap, path: '/AdminPortal/EditAcademicSched' },
   { name: 'SHS Courses', icon: HiOutlineBookOpen, path: '/AdminPortal/EditStrands' },
   { name: 'Section Approvals', icon: HiOutlineClipboardCheck, path: '/AdminPortal/SectionApprovals' },
-  { name: 'Finance Status', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
-  { name: 'Student MFA', icon: HiOutlineShieldCheck, path: '/AdminPortal/StudentMfa' },
+  { name: 'Finance Export', icon: HiOutlineCurrencyDollar, path: '/AdminPortal/Billing' },
+  { name: 'Manage Student', icon: HiOutlineShieldCheck, path: '/AdminPortal/ManageStudent' },
   { name: 'My Profile', icon: HiOutlineUser, path: '/AdminPortal/Profile' },
   { name: 'Settings', icon: HiOutlineCog, path: '/AdminPortal/Settings' },
 ];

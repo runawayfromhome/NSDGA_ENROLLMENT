@@ -50,7 +50,7 @@ const EditEnrollment = lazy(() => import('./components/pages/AdminPortal/EditEnr
 const EditStrands = lazy(() => import('./components/pages/AdminPortal/EditStrands'));
 const SectionApprovals = lazy(() => import('./components/pages/AdminPortal/SectionApprovals'));
 const Billing = lazy(() => import('./components/pages/AdminPortal/Billing'));
-const StudentMfa = lazy(() => import('./components/pages/AdminPortal/StudentMfa'));
+const ManageStudent = lazy(() => import('./components/pages/AdminPortal/ManageStudent'));
 const AdminLogin = lazy(() => import('./components/pages/AdminPortal/Login'));
 const AdminDashboard = lazy(() => import('./components/pages/AdminPortal/Dashboard'));
 const AdminProfile = lazy(() => import('./components/pages/AdminPortal/MyProfile'));
@@ -121,7 +121,7 @@ function App() {
       <Route path="/AdminPortal/Settings" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminSettings /></ProtectedRoute>} />
       <Route path="/AdminPortal/SectionApprovals" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><SectionApprovals /></ProtectedRoute>} />
       <Route path="/AdminPortal/Billing" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><Billing /></ProtectedRoute>} />
-      <Route path="/AdminPortal/StudentMfa" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><StudentMfa /></ProtectedRoute>} />
+      <Route path="/AdminPortal/ManageStudent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><ManageStudent /></ProtectedRoute>} />
       <Route path="/AdminPortal/MfaSetup" element={<ProtectedRoute allow={['admin']} loginPath="/AdminPortal/Login" requireVerified skipMfaGate><MfaSetup /></ProtectedRoute>} />
       <Route path="/AdminPortal/EditContactUs" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditContactUs /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditSchoolEvent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditSchoolEvent /></AdminLayout></ProtectedRoute>} />

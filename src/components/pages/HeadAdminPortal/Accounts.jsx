@@ -8,12 +8,13 @@ import { NavLink } from 'react-router-dom';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import MfaReminder from '../../MfaReminder';
 import RemoveMfaSection from '../../RemoveMfaSection';
+import ResetPasswordSection from '../../ResetPasswordSection';
 import { useSession } from '../../../contexts/useSession';
 import {
   getStaffAccounts, createAccount, setDisabled, verifyAccount, returnProfile,
-  getPresence, requestAdminOtp, changeRoleWithOtp, requestSetPasswordOtp, setUserPassword, getMfaFactor, STATUS,
+  getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, STATUS,
 } from '../../../auth/authStore';
-import { passwordChecks, isPasswordValid } from '../../../lib/password';
+import { isPasswordValid } from '../../../lib/password';
 
 const ONLINE_MS = 5 * 60 * 1000;
 
@@ -263,76 +264,6 @@ const Accounts = () => {
         .ip { width:100%; height:3rem; border:1px solid #E5E7EB; border-radius:0.75rem; padding:0 1rem; font-size:0.875rem; background:#fff; outline:none; }
         .ip:focus { border-color:#800000; }
       `}</style>
-    </div>
-  );
-};
-
-// ---- Reset-password section (HeadAdmin sets a staff password, with OTP) -----
-const ResetPasswordSection = ({ account, locked }) => {
-  const [pw, setPw] = useState('');
-  const [step, setStep] = useState('idle'); // idle | sent
-  const [digits, setDigits] = useState(['', '', '', '', '', '']);
-  const [cooldown, setCooldown] = useState(0);
-  const [busy, setBusy] = useState('');
-  const [msg, setMsg] = useState('');
-  const refs = useRef([]);
-  const valid = isPasswordValid(pw, account.role);
-
-  useEffect(() => { if (cooldown > 0) { const t = setTimeout(() => setCooldown((c) => c - 1), 1000); return () => clearTimeout(t); } }, [cooldown]);
-
-  const setDigit = (i, v) => {
-    const c = v.replace(/\D/g, '').slice(-1);
-    setDigits((p) => { const n = [...p]; n[i] = c; return n; });
-    if (c && i < 5) refs.current[i + 1]?.focus();
-  };
-  const onKey = (i, e) => { if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus(); };
-
-  const send = async () => {
-    if (!valid) return setMsg('⚠️ Set a valid new password first (see the requirements).');
-    setBusy('otp'); setMsg('');
-    const res = await requestSetPasswordOtp();
-    setBusy('');
-    if (!res.ok) return setMsg('⚠️ ' + res.error);
-    setStep('sent'); setCooldown(30);
-    setMsg(`✓ We emailed a 6-digit code to your email (${res.sentTo || 'your account'}). Enter it below to confirm.`);
-  };
-  const confirm = async () => {
-    const code = digits.join('');
-    if (code.length !== 6) return setMsg('⚠️ Enter the 6-digit code.');
-    setBusy('confirm'); setMsg('');
-    const res = await setUserPassword(account.id, pw, code, account.name);
-    setBusy('');
-    if (!res.ok) return setMsg('⚠️ ' + res.error);
-    setStep('idle'); setDigits(['', '', '', '', '', '']); setPw('');
-    setMsg('✓ Password reset. Share the new temporary password with the staff member securely.');
-  };
-
-  return (
-    <div className="space-y-3">
-      {msg && <div className={`rounded-lg px-4 py-2.5 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
-      <input type="text" value={pw} onChange={(e) => { setPw(e.target.value); setStep('idle'); setMsg(''); }} placeholder="New temporary password" className="ip" disabled={step === 'sent' || locked} />
-      <ul className="space-y-1">
-        {Object.entries(passwordChecks(pw, account.role)).map(([label, ok]) => (
-          <li key={label} className={`flex items-center gap-2 text-[12px] font-medium ${ok ? 'text-[#48A675]' : 'text-slate-400'}`}><span>{ok ? '✓' : '•'}</span> {label}</li>
-        ))}
-      </ul>
-      {step === 'idle' ? (
-        <button onClick={send} disabled={!valid || !!busy || locked} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-50 cursor-pointer">{busy === 'otp' ? 'Sending…' : 'Reset password'}</button>
-      ) : (
-        <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-          <p className="text-[12px] font-bold text-slate-600">Enter the code emailed to you to confirm the reset.</p>
-          <div className="flex gap-2">
-            {digits.map((d, i) => (
-              <input key={i} ref={(el) => (refs.current[i] = el)} value={d} onChange={(e) => setDigit(i, e.target.value)} onKeyDown={(e) => onKey(i, e)} inputMode="numeric" maxLength={1}
-                className="w-11 h-14 text-center text-xl font-bold border border-gray-200 rounded-lg bg-white focus:border-[#800000] focus:outline-none" />
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={confirm} disabled={busy === 'confirm'} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'confirm' ? 'Confirming…' : 'Confirm reset'}</button>
-            {cooldown > 0 ? <span className="text-[12px] text-slate-400">Resend in {cooldown}s</span> : <button onClick={send} disabled={!!busy} className="text-[12px] font-bold text-[#800000] hover:underline">Resend code</button>}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

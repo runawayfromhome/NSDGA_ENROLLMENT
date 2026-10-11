@@ -1,12 +1,13 @@
 // supabase/functions/admin-set-password/index.ts
-// Step-up-authenticated password reset for a STAFF account. Only a signed-in
-// HeadAdmin may call it.
-//   { }                                   → emails a 6-digit code to the HeadAdmin
+// Step-up-authenticated password reset. Who may reset whom:
+//   - Head Admin → a registrar / admin / headadmin (staff)
+//   - Admin      → a student
+//   { }                                   → emails a 6-digit code to the caller
 //   { targetUserId, newPassword, code }   → verifies the code, then sets the
-//                                           target's password (registrar / admin /
-//                                           headadmin only — never a student).
-// A HeadAdmin cannot reset their OWN password here (they use Settings). Codes
-// expire after 10 minutes; max 5 wrong attempts.
+//                                           target's password (per the matrix above)
+// The caller cannot reset their OWN password here (they use Settings). Codes
+// expire after 10 minutes; max 5 wrong attempts. Password floor is role-aware
+// (students 8+, staff 12+) to mirror src/lib/password.js.
 //
 // Deploy:  supabase functions deploy admin-set-password
 // Secrets: BREVO_API_KEY, NOTIFY_FROM_EMAIL, NOTIFY_FROM_NAME (already set).
@@ -42,12 +43,12 @@ Deno.serve(async (req) => {
     const { data: { user } } = await caller.auth.getUser();
     if (!user?.email) return json({ error: 'Not authenticated.' }, 401);
     const { data: me } = await admin.from('profiles').select('role').eq('id', user.id).single();
-    if (!me || me.role !== 'headadmin') return json({ error: 'Only the Head Administrator can reset passwords.' }, 403);
+    if (!me || !['headadmin', 'admin'].includes(me.role)) return json({ error: 'Not allowed.' }, 403);
 
-    // Require the Head Admin to have MFA enabled before any account change.
+    // The caller must have their own MFA enabled before any account change.
     const { data: factors } = await caller.auth.mfa.listFactors();
     if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
-      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
+      return json({ error: 'Enable Multi-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
     }
 
     const { targetUserId, newPassword, code } = await req.json();
@@ -86,7 +87,6 @@ Deno.serve(async (req) => {
 
     // ---- Mode 2: verify the code, then set the target's password ------------
     if (!targetUserId || !newPassword) return json({ error: 'Missing target or password.' }, 400);
-    if (String(newPassword).length < 12) return json({ error: 'Password must be at least 12 characters.' }, 400);
     if (targetUserId === user.id) return json({ error: "You can't reset your own password here — use Settings." }, 400);
 
     const { data: row } = await admin.from('otp_codes').select('*').eq('user_id', user.id).maybeSingle();
@@ -107,9 +107,17 @@ Deno.serve(async (req) => {
 
     const { data: target } = await admin.from('profiles').select('role').eq('id', targetUserId).single();
     if (!target) return json({ error: 'Target account not found.' }, 404);
-    if (!['registrar', 'admin', 'headadmin'].includes(target.role)) {
-      return json({ error: 'Only staff passwords can be reset here.' }, 400);
+
+    // Authorization matrix: who may reset whom.
+    const allowed = (me.role === 'headadmin' && ['registrar', 'admin', 'headadmin'].includes(target.role))
+                 || (me.role === 'admin' && target.role === 'student');
+    if (!allowed) {
+      return json({ error: me.role === 'admin' ? 'Admins can only reset student passwords.' : 'Head Admin can only reset staff passwords.' }, 403);
     }
+
+    // Role-aware password floor (mirrors src/lib/password.js): students 8+, staff 12+.
+    const minLen = target.role === 'student' ? 8 : 12;
+    if (String(newPassword).length < minLen) return json({ error: `Password must be at least ${minLen} characters.` }, 400);
 
     const { error: updErr } = await admin.auth.admin.updateUserById(targetUserId, { password: String(newPassword) });
     if (updErr) return json({ error: updErr.message }, 500);
