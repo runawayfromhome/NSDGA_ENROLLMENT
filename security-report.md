@@ -45,7 +45,9 @@ Fixes landed in code/SQL during this review:
 
 **F-08 (addressed):** pinned `search_path = ''` on the two most-used RLS helpers (`is_headadmin`, `is_staff`) and on `enforce_application_update` — `supabase/harden-functions.sql`. The remaining definer functions already fully-qualify their references (so `search_path = public` was never exploitable) and are **accepted as-is** — re-creating ~8 critical auth functions for no real gain carries more breakage risk than benefit.
 
-**All findings are now resolved or formally accepted. Nothing left open.**
+**F-11 (CRITICAL — found 2026-10-14):** privilege escalation via self-signup. `handle_new_user()` derived the new user's `role` from client-supplied `raw_user_meta_data`, so a public `signUp()` with `{ data: { role: 'admin' } }` created an **admin** account. Fixed by re-asserting the trigger to **always force `role = 'student'`** (client metadata used only for the display name); staff are still created solely by the `create-staff` Edge Function. File: `supabase/harden-signup-role.sql`. Your action: **run it**, then audit `profiles` for any rogue staff accounts created via the hole.
+
+**All findings are now resolved or formally accepted.**
 
 ---
 
