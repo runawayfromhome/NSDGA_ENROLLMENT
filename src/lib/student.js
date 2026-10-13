@@ -64,9 +64,11 @@ export async function uploadStudentDoc(appId, docKey, file) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'You are not signed in.' };
   const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
-  const path = `${user.id}/${docKey}-${Date.now()}.${ext}`;
+  // Stable path per document key + upsert, so re-uploading OVERWRITES the same
+  // object instead of accumulating unbounded files in storage (security F-05).
+  const path = `${user.id}/${docKey}.${ext}`;
   const { error: upErr } = await supabase.storage.from('student-docs')
-    .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    .upload(path, file, { upsert: true, contentType: file.type || undefined });
   if (upErr) return { ok: false, error: upErr.message };
 
   const app = await getMyApplication();

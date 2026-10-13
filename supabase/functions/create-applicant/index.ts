@@ -20,12 +20,13 @@ const json = (body: unknown) =>
   new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } });
 
 // Cloudflare Turnstile — verify the "I'm not a robot" token server-side so a bot
-// can't call this public endpoint directly. Falls back to Cloudflare's official
-// TEST secret (always passes) when TURNSTILE_SECRET isn't set, so the demo works
-// without a Cloudflare account. Set the real secret before go-live.
-const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET') || '1x0000000000000000000000000000000AA';
+// can't call this public endpoint directly. FAIL CLOSED: if TURNSTILE_SECRET is
+// not set, no signup is allowed (security review F-02). For the demo, set
+// TURNSTILE_SECRET to Cloudflare's test secret (1x000...AA, always passes) as an
+// explicit, deliberate choice — then swap in the real secret before go-live.
+const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET');
 async function verifyCaptcha(token: string, ip: string | null): Promise<boolean> {
-  if (!token) return false;
+  if (!TURNSTILE_SECRET || !token) return false; // no secret configured => fail closed
   try {
     const body = new FormData();
     body.append('secret', TURNSTILE_SECRET);

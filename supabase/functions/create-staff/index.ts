@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     // Require the Head Admin to have MFA enabled before creating accounts.
     const { data: factors } = await caller.auth.mfa.listFactors();
     if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
-      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' });
+      return json({ error: 'Enable Multi-Factor Authentication (MFA) in your Settings before making account changes.' });
     }
 
     // 2) Validate input.

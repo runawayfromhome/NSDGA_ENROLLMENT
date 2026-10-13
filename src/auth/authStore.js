@@ -272,19 +272,27 @@ export async function getAuditLog() {
   if (error) return [];
   return data;
 }
+// All audit writes go through the log_event() SECURITY DEFINER function, which
+// stamps email/name/role from the JWT — not from client input — so the audit
+// trail can't be forged (see supabase/harden-audit-security.sql). `entry.email`
+// is used only as the attempted email for a FAILED login (no session yet).
 export async function recordAudit(entry) {
-  await supabase.from('audit_log').insert({ device: shortDevice(), ...entry });
+  try {
+    await supabase.rpc('log_event', {
+      p_action: entry.action,
+      p_status: entry.status || 'SUCCESS',
+      p_reason: entry.reason || '',
+      p_device: entry.device || shortDevice(),
+      p_attempt_email: entry.email || null,
+    });
+  } catch { /* never block the action being logged */ }
 }
 
-// Record an ACTION the current staff member performed (enroll, reject, etc.).
-// Fire-and-forget — never blocks the action it accompanies.
+// Record an ACTION the current user performed (enroll, reject, etc.). Identity is
+// derived server-side by log_event(). Fire-and-forget — never blocks the action.
 export async function logAction(action, detail) {
   try {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u?.user) return;
-    const p = await fetchProfileById(u.user.id);
-    if (!p) return;
-    await recordAudit({ email: p.email, name: p.name, role: p.role, action, status: 'SUCCESS', reason: detail || '' });
+    await supabase.rpc('log_event', { p_action: action, p_reason: detail || '', p_device: shortDevice() });
   } catch { /* logging must never break the action */ }
 }
 
