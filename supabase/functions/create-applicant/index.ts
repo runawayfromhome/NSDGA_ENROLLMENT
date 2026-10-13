@@ -61,10 +61,26 @@ Deno.serve(async (req) => {
     const clean = String(email).trim().toLowerCase();
     const name = `${form.firstName || ''} ${form.lastName || ''}`.trim() || clean;
 
+    // Server-side format validation (mirror of the client's rules). The browser's
+    // checks can be bypassed via dev tools, so re-enforce the important ones here.
+    const PHONE_RE = /^09\d{9}$/;
+    const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
+    const pw = String(password);
+    const fn = String(form.firstName || '').trim();
+    const ln = String(form.lastName || '').trim();
+    const phone = String(contact || form.contact || '').trim();
+    if (!fn || !ln) return json({ error: 'First and last name are required.' });
+    if (!GMAIL_RE.test(clean)) return json({ error: 'Please use a valid Gmail address (must end with @gmail.com).' });
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) {
+      return json({ error: 'Password must be at least 8 characters and include a letter and a number.' });
+    }
+    if (!PHONE_RE.test(phone)) return json({ error: 'Enter a valid mobile number (09XXXXXXXXX).' });
+
     // 0) Reject a duplicate LRN — one learner can't register twice. (Skipped for
     //    incoming Grade 1 / no-LRN applicants, whose LRN is blank.)
     const lrn = String(form.lrn || '').trim();
     if (lrn) {
+      if (!/^\d{12}$/.test(lrn)) return json({ error: 'LRN must be 12 digits.' });
       const { data: dup } = await admin.from('applications').select('id').filter('form->>lrn', 'eq', lrn).limit(1);
       if (dup && dup.length) {
         return json({ error: 'This LRN is already registered. If you already have an account, please log in instead.' });
