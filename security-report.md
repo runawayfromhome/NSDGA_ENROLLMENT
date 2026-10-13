@@ -39,7 +39,9 @@ Fixes landed in code/SQL during this review:
 
 ⚠️ **Deploy order for F-01:** run `harden-audit-security.sql` **before/with** pushing the frontend. The client now calls `log_event()`; until the function exists, audit writes silently no-op (nothing breaks, but no rows are recorded).
 
-**Still open (deliberately deferred):** F-04 (chatbot rate limiting — recommend setting an Anthropic Console **spend limit** now as a backstop; full per-IP limiter can follow), F-06 (optional resubmit throttle), F-08 (search_path hardening — low value, change-risk). F-03 still needs a **live check** after running its SQL.
+**F-04 (added):** per-IP fixed-window rate limit on the chatbot — `public.chat_rate_check()` + `chat_rate_limits` table (service-role only), enforced in the chatbot Edge Function (20 requests / 60s / IP; fails open). Files: `supabase/chatbot-ratelimit.sql` (new), `supabase/functions/chatbot/index.ts`. Your action: **run** `chatbot-ratelimit.sql`, **redeploy** `chatbot`, and set an Anthropic Console **spend limit** as a hard backstop.
+
+**Still open (deliberately deferred):** F-06 (optional resubmit throttle), F-08 (search_path hardening — low value, change-risk).
 
 ---
 
