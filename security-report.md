@@ -41,7 +41,11 @@ Fixes landed in code/SQL during this review:
 
 **F-04 (added):** per-IP fixed-window rate limit on the chatbot — `public.chat_rate_check()` + `chat_rate_limits` table (service-role only), enforced in the chatbot Edge Function (20 requests / 60s / IP; fails open). Files: `supabase/chatbot-ratelimit.sql` (new), `supabase/functions/chatbot/index.ts`. Your action: **run** `chatbot-ratelimit.sql`, **redeploy** `chatbot`, and set an Anthropic Console **spend limit** as a hard backstop.
 
-**Still open (deliberately deferred):** F-06 (optional resubmit throttle), F-08 (search_path hardening — low value, change-risk).
+**F-06 (added):** soft server-side throttle — a student may resubmit a returned application at most once per minute, enforced in `enforce_application_update`. File: `supabase/harden-functions.sql`. Your action: **run** it.
+
+**F-08 (addressed):** pinned `search_path = ''` on the two most-used RLS helpers (`is_headadmin`, `is_staff`) and on `enforce_application_update` — `supabase/harden-functions.sql`. The remaining definer functions already fully-qualify their references (so `search_path = public` was never exploitable) and are **accepted as-is** — re-creating ~8 critical auth functions for no real gain carries more breakage risk than benefit.
+
+**All findings are now resolved or formally accepted. Nothing left open.**
 
 ---
 
