@@ -88,6 +88,7 @@ const EnrollmentForm = () => {
     if (isSHS && !f.strand) return 'Please choose a Senior High strand.';
     if (!isGrade1) {
       if (!f.lastSchool?.trim() || !f.lastSchoolAddress?.trim()) return 'Previous school and its address are required.';
+      if (!f.prevSchoolType) return 'Please select whether your previous school is Public or Private.';
       if (!f.lastGrade) return 'Last grade completed is required.';
     }
     if (f.gwa && (isNaN(+f.gwa) || +f.gwa < 0 || +f.gwa > 100)) return 'GWA must be a number from 0 to 100.';
@@ -194,6 +195,7 @@ const EnrollmentForm = () => {
               <Card icon={HiOutlineAcademicCap} title="Academic Background">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <F l="Previous School Attended"><input className="ip" value={f.lastSchool || ''} onChange={(e) => set('lastSchool', e.target.value.slice(0, 100))} maxLength={100} disabled={locked} /></F>
+                  <F l="Type of Previous School"><select className="ip" value={f.prevSchoolType || ''} onChange={(e) => set('prevSchoolType', e.target.value)} disabled={locked}><option value="">Select…</option><option value="Public">Public</option><option value="Private">Private</option></select></F>
                   <F l="School Address"><input className="ip" value={f.lastSchoolAddress || ''} onChange={(e) => set('lastSchoolAddress', e.target.value.slice(0, 150))} maxLength={150} disabled={locked} /></F>
                   <F l="Last Grade / Year Level Completed"><input className="ip bg-gray-50" value={f.lastGrade || ''} readOnly placeholder="Auto from the grade applying for" /></F>
                   <F l="GWA (General Weighted Average)"><input className="ip" value={f.gwa || ''} onChange={(e) => set('gwa', gwaClean(e.target.value))} inputMode="decimal" maxLength={5} disabled={locked} /></F>

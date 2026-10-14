@@ -116,6 +116,7 @@ const ApplicationDetails = () => {
           <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-6">Academic Background</h2>
           <div className="grid grid-cols-2 gap-6">
             <DetailField label="Previous School Attended" value={f.lastSchool} />
+            <DetailField label="Type of Previous School" value={f.prevSchoolType} />
             <DetailField label="School Address" value={f.lastSchoolAddress} />
             <DetailField label="Last Grade/Year Completed" value={f.lastGrade} />
             <DetailField label="GWA (General Weighted Average)" value={f.gwa} />

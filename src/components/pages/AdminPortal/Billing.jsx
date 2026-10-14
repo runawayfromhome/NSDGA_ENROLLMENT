@@ -19,6 +19,7 @@ const Billing = () => {
   const [rows, setRows] = useState(null);
   const [activeYear, setActiveYear] = useState(''); // admin-set school year — only this year's records show
   const [search, setSearch] = useState('');
+  const [schoolType, setSchoolType] = useState('all'); // all | Public | Private — origin of the student's previous school
   const [page, setPage] = useState(1);
 
   useEffect(() => { listBillingRows().then(setRows); }, []);
@@ -26,12 +27,13 @@ const Billing = () => {
 
   const filtered = useMemo(() => (rows || []).filter((r) => {
     if (activeYear && r.school_year !== activeYear) return false; // active year only
+    if (schoolType !== 'all' && (r.form?.prevSchoolType || '') !== schoolType) return false; // public / private origin
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return applicantName(r).toLowerCase().includes(q) || String(r.student_no || '').toLowerCase().includes(q);
-  }), [rows, activeYear, search]);
+  }), [rows, activeYear, search, schoolType]);
 
-  useEffect(() => { setPage(1); }, [search, activeYear]); // reset to first page when the result set changes
+  useEffect(() => { setPage(1); }, [search, activeYear, schoolType]); // reset to first page when the result set changes
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -66,10 +68,16 @@ const Billing = () => {
             </button>
           </div>
 
-          {/* Search */}
-          <div className="mb-5">
+          {/* Search + previous-school filter */}
+          <div className="mb-5 flex flex-wrap gap-3">
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or student no…"
-              className="w-full max-w-md px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm focus:outline-none focus:border-[#800000]" />
+              className="flex-1 min-w-[220px] max-w-md px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm focus:outline-none focus:border-[#800000]" />
+            <select value={schoolType} onChange={(e) => setSchoolType(e.target.value)}
+              className="px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm text-slate-600 outline-none focus:border-[#800000] cursor-pointer">
+              <option value="all">All previous schools</option>
+              <option value="Public">Public only</option>
+              <option value="Private">Private only</option>
+            </select>
           </div>
 
           {rows === null ? <CardSkeleton lines={6} /> : (
@@ -79,20 +87,22 @@ const Billing = () => {
                 <table className="w-full text-left min-w-[640px]">
                   <thead>
                     <tr className="border-b border-gray-100">
-                      {['Student No', 'Name', 'Grade / Strand', 'Voucher'].map((h) => (
+                      {['Student No', 'Name', 'Grade / Strand', 'Prev. School', 'Voucher'].map((h) => (
                         <th key={h} className="pb-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filtered.length === 0 && <tr><td colSpan={4} className="py-10 text-center text-slate-400 text-sm">No enrolled students for this school year.</td></tr>}
+                    {filtered.length === 0 && <tr><td colSpan={5} className="py-10 text-center text-slate-400 text-sm">No enrolled students for this school year.</td></tr>}
                     {paged.map((r) => {
                       const voucher = r.form?.voucherApplicant === 'Yes';
+                      const st = r.form?.prevSchoolType;
                       return (
                         <tr key={r.id} className="hover:bg-gray-50/60 transition-colors">
                           <td className="py-3.5 text-[12px] font-mono text-slate-500">{r.student_no || '—'}</td>
                           <td className="py-3.5 text-[13px] font-bold text-slate-700">{applicantName(r)}</td>
                           <td className="py-3.5 text-[12px] text-slate-600">{r.form?.grade || r.grade_level}{r.form?.strand ? ` · ${r.form.strand}` : ''}</td>
+                          <td className="py-3.5">{st ? <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold ${st === 'Public' ? 'bg-sky-50 text-sky-600' : 'bg-violet-50 text-violet-600'}`}>{st}</span> : <span className="text-slate-300 text-xs">—</span>}</td>
                           <td className="py-3.5">{voucher ? <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-teal-50 text-teal-600">{r.form?.voucherType || 'Voucher'}</span> : <span className="text-slate-300 text-xs">—</span>}</td>
                         </tr>
                       );
@@ -112,6 +122,7 @@ const Billing = () => {
                         <div className="min-w-0">
                           <p className="text-[14px] font-bold text-slate-700 truncate">{applicantName(r)}</p>
                           <p className="text-[11px] font-mono text-slate-400">{r.student_no || '—'} · {r.form?.grade || r.grade_level}{r.form?.strand ? ` · ${r.form.strand}` : ''}</p>
+                          {r.form?.prevSchoolType && <p className="text-[11px] text-slate-400 mt-0.5">Prev. school: <b className="text-slate-500">{r.form.prevSchoolType}</b></p>}
                         </div>
                         {voucher && <span className="shrink-0 px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-50 text-teal-600">🎟️ {r.form?.voucherType || 'Voucher'}</span>}
                       </div>
@@ -139,7 +150,7 @@ const Billing = () => {
             </div>
           )}
 
-          <p className="text-[11px] text-slate-400 mt-4">💡 The export lists this year's enrolled students (name, student no., grade, voucher tag) for the Finance office to assess and collect on their side.</p>
+          <p className="text-[11px] text-slate-400 mt-4">💡 The export lists this year's enrolled students (name, student no., grade, previous-school type, voucher tag) for the Finance office to assess and collect on their side. Filter by Public / Private to pull voucher-relevant groups.</p>
         </main>
       </div>
     </div>

@@ -52,7 +52,7 @@ const emptyForm = {
   region: '', province: '', city: '', barangay: '', houseStreet: '',
   regionCode: '', provinceCode: '', cityCode: '',
   fatherName: '', motherName: '', guardianName: '', guardianContact: '',
-  lastSchool: '', lastSchoolAddress: '', lastGrade: '', gwa: '',
+  lastSchool: '', prevSchoolType: '', lastSchoolAddress: '', lastGrade: '', gwa: '',
   grade: '', contact: '', schoolYear: CURRENT_SCHOOL_YEAR,
 };
 
@@ -250,6 +250,7 @@ const Apply = () => {
     }
     if (current === 'academic' && !isGrade1) {
       if (!f.lastSchool.trim() || !f.lastSchoolAddress.trim()) return 'Previous school and its address are required.';
+      if (!f.prevSchoolType) return 'Please select whether your previous school is Public or Private.';
       if (!f.lastGrade) return 'Last grade completed is required.';
       if (f.gwa && (isNaN(+f.gwa) || +f.gwa < 0 || +f.gwa > 100)) return 'GWA must be a number from 0 to 100.';
     }
@@ -448,6 +449,15 @@ const Apply = () => {
               <Field label="GWA (General Weighted Average)" req><input className="ip" value={f.gwa} onChange={(e) => set('gwa', gwaClean(e.target.value))} placeholder="95" inputMode="decimal" maxLength={5} /></Field>
             )}
           </div>
+          {!isGrade1 && (
+            <Field label="Type of Previous School" req>
+              <select className="ip" value={f.prevSchoolType} onChange={(e) => set('prevSchoolType', e.target.value)}>
+                <option value="">Select…</option>
+                <option value="Public">Public</option>
+                <option value="Private">Private</option>
+              </select>
+            </Field>
+          )}
           <Field label="School Address" req={!isGrade1}><input className="ip" value={f.lastSchoolAddress} onChange={(e) => set('lastSchoolAddress', e.target.value)} placeholder="504 J. P. Rizal St, Marikina" maxLength={200} /></Field>
           <Field label="Last Grade Completed">
             <input className="ip bg-gray-50" value={f.lastGrade} readOnly placeholder="Auto from the grade you're applying for" />
@@ -531,6 +541,7 @@ const Apply = () => {
           ]} />
           <Summary title="Academic Background" rows={[
             [isGrade1 ? 'Kindergarten School' : 'Previous School', f.lastSchool],
+            ...(isGrade1 ? [] : [['School Type', f.prevSchoolType]]),
             ['School Address', f.lastSchoolAddress], ['Last Grade Completed', f.lastGrade],
             ...(isGrade1 ? [] : [['GWA', f.gwa]]),
           ]} />

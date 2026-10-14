@@ -47,7 +47,7 @@ export async function updateBilling(id, patch, studentName) {
 // ---- CSV export ------------------------------------------------------------
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 export const BILLING_HEADERS = [
-  'Student No', 'Last Name', 'First Name', 'Grade', 'Strand',
+  'Student No', 'Last Name', 'First Name', 'Grade', 'Strand', 'Prev. School',
   'Voucher', 'Voucher Type', 'Voucher ID',
   'Status', 'OR Number', 'Remarks',
 ];
@@ -56,7 +56,7 @@ export function billingCsv(rows) {
   const lines = rows.map((r) => {
     const f = r.form || {}, b = r.billing || {};
     return [
-      r.student_no, f.lastName, f.firstName, f.grade || r.grade_level, f.strand || '',
+      r.student_no, f.lastName, f.firstName, f.grade || r.grade_level, f.strand || '', f.prevSchoolType || '',
       f.voucherApplicant || '', f.voucherType || '', f.voucherId || '',
       BILLING_STATUS[b.status]?.label || 'Not Assessed',
       b.orNumber || '', b.remarks || '',
