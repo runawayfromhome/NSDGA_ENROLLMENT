@@ -9,19 +9,40 @@ import { HiOutlineUser, HiOutlineAcademicCap, HiOutlineDocumentText } from 'reac
 import {
   getMyApplication, saveApplicationDraft, resubmitApplication, uploadStudentDoc,
 } from '../../../lib/student';
-import { GRADES_BY_LEVEL } from '../../../lib/grades';
+import { GRADES_BY_LEVEL, prevGrade } from '../../../lib/grades';
 import { getStrands } from '../../../lib/content';
 import { CardSkeleton } from '../../Skeleton';
+import AddressPicker from '../../AddressPicker';
 
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
+const SUFFIXES = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
+const RESUBMIT_LIMIT = 5; // an applicant may resubmit a returned application at most 5 times
 const DOCS = [
   { key: 'photo', label: '2x2 Picture', hint: 'High-quality, white background' },
   { key: 'reportCard', label: 'Report Card', hint: 'Scanned copy of latest grades' },
-  { key: 'form137', label: 'Form 137', hint: 'Official Student Permanent Record' },
   { key: 'psa', label: 'PSA Birth Certificate', hint: 'Clear copy from PSA' },
   { key: 'goodMoral', label: 'Good Moral Cert', hint: 'From previous school principal' },
 ];
+
+// --- Input limiters (same policy as the Apply / sign-up wizard) --------------
+const TODAY_ISO = new Date().toISOString().slice(0, 10);               // no future birth date
+const PHONE_RE = /^09\d{9}$/;                                          // PH mobile: 11 digits starting with 09
+const onlyDigits = (v, max) => String(v).replace(/\D/g, '').slice(0, max);
+const gwaClean = (v) => {
+  let s = String(v).replace(/[^\d.]/g, '');
+  const i = s.indexOf('.');
+  if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, '');
+  return s.slice(0, 5);
+};
+const nameClean = (v, max = 50) => String(v).replace(/[^A-Za-zñÑ .'-]/g, '').replace(/\s{2,}/g, ' ').slice(0, max);
+const placeClean = (v, max = 100) => String(v).replace(/[^A-Za-zñÑ .,'-]/g, '').replace(/\s{2,}/g, ' ').slice(0, max);
+const NAME_PARTICLES = new Set(['dela', 'delas', 'delos', 'de', 'del', 'da', 'di', 'van', 'von', 'la', 'le', 'los', 'las', 'y', 'ng', 'bin', 'al']);
+const titleCaseName = (v) => String(v).trim().replace(/\s+/g, ' ').split(' ').map((w, i) => {
+  const lower = w.toLowerCase();
+  if (i > 0 && NAME_PARTICLES.has(lower)) return lower;
+  return lower.replace(/(^|[-'])([a-zñ])/g, (_m, sep, ch) => sep + ch.toUpperCase());
+}).join(' ');
 
 const EnrollmentForm = () => {
   const [app, setApp] = useState(undefined);
@@ -51,7 +72,36 @@ const EnrollmentForm = () => {
 
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const isSHS = level === 'Senior High School';
-  const locked = app && !['draft', 'submitted', 'under_review', 'needs_correction'].includes(app.status);
+  const isGrade1 = f.grade === 'Grade 1';
+
+  // Required / format checks mirrored from the Apply wizard — enforced only when
+  // the applicant resubmits (a Draft save stays lenient so partial work is kept).
+  const validate = () => {
+    if (!f.firstName?.trim() || !f.lastName?.trim()) return 'First and last name are required.';
+    if (f.lrn && !/^\d{12}$/.test(String(f.lrn).trim())) return 'LRN must be 12 digits.';
+    if (!f.sex || !f.dob) return 'Sex and date of birth are required.';
+    if (!f.birthplace?.trim()) return 'Birthplace is required.';
+    if (f.contact && !PHONE_RE.test(f.contact)) return 'Enter a valid mobile number (09XXXXXXXXX).';
+    const hasCascade = f.region && f.city && f.barangay && f.houseStreet?.trim();
+    if (!hasCascade && !f.address?.trim()) return 'Please complete your home address.';
+    if (!level) return 'Please choose an education level.';
+    if (!f.grade) return 'Please choose the grade level.';
+    if (isSHS && !f.strand) return 'Please choose a Senior High strand.';
+    if (!isGrade1) {
+      if (!f.lastSchool?.trim() || !f.lastSchoolAddress?.trim()) return 'Previous school and its address are required.';
+      if (!f.lastGrade) return 'Last grade completed is required.';
+    }
+    if (f.gwa && (isNaN(+f.gwa) || +f.gwa < 0 || +f.gwa > 100)) return 'GWA must be a number from 0 to 100.';
+    return '';
+  };
+  // Editable only while a DRAFT, or after the Registrar RETURNS it for corrections
+  // (needs_correction) — and only up to RESUBMIT_LIMIT resubmissions. Once the
+  // applicant resubmits (status → submitted/under_review) it locks again until the
+  // Registrar returns it with a new note.
+  const resubmitsUsed = Number(app?.form?.resubmitCount) || 0;
+  const resubmitsLeft = Math.max(0, RESUBMIT_LIMIT - resubmitsUsed);
+  const canEdit = !!app && (app.status === 'draft' || (app.status === 'needs_correction' && resubmitsLeft > 0));
+  const locked = !canEdit;
 
   const onUpload = async (key, file) => {
     if (!file || !app) return;
@@ -66,13 +116,16 @@ const EnrollmentForm = () => {
 
   const save = async (resubmit) => {
     if (!app) return;
+    const willResubmit = resubmit && app.status === 'needs_correction';
+    if (willResubmit && resubmitsLeft <= 0) return setMsg(`⚠️ You have used all ${RESUBMIT_LIMIT} resubmission attempts. Please contact the Registrar's Office.`);
+    if (willResubmit) { const v = validate(); if (v) return setMsg('⚠️ ' + v); }
     if (resubmit && !agree) return setMsg('⚠️ Please certify the information before saving changes.');
     setBusy(resubmit ? 'changes' : 'draft'); setMsg('');
     const form = { ...f };
     const r = await saveApplicationDraft(app.id, { form, grade_level: level || null, student_type: studentType });
-    if (r.ok && resubmit && app.status === 'needs_correction') await resubmitApplication(app.id, form);
+    if (r.ok && willResubmit) await resubmitApplication(app.id, form);
     setBusy('');
-    setMsg(r.ok ? '✓ Saved.' : '⚠️ ' + (r.error || 'Could not save.'));
+    setMsg(r.ok ? (willResubmit ? '✓ Resubmitted to the Registrar.' : '✓ Saved.') : '⚠️ ' + (r.error || 'Could not save.'));
     if (r.ok) load();
   };
 
@@ -93,25 +146,54 @@ const EnrollmentForm = () => {
 
           {app && (
             <div className="space-y-6">
-              {locked && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">This record is now <b>{app.status}</b> and can no longer be edited here.</div>}
+              {/* Registrar returned it for corrections, and resubmissions remain → editable */}
+              {app.status === 'needs_correction' && resubmitsLeft > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <b>The Registrar returned your application for corrections.</b>
+                  {app.review_note && <span className="block mt-1">📝 Note: {app.review_note}</span>}
+                  <span className="block mt-1">Resubmissions left: <b>{resubmitsLeft} of {RESUBMIT_LIMIT}</b>. Fix the items, then <b>Save &amp; Resubmit</b>.</span>
+                </div>
+              )}
+              {/* Submitted / under review → wait for the Registrar, no editing */}
+              {(app.status === 'submitted' || app.status === 'under_review') && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                  Your application has been submitted and is being reviewed. You can edit it again <b>only if the Registrar returns it</b> with a note.
+                </div>
+              )}
+              {/* Returned but no resubmissions left */}
+              {app.status === 'needs_correction' && resubmitsLeft <= 0 && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  You have used all <b>{RESUBMIT_LIMIT}</b> resubmission attempts. Please contact the Registrar's Office to proceed.
+                </div>
+              )}
+              {/* Final states (enrolled / rejected / completed / etc.) */}
+              {locked && !['submitted', 'under_review', 'needs_correction'].includes(app.status) && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">This record is now <b>{app.status}</b> and can no longer be edited here.</div>
+              )}
 
               {/* Personal */}
               <Card icon={HiOutlineUser} title="Personal Information">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <F l="First Name"><input className="ip" value={f.firstName || ''} onChange={(e) => set('firstName', e.target.value)} disabled={locked} /></F>
-                  <F l="Middle Name"><input className="ip" value={f.middleName || ''} onChange={(e) => set('middleName', e.target.value)} disabled={locked} /></F>
-                  <F l="Last Name"><input className="ip" value={f.lastName || ''} onChange={(e) => set('lastName', e.target.value)} disabled={locked} /></F>
-                  <F l="LRN (12-digit)"><input className="ip" value={f.lrn || ''} onChange={(e) => set('lrn', e.target.value)} disabled={locked} /></F>
+                  <F l="First Name"><input className="ip" value={f.firstName || ''} onChange={(e) => set('firstName', nameClean(e.target.value))} onBlur={(e) => set('firstName', titleCaseName(e.target.value))} maxLength={50} disabled={locked} /></F>
+                  <F l="Middle Name"><input className="ip" value={f.middleName || ''} onChange={(e) => set('middleName', nameClean(e.target.value))} onBlur={(e) => set('middleName', titleCaseName(e.target.value))} maxLength={50} disabled={locked} /></F>
+                  <F l="Last Name"><input className="ip" value={f.lastName || ''} onChange={(e) => set('lastName', nameClean(e.target.value))} onBlur={(e) => set('lastName', titleCaseName(e.target.value))} maxLength={50} disabled={locked} /></F>
+                  <F l="Suffix (if any)"><select className="ip" value={f.suffix || ''} onChange={(e) => set('suffix', e.target.value)} disabled={locked}><option value="">— None —</option>{SUFFIXES.map((s) => <option key={s} value={s}>{s}</option>)}</select></F>
+                  <F l="LRN (12-digit)"><input className="ip" value={f.lrn || ''} onChange={(e) => set('lrn', onlyDigits(e.target.value, 12))} inputMode="numeric" maxLength={12} disabled={locked} /></F>
                   <F l="Sex"><select className="ip" value={f.sex || ''} onChange={(e) => set('sex', e.target.value)} disabled={locked}><option value="">Select</option><option>Male</option><option>Female</option></select></F>
-                  <F l="Date of Birth"><input className="ip" type="date" value={f.dob || ''} onChange={(e) => set('dob', e.target.value)} disabled={locked} /></F>
-                  <F l="Birthplace"><input className="ip" value={f.birthplace || ''} onChange={(e) => set('birthplace', e.target.value)} disabled={locked} /></F>
-                  <F l="Contact Number"><input className="ip" value={f.contact || ''} onChange={(e) => set('contact', e.target.value)} disabled={locked} /></F>
+                  <F l="Date of Birth"><input className="ip" type="date" max={TODAY_ISO} value={f.dob || ''} onChange={(e) => set('dob', e.target.value)} disabled={locked} /></F>
+                  <F l="Birthplace"><input className="ip" value={f.birthplace || ''} onChange={(e) => set('birthplace', placeClean(e.target.value))} maxLength={100} disabled={locked} /></F>
+                  <F l="Nationality"><input className="ip" value={f.nationality || ''} onChange={(e) => set('nationality', nameClean(e.target.value))} onBlur={(e) => set('nationality', titleCaseName(e.target.value))} placeholder="Filipino" maxLength={40} disabled={locked} /></F>
+                  <F l="Religion"><input className="ip" value={f.religion || ''} onChange={(e) => set('religion', nameClean(e.target.value))} onBlur={(e) => set('religion', titleCaseName(e.target.value))} placeholder="e.g. Roman Catholic" maxLength={50} disabled={locked} /></F>
+                  <F l="Contact Number"><input className="ip" value={f.contact || ''} onChange={(e) => set('contact', onlyDigits(e.target.value, 11))} inputMode="numeric" maxLength={11} placeholder="09171234567" disabled={locked} /></F>
                   <F l="School Year"><input className="ip bg-gray-50" value={app.school_year || ''} readOnly /></F>
                 </div>
-                <div className="mt-4"><F l="Home Address"><textarea className="ip" style={{ minHeight: 60 }} value={f.address || ''} onChange={(e) => set('address', e.target.value)} disabled={locked} /></F></div>
+                <div className="mt-4"><F l="Home Address">
+                  <AddressPicker value={f} onChange={(patch) => setF((p) => ({ ...p, ...patch }))} disabled={locked} />
+                  {f.address && !f.region && <p className="text-[11px] text-slate-400 mt-1">Currently on file: {f.address} — re-select above to update.</p>}
+                </F></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
                   <F l="Education Level"><select className="ip" value={level} onChange={(e) => { setLevel(e.target.value); set('grade', ''); }} disabled={locked}><option value="">Select</option>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select></F>
-                  <F l="Grade Level Applying For"><select className="ip" value={f.grade || ''} onChange={(e) => set('grade', e.target.value)} disabled={locked || !level}><option value="">Select</option>{(GRADES_BY_LEVEL[level] || []).map((g) => <option key={g}>{g}</option>)}</select></F>
+                  <F l="Grade Level Applying For"><select className="ip" value={f.grade || ''} onChange={(e) => { const g = e.target.value; setF((p) => ({ ...p, grade: g, lastGrade: prevGrade(g) })); }} disabled={locked || !level}><option value="">Select</option>{(GRADES_BY_LEVEL[level] || []).map((g) => <option key={g}>{g}</option>)}</select></F>
                   <F l="Student Type"><select className="ip" value={studentType} onChange={(e) => setStudentType(e.target.value)} disabled={locked}>{TYPES.map((t) => <option key={t}>{t}</option>)}</select></F>
                   {isSHS && <F l="Preferred Strand"><select className="ip" value={f.strand || ''} onChange={(e) => set('strand', e.target.value)} disabled={locked}><option value="">Select</option>{shsStrands.map((s) => <option key={s}>{s}</option>)}</select></F>}
                 </div>
@@ -120,10 +202,10 @@ const EnrollmentForm = () => {
               {/* Academic */}
               <Card icon={HiOutlineAcademicCap} title="Academic Background">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <F l="Previous School Attended"><input className="ip" value={f.lastSchool || ''} onChange={(e) => set('lastSchool', e.target.value)} disabled={locked} /></F>
-                  <F l="School Address"><input className="ip" value={f.lastSchoolAddress || ''} onChange={(e) => set('lastSchoolAddress', e.target.value)} disabled={locked} /></F>
-                  <F l="Last Grade / Year Level Completed"><input className="ip" value={f.lastGrade || ''} onChange={(e) => set('lastGrade', e.target.value)} disabled={locked} /></F>
-                  <F l="GWA (General Weighted Average)"><input className="ip" value={f.gwa || ''} onChange={(e) => set('gwa', e.target.value)} disabled={locked} /></F>
+                  <F l="Previous School Attended"><input className="ip" value={f.lastSchool || ''} onChange={(e) => set('lastSchool', e.target.value.slice(0, 100))} maxLength={100} disabled={locked} /></F>
+                  <F l="School Address"><input className="ip" value={f.lastSchoolAddress || ''} onChange={(e) => set('lastSchoolAddress', e.target.value.slice(0, 150))} maxLength={150} disabled={locked} /></F>
+                  <F l="Last Grade / Year Level Completed"><input className="ip bg-gray-50" value={f.lastGrade || ''} readOnly placeholder="Auto from the grade applying for" /></F>
+                  <F l="GWA (General Weighted Average)"><input className="ip" value={f.gwa || ''} onChange={(e) => set('gwa', gwaClean(e.target.value))} inputMode="decimal" maxLength={5} disabled={locked} /></F>
                 </div>
               </Card>
 
@@ -157,7 +239,7 @@ const EnrollmentForm = () => {
                   </label>
                   <div className="flex flex-wrap justify-end gap-3">
                     <button onClick={() => save(false)} disabled={!!busy} className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-slate-600 hover:bg-gray-50 disabled:opacity-60 cursor-pointer">{busy === 'draft' ? 'Saving…' : 'Save Draft'}</button>
-                    <button onClick={() => save(true)} disabled={!!busy} className="px-6 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'changes' ? 'Saving…' : app.status === 'needs_correction' ? 'Save & Resubmit' : 'Save Changes'}</button>
+                    <button onClick={() => save(true)} disabled={!!busy} className="px-6 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'changes' ? 'Saving…' : app.status === 'needs_correction' ? `Save & Resubmit (${resubmitsLeft} of ${RESUBMIT_LIMIT} left)` : 'Save Changes'}</button>
                   </div>
                 </>
               )}

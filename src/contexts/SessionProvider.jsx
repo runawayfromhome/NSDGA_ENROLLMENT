@@ -20,6 +20,7 @@ function combine(user, profile) {
     disabled: profile.disabled,
     profile: profile.profile,
     returnNote: profile.return_note,
+    submittedAt: profile.submitted_at,
   };
 }
 

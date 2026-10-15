@@ -37,10 +37,14 @@ function buildNotifications(app) {
   return list;
 }
 
+const PAGE_SIZE = 5; // show this many at a time, then "Load more"
+
 const Notification = () => {
   const [app, setApp] = useState(undefined);
+  const [visible, setVisible] = useState(PAGE_SIZE);
   useEffect(() => { getMyApplication().then(setApp); }, []);
   const items = buildNotifications(app);
+  const shown = items.slice(0, visible);
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">
@@ -60,22 +64,32 @@ const Notification = () => {
             )}
 
             {app && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8 space-y-2">
-                {items.map((n, i) => (
-                  <div key={i} className={`flex gap-5 p-4 rounded-xl hover:bg-slate-50 transition-all ${i > 0 ? 'border-t border-gray-100 pt-6' : ''}`}>
-                    <div className="flex-shrink-0 w-11 h-11 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm">
-                      <n.icon size={22} className={n.tone} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start gap-4">
-                        <h4 className="text-sm font-bold text-slate-800 leading-snug">{n.title}</h4>
-                        <span className="text-[11px] font-medium text-gray-400 whitespace-nowrap">{n.time}</span>
+              <>
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8 space-y-2">
+                  {shown.map((n, i) => (
+                    <div key={i} className={`flex gap-5 p-4 rounded-xl hover:bg-slate-50 transition-all ${i > 0 ? 'border-t border-gray-100 pt-6' : ''}`}>
+                      <div className="flex-shrink-0 w-11 h-11 bg-white border border-gray-100 rounded-full flex items-center justify-center shadow-sm">
+                        <n.icon size={22} className={n.tone} />
                       </div>
-                      <p className="text-[13px] text-slate-500 leading-relaxed mt-1">{n.desc}</p>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start gap-4">
+                          <h4 className="text-sm font-bold text-slate-800 leading-snug">{n.title}</h4>
+                          <span className="text-[11px] font-medium text-gray-400 whitespace-nowrap">{n.time}</span>
+                        </div>
+                        <p className="text-[13px] text-slate-500 leading-relaxed mt-1">{n.desc}</p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+                {items.length > visible && (
+                  <div className="mt-5 flex flex-col items-center gap-2">
+                    <button onClick={() => setVisible((v) => v + PAGE_SIZE)} className="px-6 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-slate-600 hover:bg-gray-50">
+                      Load more
+                    </button>
+                    <span className="text-[11px] text-slate-400">Showing {shown.length} of {items.length}</span>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </main>

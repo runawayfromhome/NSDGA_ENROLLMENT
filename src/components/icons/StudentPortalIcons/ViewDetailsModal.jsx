@@ -19,7 +19,7 @@ const ViewDetailsModal = () => {
               <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Task Details</h3>
               <p className="text-[16px] text-slate-600 leading-relaxed text-left">
                 Your application is currently being processed by the Office of the Registrar. 
-                We are verifying the scanned copies of your Form 137 and Grade 11 transcripts. 
+                We are verifying the scanned copies of your submitted documents.
                 Expect a response regarding your interview schedule within 3-5 business days. 
                 Please ensure your contact details are up to date.
               </p>

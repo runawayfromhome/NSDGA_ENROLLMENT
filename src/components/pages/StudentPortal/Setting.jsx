@@ -67,7 +67,9 @@ const Setting = () => {
               </div>
             </form>
 
-            <MfaSettings />
+            <div className="mt-8">
+              <MfaSettings />
+            </div>
           </div>
         </main>
       </div>

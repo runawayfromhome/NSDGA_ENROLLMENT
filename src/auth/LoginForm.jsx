@@ -106,7 +106,7 @@ export default function LoginForm({ portalName = 'Staff Portal', subtitle, role 
 
           {mfa ? (
             <>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Two-Factor Verification</h2>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Multi-Factor Verification</h2>
               <p className="text-gray-500 mb-8">Enter the 6-digit code from your authenticator app.</p>
               {error && (
                 <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div>

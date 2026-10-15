@@ -21,7 +21,7 @@ export function useMfaLock(settingsPath) {
       <HiOutlineLockClosed className="text-red-600 shrink-0" size={28} />
       <div className="flex-1 min-w-[220px]">
         <p className="font-bold text-red-800">Changes are locked</p>
-        <p className="text-sm text-red-700 mt-0.5">For security, enable Two-Factor Authentication (MFA) before making changes to the system.</p>
+        <p className="text-sm text-red-700 mt-0.5">For security, enable Multi-Factor Authentication (MFA) before making changes to the system.</p>
       </div>
       <NavLink to={settingsPath} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold whitespace-nowrap">Enable MFA →</NavLink>
     </div>

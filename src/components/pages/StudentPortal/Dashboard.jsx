@@ -6,11 +6,13 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus } from '../../../lib/student';
-import { BILLING_STATUS } from '../../../lib/billing';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
 import { nextGrade, nextSchoolYear, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
 import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup } from "react-icons/hi";
 import { StatCardsSkeleton, CardSkeleton } from '../../Skeleton';
+import AnnouncementsModal from '../../icons/StudentPortalIcons/AnnouncementsModal';
+
+const ANNOUNCEMENTS_PREVIEW_COUNT = 5;
 
 const STATUS_TONE = {
   submitted: 'text-[#9A9E4C]', under_review: 'text-blue-600', needs_correction: 'text-amber-600',
@@ -32,6 +34,7 @@ const Dashboard = () => {
   const [enr, setEnr] = useState(null);
   const [busy, setBusy] = useState(false);
   const [strand, setStrand] = useState('');
+  const [showAllAnnouncements, setShowAllAnnouncements] = useState(false);
 
   useEffect(() => {
     // Defense-in-depth: the full dashboard is for enrolled students. A first-time
@@ -125,12 +128,17 @@ const Dashboard = () => {
           {/* Announcements */}
           {announcements.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8">
-              <div className="flex items-center gap-2 mb-4">
-                <HiOutlineSpeakerphone className="text-[#800000]" size={22} />
-                <h2 className="text-lg font-bold text-slate-800">Announcements</h2>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2">
+                  <HiOutlineSpeakerphone className="text-[#800000]" size={22} />
+                  <h2 className="text-lg font-bold text-slate-800">Announcements</h2>
+                </div>
+                {announcements.length > ANNOUNCEMENTS_PREVIEW_COUNT && (
+                  <button onClick={() => setShowAllAnnouncements(true)} className="text-[#800000] font-bold text-sm hover:opacity-70">View all</button>
+                )}
               </div>
               <div className="space-y-4">
-                {announcements.map((a) => (
+                {announcements.slice(0, ANNOUNCEMENTS_PREVIEW_COUNT).map((a) => (
                   <div key={a.id} className="border-l-4 border-[#800000] pl-4 py-1">
                     <div className="flex justify-between items-baseline gap-3">
                       <h3 className="font-bold text-slate-800 text-sm">{a.title || 'Announcement'}</h3>
@@ -142,6 +150,7 @@ const Dashboard = () => {
               </div>
             </div>
           )}
+          <AnnouncementsModal isOpen={showAllAnnouncements} onClose={() => setShowAllAnnouncements(false)} announcements={announcements} />
 
           {app === undefined && <><StatCardsSkeleton count={3} /><CardSkeleton className="mt-8" lines={2} /></>}
 
@@ -160,9 +169,6 @@ const Dashboard = () => {
                 <Card icon={HiOutlineIdentification} label="Student Number" value={app.student_no || '—'} tone={app.student_no ? 'text-emerald-600' : 'text-slate-300'} />
                 <Card icon={HiOutlineAcademicCap} label="Grade / Program" value={app.form?.strand ? `${gradeText} · ${app.form.strand}` : gradeText} tone="text-slate-800" small />
               </div>
-
-              {/* Tuition & payment (updated by Finance/Admin; read-only) */}
-              {enrolled && <PaymentCard billing={app.billing} form={app.form} />}
 
               {!['completed', 'rejected', 'withdrawn', 'graduated', 'archived'].includes(app.status) && (
                 <>
@@ -225,35 +231,6 @@ const Dashboard = () => {
     </div>
   );
 };
-
-const PaymentCard = ({ billing, form }) => {
-  const b = billing || {};
-  const st = BILLING_STATUS[b.status] || BILLING_STATUS.not_assessed;
-  const isVoucher = form?.voucherApplicant === 'Yes';
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-10">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="text-lg font-bold text-slate-800">Tuition Status</h2>
-        <span className={`px-3 py-1.5 rounded-full text-[10px] font-black tracking-wide ${st.cls}`}>{st.label.toUpperCase()}</span>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <Info label="Payment Status" value={st.label} />
-        <Info label="OR Number" value={b.orNumber || '—'} />
-      </div>
-      {isVoucher && <p className="text-[12px] text-teal-700 bg-teal-50 rounded-lg px-3 py-2 mt-4">🎟️ DepEd SHS Voucher applicant{form?.voucherType ? ` (${form.voucherType})` : ''} — tuition may be partly or fully covered, subject to verification.</p>}
-      {b.remarks && <p className="text-[12px] text-slate-500 mt-3"><b>Note:</b> {b.remarks}</p>}
-      {b.status !== 'paid' && b.status !== 'voucher' && (
-        <p className="text-[11px] text-slate-400 mt-3">Payments are made at the Cashier / Finance office. This page updates once your payment is recorded.</p>
-      )}
-    </div>
-  );
-};
-const Info = ({ label, value, tone = 'text-slate-800' }) => (
-  <div>
-    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-    <p className={`text-sm font-black mt-0.5 ${tone}`}>{value}</p>
-  </div>
-);
 
 const Card = ({ icon: Icon, label, value, tone, onClick, small }) => (
   <div onClick={onClick} className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-6 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}>

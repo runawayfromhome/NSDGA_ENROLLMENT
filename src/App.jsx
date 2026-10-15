@@ -21,7 +21,6 @@ const Login = lazy(() => import('./components/pages/StudentPortal/Login'));
 const ForgotPass = lazy(() => import('./components/pages/StudentPortal/ForgotPass'));
 const ForgotPassOtp = lazy(() => import('./components/pages/StudentPortal/ForgotPassOtp'));
 const CreateNewPass = lazy(() => import('./components/pages/StudentPortal/CreateNewPass'));
-const LoginOtp = lazy(() => import('./components/pages/StudentPortal/LoginOtp'));
 const Apply = lazy(() => import('./components/pages/StudentPortal/Apply'));
 const VerifyOtp = lazy(() => import('./components/pages/StudentPortal/VerifyOtp'));
 const EnrollmentForm = lazy(() => import('./components/pages/StudentPortal/EnrollmentForm'));
@@ -90,7 +89,6 @@ function App() {
       <Route path="/StudentPortal/ForgotPass" element={<ForgotPass />} />
       <Route path="/StudentPortal/ForgotPassOtp" element={<ForgotPassOtp />} />
       <Route path="/StudentPortal/CreateNewPass" element={<CreateNewPass />} />
-      <Route path="/StudentPortal/LoginOtp" element={<LoginOtp />} />
       {/* Applicant pages — need login only */}
       <Route path="/StudentPortal/ApplicationStatus" element={<ProtectedRoute allow={['student']}><Application /></ProtectedRoute>} />
       {/* Full Student Portal — only after the Registrar enrolls the student */}

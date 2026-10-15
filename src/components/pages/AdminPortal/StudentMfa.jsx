@@ -43,7 +43,7 @@ const StudentMfa = () => {
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Student MFA</h1>
           </div>
           <p className="text-gray-500 text-sm ml-6 mb-6 max-w-2xl">
-            Remove a student's Two-Factor Authentication if they lost their authenticator and are locked out.
+            Remove a student's Multi-Factor Authentication if they lost their authenticator and are locked out.
             Enrolled students only. Confirmation requires a code emailed to you.
           </p>
 

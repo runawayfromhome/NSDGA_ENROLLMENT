@@ -59,7 +59,7 @@ const MfaSetup = () => {
 
       <div className="flex-1 flex items-start justify-center px-4 py-10 md:py-16">
         <div className="w-full max-w-lg bg-white border border-gray-200 rounded-2xl shadow-sm p-8">
-          <h1 className="text-2xl font-black text-slate-800 mb-1">Set up Two-Factor Authentication</h1>
+          <h1 className="text-2xl font-black text-slate-800 mb-1">Set up Multi-Factor Authentication</h1>
           <p className="text-sm text-slate-500 mb-6">
             Your role requires an authenticator for security. Scan the code below with an app like Google
             Authenticator or Authy, then enter the 6-digit code to finish.

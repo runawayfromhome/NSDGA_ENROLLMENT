@@ -62,7 +62,7 @@ declare
   streets text[] := array['Bayan-bayanan Ave','J.P. Rizal St','Shoe Ave','Sumulong Hwy','Concepcion Uno','Nangka St','Tanong','Malanday','Parang','Fortune','San Roque','Industrial Valley','Marikina Heights','Jesus Dela Peña','Sto. Niño'];
   schools text[] := array['Marikina Science High School','Marikina Heights NHS','Concepcion Elementary School','Sta. Elena Elementary School','Nangka Elementary School','San Roque NHS','Parang NHS','Marikina Catholic School','Fortune Elementary School','NSDGA'];
   strands text[] := array['HT - Hospitality and Tourism','IT - Industrial Technologies','CP - Computer Programming','TECHPRO - Technical-Professional'];
-  dockeys text[] := array['photo','reportCard','form137','psa','goodMoral'];
+  dockeys text[] := array['photo','reportCard','psa','goodMoral'];
 
   i int; uid uuid; g int; grade_txt text; lvl text; is_f boolean;
   fn text; mn text; ln text; email text; st text; strand text; sect text;
@@ -163,6 +163,8 @@ begin
       'sex', case when is_f then 'Female' else 'Male' end,
       'dob', to_char(make_date(2026 - (g + 6), 1 + floor(random() * 12)::int, 1 + floor(random() * 28)::int), 'YYYY-MM-DD'),
       'birthplace', 'Marikina City',
+      'nationality', 'Filipino',
+      'religion', (array['Roman Catholic','Roman Catholic','Iglesia ni Cristo','Born Again Christian','Seventh-day Adventist','Islam'])[1 + (i % 6)],
       'address', (1 + floor(random() * 120)::int)::text || ' ' || streets[1 + floor(random() * array_length(streets, 1))::int] || ', Marikina City',
       'fatherName', 'Mr. ' || ln, 'motherName', 'Mrs. ' || ln, 'guardianName', 'Mrs. ' || ln,
       'guardianContact', '09' || lpad((100000000 + i)::text, 9, '0'),

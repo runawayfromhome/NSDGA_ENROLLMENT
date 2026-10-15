@@ -92,11 +92,11 @@ export async function applyAsStudent({ email, password, contact, level, studentT
 // --- New account-first signup flow ------------------------------------------
 // Step 1: create the account + a DRAFT application, then sign in so the rest of
 // the wizard (and document uploads) run authenticated. Returns { ok, appId }.
-export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password, schoolYear }) {
+export async function createApplicantAccount({ firstName, middleName, lastName, suffix, lrn, email, phone, password, schoolYear, captchaToken }) {
   const clean = (email || '').trim().toLowerCase();
   const form = { firstName, middleName, lastName, suffix, lrn, contact: phone, schoolYear: schoolYear || CURRENT_SCHOOL_YEAR };
   const { data, error } = await supabase.functions.invoke('create-applicant', {
-    body: { email: clean, password, contact: phone, level: null, studentType: null, form },
+    body: { email: clean, password, contact: phone, level: null, studentType: null, form, captchaToken },
   });
   if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not create your account — is create-applicant deployed?' };
   if (data && data.error) return { ok: false, error: data.error };
@@ -194,13 +194,17 @@ export async function reEnroll(prevApp, strand) {
   const sy = nextSchoolYear(prevApp.school_year);
   const nextStrand = isSHSGrade(grade) ? (strand || prevApp.form?.strand || '') : '';
   if (isSHSGrade(grade) && !nextStrand) return { ok: false, error: 'Please choose a Senior High strand.' };
+  // A new year's application has no section yet — drop the previous year's
+  // staff-assigned fields (section / sectionApproved / classmates). These are
+  // set again by the Registrar on enrollment, and the DB rejects self-set ones.
+  const { section, sectionApproved, classmates, ...carry } = prevApp.form || {};
   const { data, error } = await supabase.from('applications').insert({
     student_id: u.user.id,
     school_year: sy,
     grade_level: levelOfGrade(grade),
     student_type: 'Returnee',
     status: 'submitted',
-    form: { ...prevApp.form, grade, schoolYear: sy, strand: nextStrand },
+    form: { ...carry, grade, schoolYear: sy, strand: nextStrand },
   }).select('id').single();
   if (error) return { ok: false, error: error.message };
   return { ok: true, id: data.id, grade, schoolYear: sy };
@@ -210,11 +214,12 @@ export async function reEnroll(prevApp, strand) {
 // Registrar can tell a corrected-and-resubmitted application apart from a
 // brand-new one (they both go back to status 'submitted').
 export async function resubmitApplication(id, form) {
-  const merged = { ...form, resubmitted: true, resubmittedAt: new Date().toISOString() };
+  const count = (Number(form?.resubmitCount) || 0) + 1; // count each resubmission (limit enforced by the UI)
+  const merged = { ...form, resubmitted: true, resubmittedAt: new Date().toISOString(), resubmitCount: count };
   const { error } = await supabase.from('applications')
     .update({ form: merged, status: 'submitted', submitted_at: new Date().toISOString() })
     .eq('id', id);
-  return { ok: !error, error: error?.message };
+  return { ok: !error, error: error?.message, count };
 }
 
 // Update the student's own application form (e.g. contact details from My

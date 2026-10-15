@@ -67,7 +67,7 @@ const ApplicationDetails = () => {
             <button onClick={() => navigate('/RegistrarPortal/Applications')} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"><IoChevronBack size={24} /></button>
             <div>
               <h1 className="text-3xl font-bold text-slate-800">{fullName}</h1>
-              <p className="text-slate-500 font-medium">{app.id.slice(0, 8).toUpperCase()} • {app.grade_level} • {app.student_type}</p>
+              <p className="text-slate-500 font-medium">{app.id.slice(0, 8).toUpperCase()} • {f.grade ? `${f.grade} · ${app.grade_level}` : app.grade_level} • {app.student_type}</p>
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -95,7 +95,7 @@ const ApplicationDetails = () => {
           <div className="mt-6"><DetailField label="Home Address" value={f.address} /></div>
           <div className="grid grid-cols-3 gap-6 mt-6">
             <DetailField label="Contact Number" value={f.contact} />
-            <DetailField label="Grade Level Applying For" value={app.grade_level} />
+            <DetailField label="Grade Level Applying For" value={f.grade ? `${f.grade} (${app.grade_level})` : app.grade_level} />
             <DetailField label="School Year" value={app.school_year} />
             <DetailField label="Student Type" value={app.student_type} />
             {f.strand && <DetailField label="SHS Strand" value={f.strand} />}

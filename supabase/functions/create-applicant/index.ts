@@ -19,6 +19,26 @@ const cors = {
 const json = (body: unknown) =>
   new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } });
 
+// Cloudflare Turnstile — verify the "I'm not a robot" token server-side so a bot
+// can't call this public endpoint directly. Falls back to Cloudflare's official
+// TEST secret (always passes) when TURNSTILE_SECRET isn't set, so the demo works
+// without a Cloudflare account. Set the real secret before go-live.
+const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET') || '1x0000000000000000000000000000000AA';
+async function verifyCaptcha(token: string, ip: string | null): Promise<boolean> {
+  if (!token) return false;
+  try {
+    const body = new FormData();
+    body.append('secret', TURNSTILE_SECRET);
+    body.append('response', token);
+    if (ip) body.append('remoteip', ip);
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body });
+    const out = await r.json();
+    return out.success === true;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
 
@@ -27,9 +47,15 @@ Deno.serve(async (req) => {
   const admin = createClient(url, serviceKey);
 
   try {
-    const { email, password, contact, level, studentType, form } = await req.json();
+    const { email, password, contact, level, studentType, form, captchaToken } = await req.json();
     if (!email || !password || !form) return json({ error: 'Missing required fields.' });
     if (String(password).length < 8) return json({ error: 'Password must be at least 8 characters.' });
+
+    // Bot check before doing any work (account creation / emails).
+    const ip = req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for');
+    if (!(await verifyCaptcha(String(captchaToken || ''), ip))) {
+      return json({ error: 'Bot check failed. Please complete the "I\'m not a robot" check and try again.' });
+    }
 
     const clean = String(email).trim().toLowerCase();
     const name = `${form.firstName || ''} ${form.lastName || ''}`.trim() || clean;

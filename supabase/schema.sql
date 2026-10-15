@@ -21,7 +21,7 @@ create table if not exists public.profiles (
   profile      jsonb,
   return_note  text default '',
   created_at   timestamptz not null default now(),
-  submitted_at timestamptz,
+  submitted_at timestamptz, 
   verified_at  timestamptz
 );
 

@@ -32,7 +32,7 @@ export default function RemoveMfaSection({ account, locked, onDone }) {
   const confirm = async () => {
     const code = digits.join('');
     if (code.length !== 6) return setMsg('⚠️ Enter the 6-digit code.');
-    if (!window.confirm(`Remove Two-Factor Authentication for ${account.name}? They will be able to log in with just their password until they set it up again.`)) return;
+    if (!window.confirm(`Remove Multi-Factor Authentication for ${account.name}? They will be able to log in with just their password until they set it up again.`)) return;
     setBusy('confirm'); setMsg('');
     const res = await removeUserMfa(account.id, code, account.name);
     setBusy('');

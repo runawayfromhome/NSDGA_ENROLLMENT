@@ -145,7 +145,7 @@ const Accounts = () => {
               <span className="text-2xl">🔒</span>
               <div className="flex-1 min-w-[220px]">
                 <p className="font-bold text-red-800">Account changes are locked</p>
-                <p className="text-sm text-red-700 mt-0.5">For security, you must enable Two-Factor Authentication before creating accounts, changing roles, or resetting passwords.</p>
+                <p className="text-sm text-red-700 mt-0.5">For security, you must enable Multi-Factor Authentication before creating accounts, changing roles, or resetting passwords.</p>
               </div>
               <NavLink to="/HeadAdminPortal/Settings" className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold whitespace-nowrap">Enable MFA →</NavLink>
             </div>
@@ -457,7 +457,7 @@ const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
           {/* Remove MFA (account recovery — staff only) */}
           {!isSelf && ['registrar', 'admin'].includes(account.role) && (
             <div className="border-t border-gray-100 pt-5">
-              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Two-Factor Authentication</h4>
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Multi-Factor Authentication</h4>
               <RemoveMfaSection account={account} locked={mfaLocked} />
             </div>
           )}

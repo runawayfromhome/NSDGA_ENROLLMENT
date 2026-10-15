@@ -43,7 +43,7 @@ const Dashboard = () => {
             <div className="mb-12"><StatCardsSkeleton count={3} /></div>
           ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <NavLink to="/RegistrarPortal/Applications" className="active:scale-[0.98] transition-transform">
+            <NavLink to="/RegistrarPortal/Applications?status=pending" className="active:scale-[0.98] transition-transform">
               <TotalPendingCard>
                 <StatBody icon={HiOutlineUserAdd} value={pending} label="Pending Applications" iconBg="bg-red-50" iconColor="text-[#800000]" />
               </TotalPendingCard>
@@ -53,7 +53,7 @@ const Dashboard = () => {
                 <StatBody icon={HiOutlineAcademicCap} value={enrolled} label="Enrolled Students" iconBg="bg-emerald-50" iconColor="text-emerald-600" />
               </DocumentReviewcard>
             </NavLink>
-            <NavLink to="/RegistrarPortal/Applications" className="active:scale-[0.98] transition-transform">
+            <NavLink to="/RegistrarPortal/Applications?status=needs_correction" className="active:scale-[0.98] transition-transform">
               <UrgentTaskCard>
                 <StatBody icon={HiOutlineExclamationCircle} value={needsAction} label="Needs Correction" iconBg="bg-amber-50" iconColor="text-amber-600" />
               </UrgentTaskCard>
