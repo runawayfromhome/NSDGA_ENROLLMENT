@@ -7,6 +7,7 @@ import { IoSearchOutline } from "react-icons/io5";
 import { HiOutlineCalendar } from "react-icons/hi";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
+import { getActiveSchoolYear } from '../../../lib/content';
 import { TableSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
@@ -27,6 +28,7 @@ const Applications = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [apps, setApps] = useState(null);
+  const [activeYear, setActiveYear] = useState(''); // admin-set school year — registrar sees only this year
   // Seed every filter from the URL so a Dashboard card link, a bookmark, or the
   // browser Back button all restore the exact same filtered view.
   const [q, setQ] = useState(searchParams.get('q') || '');
@@ -38,6 +40,7 @@ const Applications = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
   // Keep the URL in sync with the filters (replace, so Back returns to the list
   // in its filtered state instead of piling up history entries).
   useEffect(() => {
@@ -59,6 +62,8 @@ const Applications = () => {
   const clear = () => { setQ(''); setStatus('all'); setGrade('all'); setGradeNum('all'); setDateFrom(''); setDateTo(''); };
 
   const filtered = (apps || []).filter((a) => {
+    // Registrar only ever sees the Admin's active school year.
+    if (activeYear && a.school_year !== activeYear) return false;
     const s = (applicantName(a) + ' ' + a.id + ' ' + (a.grade_level || '')).toLowerCase();
     if (!s.includes(q.toLowerCase())) return false;
     if (status === 'pending') {
@@ -86,7 +91,7 @@ const Applications = () => {
         <main className="p-8 md:p-12 max-w-[1400px]">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-[#800000] mb-1">Student Applications</h1>
-            <p className="text-slate-500 text-[14px]">Manage and review incoming admissions for Academic Year 2026-2027.</p>
+            <p className="text-slate-500 text-[14px]">Manage and review incoming admissions for Academic Year <b className="text-slate-700">{activeYear || '…'}</b> <span className="text-[11px] text-slate-400">(set by Admin)</span>.</p>
           </div>
 
           <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-5 mb-6 space-y-4">

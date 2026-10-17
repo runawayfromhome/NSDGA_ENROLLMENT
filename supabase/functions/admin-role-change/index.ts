@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     // Require the Head Admin to have MFA enabled before any account change.
     const { data: factors } = await caller.auth.mfa.listFactors();
     if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
-      return json({ error: 'Enable Two-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
+      return json({ error: 'Enable Multi-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
     }
 
     const { targetUserId, newRole, code } = await req.json();

@@ -7,38 +7,6 @@
 -- No plain-text password is ever stored in the database.
 -- ============================================================================
 
--- 0b. FIX: allow the SQL editor / service context (auth.uid() is null) and
--- HeadAdmin to change role/status. (The original trigger blocked the promote.)
-create or replace function public.enforce_profile_update()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  if auth.uid() is null or public.is_headadmin() then
-    return new;
-  end if;
-  if new.role is distinct from old.role then raise exception 'Not allowed to change role'; end if;
-  if new.disabled is distinct from old.disabled then raise exception 'Not allowed to change disabled'; end if;
-  if new.status is distinct from old.status then
-    if not (old.status = 'pending_profile' and new.status = 'pending_verification') then
-      raise exception 'Not allowed to change status';
-    end if;
-  end if;
-  return new;
-end;
-$$;
-
--- 0c. SECURITY FIX: never trust a client-supplied role at signup. New users
--- always start as an unverified 'registrar'; HeadAdmin sets the real role.
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, email, name, role, status)
-  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'name', new.email),
-          'registrar', 'pending_profile')
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
-
 -- 1. Create the 5 demo users (auth.users + identity), then set their profile.
 do $$
 declare

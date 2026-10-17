@@ -223,8 +223,8 @@ tables, with **Row-Level Security** enforcing access.
     HeadAdmin (or the SQL/service context) can verify accounts or change roles.
   - `is_headadmin()` — helper used by the policies.
 - **`supabase/seed.sql`** — creates the 5 demo accounts directly (hashed passwords, confirmed),
-  sets roles/status, fills the two verified profiles, and adds a **dev-only** `demo_password`
-  column (drop before production: `alter table public.profiles drop column demo_password;`).
+  sets roles/status, and fills the two verified profiles. It stores NO plaintext password —
+  the old dev-only `demo_password` column was dropped (see `supabase/harden-production.sql`).
 
 ### Code
 - **`src/lib/supabase.js`** — the Supabase client (reads `.env.local`).
@@ -317,7 +317,7 @@ password works, old is rejected).
   the service_role key (no email/rate-limit issues) and only lets a **HeadAdmin** call it. The app's
   "New Account" button already invokes it (`createAccount` → `supabase.functions.invoke('create-staff')`).
   Deploy: `supabase functions deploy create-staff`, then **disable public sign-ups** in the dashboard.
-- **`supabase/harden_audit.sql`** — replaces the open audit-log insert with one that only lets a
+- **`supabase/schema.sql`** — defines trusted audit logging and replaces the open audit-log insert with one that only lets a
   signed-in user insert rows carrying **their own email** (`with check (email = auth.email())`) and
   revokes the anonymous insert. Prevents spoofing another user's login events. (Failed-login rows,
   which are anonymous, are no longer recorded — successful logins/logouts still are.)

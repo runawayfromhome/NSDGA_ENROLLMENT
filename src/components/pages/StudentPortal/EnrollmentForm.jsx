@@ -17,7 +17,6 @@ import AddressPicker from '../../AddressPicker';
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
 const SUFFIXES = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
-const RESUBMIT_LIMIT = 5; // an applicant may resubmit a returned application at most 5 times
 const DOCS = [
   { key: 'photo', label: '2x2 Picture', hint: 'High-quality, white background' },
   { key: 'reportCard', label: 'Report Card', hint: 'Scanned copy of latest grades' },
@@ -89,18 +88,18 @@ const EnrollmentForm = () => {
     if (isSHS && !f.strand) return 'Please choose a Senior High strand.';
     if (!isGrade1) {
       if (!f.lastSchool?.trim() || !f.lastSchoolAddress?.trim()) return 'Previous school and its address are required.';
+      if (!f.prevSchoolType) return 'Please select whether your previous school is Public or Private.';
       if (!f.lastGrade) return 'Last grade completed is required.';
     }
     if (f.gwa && (isNaN(+f.gwa) || +f.gwa < 0 || +f.gwa > 100)) return 'GWA must be a number from 0 to 100.';
     return '';
   };
   // Editable only while a DRAFT, or after the Registrar RETURNS it for corrections
-  // (needs_correction) — and only up to RESUBMIT_LIMIT resubmissions. Once the
-  // applicant resubmits (status → submitted/under_review) it locks again until the
-  // Registrar returns it with a new note.
-  const resubmitsUsed = Number(app?.form?.resubmitCount) || 0;
-  const resubmitsLeft = Math.max(0, RESUBMIT_LIMIT - resubmitsUsed);
-  const canEdit = !!app && (app.status === 'draft' || (app.status === 'needs_correction' && resubmitsLeft > 0));
+  // (needs_correction). Once the applicant resubmits (status → submitted/under_review)
+  // it locks again until the Registrar returns it with a new note. There is NO cap on
+  // resubmissions — a returned application can always be fixed and sent back, so a
+  // less tech-savvy applicant never gets locked out of their own form.
+  const canEdit = !!app && (app.status === 'draft' || app.status === 'needs_correction');
   const locked = !canEdit;
 
   const onUpload = async (key, file) => {
@@ -117,7 +116,6 @@ const EnrollmentForm = () => {
   const save = async (resubmit) => {
     if (!app) return;
     const willResubmit = resubmit && app.status === 'needs_correction';
-    if (willResubmit && resubmitsLeft <= 0) return setMsg(`⚠️ You have used all ${RESUBMIT_LIMIT} resubmission attempts. Please contact the Registrar's Office.`);
     if (willResubmit) { const v = validate(); if (v) return setMsg('⚠️ ' + v); }
     if (resubmit && !agree) return setMsg('⚠️ Please certify the information before saving changes.');
     setBusy(resubmit ? 'changes' : 'draft'); setMsg('');
@@ -147,23 +145,17 @@ const EnrollmentForm = () => {
           {app && (
             <div className="space-y-6">
               {/* Registrar returned it for corrections, and resubmissions remain → editable */}
-              {app.status === 'needs_correction' && resubmitsLeft > 0 && (
+              {app.status === 'needs_correction' && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   <b>The Registrar returned your application for corrections.</b>
                   {app.review_note && <span className="block mt-1">📝 Note: {app.review_note}</span>}
-                  <span className="block mt-1">Resubmissions left: <b>{resubmitsLeft} of {RESUBMIT_LIMIT}</b>. Fix the items, then <b>Save &amp; Resubmit</b>.</span>
+                  <span className="block mt-1">Fix the items, then <b>Save &amp; Resubmit</b>. You can resubmit as many times as needed.</span>
                 </div>
               )}
               {/* Submitted / under review → wait for the Registrar, no editing */}
               {(app.status === 'submitted' || app.status === 'under_review') && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                   Your application has been submitted and is being reviewed. You can edit it again <b>only if the Registrar returns it</b> with a note.
-                </div>
-              )}
-              {/* Returned but no resubmissions left */}
-              {app.status === 'needs_correction' && resubmitsLeft <= 0 && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  You have used all <b>{RESUBMIT_LIMIT}</b> resubmission attempts. Please contact the Registrar's Office to proceed.
                 </div>
               )}
               {/* Final states (enrolled / rejected / completed / etc.) */}
@@ -203,6 +195,7 @@ const EnrollmentForm = () => {
               <Card icon={HiOutlineAcademicCap} title="Academic Background">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <F l="Previous School Attended"><input className="ip" value={f.lastSchool || ''} onChange={(e) => set('lastSchool', e.target.value.slice(0, 100))} maxLength={100} disabled={locked} /></F>
+                  <F l="Type of Previous School"><select className="ip" value={f.prevSchoolType || ''} onChange={(e) => set('prevSchoolType', e.target.value)} disabled={locked}><option value="">Select…</option><option value="Public">Public</option><option value="Private">Private</option></select></F>
                   <F l="School Address"><input className="ip" value={f.lastSchoolAddress || ''} onChange={(e) => set('lastSchoolAddress', e.target.value.slice(0, 150))} maxLength={150} disabled={locked} /></F>
                   <F l="Last Grade / Year Level Completed"><input className="ip bg-gray-50" value={f.lastGrade || ''} readOnly placeholder="Auto from the grade applying for" /></F>
                   <F l="GWA (General Weighted Average)"><input className="ip" value={f.gwa || ''} onChange={(e) => set('gwa', gwaClean(e.target.value))} inputMode="decimal" maxLength={5} disabled={locked} /></F>
@@ -239,7 +232,7 @@ const EnrollmentForm = () => {
                   </label>
                   <div className="flex flex-wrap justify-end gap-3">
                     <button onClick={() => save(false)} disabled={!!busy} className="px-6 py-2.5 border border-gray-300 rounded-xl text-sm font-bold text-slate-600 hover:bg-gray-50 disabled:opacity-60 cursor-pointer">{busy === 'draft' ? 'Saving…' : 'Save Draft'}</button>
-                    <button onClick={() => save(true)} disabled={!!busy} className="px-6 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'changes' ? 'Saving…' : app.status === 'needs_correction' ? `Save & Resubmit (${resubmitsLeft} of ${RESUBMIT_LIMIT} left)` : 'Save Changes'}</button>
+                    <button onClick={() => save(true)} disabled={!!busy} className="px-6 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'changes' ? 'Saving…' : app.status === 'needs_correction' ? 'Save & Resubmit' : 'Save Changes'}</button>
                   </div>
                 </>
               )}

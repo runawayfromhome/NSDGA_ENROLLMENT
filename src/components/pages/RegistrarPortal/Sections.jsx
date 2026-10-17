@@ -11,7 +11,7 @@ import {
   listSections, createSection, deleteSection, renameSection, submitSection,
   listEnrolledInGrade, assignToSection, applicantName, sectionStatus, SECTION_CAPACITY,
 } from '../../../lib/registrar';
-import { getActiveSchoolYear, getStrands } from '../../../lib/content';
+import { getActiveSchoolYear, getStrands, getMaxSectionsPerGrade } from '../../../lib/content';
 import { ALL_GRADES, isSHSGrade } from '../../../lib/grades';
 import { useMfaLock } from '../../MfaLock';
 import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePencil, HiOutlinePaperAirplane } from "react-icons/hi";
@@ -38,14 +38,22 @@ const Sections = () => {
   const [name, setName] = useState('');
   const [newStrand, setNewStrand] = useState(''); // strand for a new SHS section
   const [shsStrands, setShsStrands] = useState([]); // SHS courses, managed by Admin
+  const [maxSections, setMaxSections] = useState(20); // Admin-set cap per grade/strand (default 20)
   const [editId, setEditId] = useState(null); // section being renamed
   const [editName, setEditName] = useState('');
+  const [poolQ, setPoolQ] = useState(''); // search within the unassigned list
   const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
 
   const shs = isSHSGrade(grade);
+  // Section cap is per "bucket": per grade (Elem/JHS), or per grade+strand (SHS),
+  // so each SHS strand gets its own allowance.
+  const bucketCount = shs
+    ? (newStrand ? sections.filter((s) => (s.strand || '') === newStrand).length : 0)
+    : sections.length;
 
   useEffect(() => { getActiveSchoolYear().then(setSchoolYear); }, []);
   useEffect(() => { getStrands().then(setShsStrands); }, []);
+  useEffect(() => { getMaxSectionsPerGrade().then(setMaxSections); }, []);
 
   const load = async () => {
     if (!schoolYear) return;
@@ -71,9 +79,15 @@ const Sections = () => {
       : applicantName(a).localeCompare(applicantName(b)));
   }, [pool, sort, selected]);
 
+  // Visible subset after the search box (does not affect selection/capacity math).
+  const unassignedShown = useMemo(
+    () => unassigned.filter((a) => applicantName(a).toLowerCase().includes(poolQ.trim().toLowerCase())),
+    [unassigned, poolQ]);
+
   const addSection = async () => {
     if (!name.trim()) return setMsg('⚠️ Section name is required.');
     if (shs && !newStrand) return setMsg('⚠️ Choose a strand for this Senior High section.');
+    if (bucketCount >= maxSections) return setMsg(`⚠️ This ${shs ? 'strand' : 'grade'} already has the maximum ${maxSections} sections. Delete an unused one first.`);
     setBusy(true); setMsg('');
     const r = await createSection({ schoolYear, grade, name: name.trim(), strand: shs ? newStrand : null });
     setBusy(false);
@@ -108,6 +122,21 @@ const Sections = () => {
     setMsg(`✓ Assigned ${apps.length} student${apps.length === 1 ? '' : 's'} to ${selected.name}.`);
     await load();
   };
+  // Auto-fill the section with the earliest-enrolled unassigned students (FCFS),
+  // up to the remaining room. Respects the SHS strand filter via `unassigned`.
+  const autoFill = async () => {
+    if (!selected || room === 0) return;
+    const pickFcfs = [...unassigned]
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      .slice(0, room);
+    if (!pickFcfs.length) return;
+    setBusy(true); setMsg('');
+    const r = await assignToSection(pickFcfs, selected.name, selected);
+    setBusy(false);
+    if (!r.ok) return setMsg('⚠️ ' + r.error);
+    setMsg(`✓ Auto-assigned ${pickFcfs.length} earliest-enrolled student${pickFcfs.length === 1 ? '' : 's'} to ${selected.name}.`);
+    await load();
+  };
   const removeStudent = async (app) => { setBusy(true); await assignToSection([app], null, selected); setBusy(false); await load(); };
   const removeSection = async (s) => { if (countIn(s.name)) return setMsg('⚠️ Remove students from this section first.'); await deleteSection(s.id); if (selected?.id === s.id) setSelected(null); await load(); };
 
@@ -124,7 +153,7 @@ const Sections = () => {
 
           {/* filters + add */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-wrap items-end gap-4">
-            <Field label="School Year"><input value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} className="sel w-36" placeholder="2026-2027" /></Field>
+            <Field label="School Year"><div className="sel w-36 bg-slate-100 !text-slate-500 flex items-center" title="Set by Admin — registrar can't change this">{schoolYear || '…'}</div></Field>
             <Field label="Grade">
               <select value={grade} onChange={(e) => setGrade(e.target.value)} className="sel w-40">
                 {ALL_GRADES.map((g) => <option key={g}>{g}</option>)}
@@ -140,7 +169,8 @@ const Sections = () => {
                 </select>
               </Field>
             )}
-            <button disabled={busy || locked} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
+            <button disabled={busy || locked || bucketCount >= maxSections} onClick={addSection} className="px-6 py-2.5 bg-[#800000] text-white rounded-xl font-bold hover:bg-[#600000] disabled:opacity-60">+ Add Section</button>
+            {bucketCount >= maxSections && <span className="self-center text-[11px] font-bold text-red-500">Max {maxSections} reached{shs ? ' for this strand' : ''}</span>}
           </div>
 
           {msg && <div className={`rounded-xl px-5 py-3 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
@@ -224,10 +254,12 @@ const Sections = () => {
                       <option value="name">Sort: Name</option>
                     </select>
                   </div>
+                  <input value={poolQ} onChange={(e) => setPoolQ(e.target.value)} placeholder="Search unassigned by name…" className="sel w-full mb-2" />
                   {room === 0 && <p className="text-xs font-bold text-red-600 mb-2">Section is full ({SECTION_CAPACITY} students).</p>}
                   <div className="space-y-1.5 max-h-52 overflow-y-auto mb-4">
                     {unassigned.length === 0 && <p className="text-slate-400 text-sm">All enrolled students are sectioned.</p>}
-                    {unassigned.map((a) => {
+                    {unassigned.length > 0 && unassignedShown.length === 0 && <p className="text-slate-400 text-sm">No unassigned student matches “{poolQ}”.</p>}
+                    {unassignedShown.map((a) => {
                       const checked = !!picked[a.id];
                       const capReached = !checked && pickedCount >= room;
                       return (
@@ -239,8 +271,12 @@ const Sections = () => {
                       );
                     })}
                   </div>
-                  <button disabled={busy || pickedCount === 0 || locked} onClick={assignPicked} className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold disabled:opacity-50">Assign {pickedCount || ''} to {selected.name}</button>
-                  <p className="text-[11px] text-slate-400 mt-2">Editing a section sends it back to Admin for re-approval.</p>
+                  <div className="flex gap-2">
+                    <button disabled={busy || room === 0 || unassigned.length === 0 || locked} onClick={autoFill} title="Fill the remaining slots with the earliest-enrolled unassigned students"
+                      className="px-4 py-2.5 border border-teal-600 text-teal-700 rounded-xl font-bold text-sm hover:bg-teal-50 disabled:opacity-40 whitespace-nowrap">Auto-fill {room ? `(${Math.min(room, unassigned.length)})` : ''}</button>
+                    <button disabled={busy || pickedCount === 0 || locked} onClick={assignPicked} className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold disabled:opacity-50">Assign {pickedCount || ''} to {selected.name}</button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2">Auto-fill assigns earliest-enrolled first. Editing a section sends it back to Admin for re-approval.</p>
                 </>
               )}
             </div>

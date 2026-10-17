@@ -8,12 +8,13 @@ import { NavLink } from 'react-router-dom';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import MfaReminder from '../../MfaReminder';
 import RemoveMfaSection from '../../RemoveMfaSection';
+import ResetPasswordSection from '../../ResetPasswordSection';
 import { useSession } from '../../../contexts/useSession';
 import {
   getStaffAccounts, createAccount, setDisabled, verifyAccount, returnProfile,
-  getPresence, requestAdminOtp, changeRoleWithOtp, requestSetPasswordOtp, setUserPassword, getMfaFactor, STATUS,
+  getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, getAccountUsage, STATUS,
 } from '../../../auth/authStore';
-import { passwordChecks, isPasswordValid } from '../../../lib/password';
+import { isPasswordValid } from '../../../lib/password';
 
 const ONLINE_MS = 5 * 60 * 1000;
 
@@ -79,6 +80,7 @@ const Accounts = () => {
   const { session } = useSession();
   const [accounts, setAccounts] = useState([]);
   const [tab, setTab] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', role: 'registrar' });
   const [error, setError] = useState('');
@@ -87,8 +89,9 @@ const Accounts = () => {
   const [presence, setPresence] = useState({});
   const [now, setNow] = useState(() => Date.now());
   const [mfaOn, setMfaOn] = useState(true); // Head Admin must have MFA before changes
+  const [usage, setUsage] = useState(null); // active-vs-cap per role
 
-  const refresh = async () => setAccounts(await getStaffAccounts());
+  const refresh = async () => { setAccounts(await getStaffAccounts()); getAccountUsage().then(setUsage); };
   useEffect(() => { refresh(); getMfaFactor().then((f) => setMfaOn(!!f)); }, []);
   useEffect(() => {
     const load = async () => { setPresence(await getPresence()); setNow(Date.now()); };
@@ -120,7 +123,7 @@ const Accounts = () => {
     disabled: accounts.filter((a) => a.disabled).length,
   }), [accounts]);
 
-  const rows = accounts.filter((a) => matchesTab(a, tab));
+  const rows = accounts.filter((a) => matchesTab(a, tab) && (roleFilter === 'all' || a.role === roleFilter));
   const afterAction = async () => { await refresh(); setManage(null); };
 
   return (
@@ -160,6 +163,25 @@ const Accounts = () => {
             <StatTile label="Verified" value={counts.verified} accent="text-[#48A675]" />
           </div>
 
+          {/* Active accounts vs limit (per role) */}
+          {usage && (
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 mb-8">
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest w-full sm:w-auto">Active vs limit</p>
+                {[['headadmin', 'Head Admin'], ['admin', 'Admin'], ['registrar', 'Registrar']].map(([k, label]) => {
+                  const u = usage[k]; if (!u) return null;
+                  const full = u.active >= u.cap;
+                  return (
+                    <span key={k} className={`px-4 py-2 rounded-xl border text-sm font-bold ${full ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-100 bg-gray-50 text-slate-600'}`}>
+                      {label}: {u.active}/{u.cap}{full ? ' · full' : ''}
+                    </span>
+                  );
+                })}
+                <NavLink to="/HeadAdminPortal/Settings" className="sm:ml-auto self-center text-[12px] font-bold text-[#800000] hover:underline">Adjust limits →</NavLink>
+              </div>
+            </div>
+          )}
+
           {showForm && (
             <form onSubmit={handleCreate} className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 md:p-8 mb-8">
               <h2 className="text-lg font-bold text-slate-800 mb-1">Create Staff Account</h2>
@@ -180,13 +202,19 @@ const Accounts = () => {
             </form>
           )}
 
-          <div className="flex flex-wrap gap-2 mb-5">
+          <div className="flex flex-wrap items-center gap-2 mb-5">
             {TABS.map((t) => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 className={`px-4 py-2 rounded-full text-[12px] font-bold transition-colors cursor-pointer ${tab === t.key ? 'bg-[#800000] text-white' : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-50'}`}>
                 {t.label} <span className={tab === t.key ? 'opacity-80' : 'text-slate-400'}>({counts[t.key]})</span>
               </button>
             ))}
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+              className="sm:ml-auto px-4 py-2 bg-white border border-gray-200 rounded-full text-[12px] font-bold text-slate-500 outline-none cursor-pointer focus:border-[#800000]">
+              <option value="all">All Roles</option>
+              <option value="registrar">Registrar</option>
+              <option value="admin">Admin</option>
+            </select>
           </div>
 
           {/* Table (desktop) + cards (mobile) */}
@@ -263,76 +291,6 @@ const Accounts = () => {
         .ip { width:100%; height:3rem; border:1px solid #E5E7EB; border-radius:0.75rem; padding:0 1rem; font-size:0.875rem; background:#fff; outline:none; }
         .ip:focus { border-color:#800000; }
       `}</style>
-    </div>
-  );
-};
-
-// ---- Reset-password section (HeadAdmin sets a staff password, with OTP) -----
-const ResetPasswordSection = ({ account, locked }) => {
-  const [pw, setPw] = useState('');
-  const [step, setStep] = useState('idle'); // idle | sent
-  const [digits, setDigits] = useState(['', '', '', '', '', '']);
-  const [cooldown, setCooldown] = useState(0);
-  const [busy, setBusy] = useState('');
-  const [msg, setMsg] = useState('');
-  const refs = useRef([]);
-  const valid = isPasswordValid(pw, account.role);
-
-  useEffect(() => { if (cooldown > 0) { const t = setTimeout(() => setCooldown((c) => c - 1), 1000); return () => clearTimeout(t); } }, [cooldown]);
-
-  const setDigit = (i, v) => {
-    const c = v.replace(/\D/g, '').slice(-1);
-    setDigits((p) => { const n = [...p]; n[i] = c; return n; });
-    if (c && i < 5) refs.current[i + 1]?.focus();
-  };
-  const onKey = (i, e) => { if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus(); };
-
-  const send = async () => {
-    if (!valid) return setMsg('⚠️ Set a valid new password first (see the requirements).');
-    setBusy('otp'); setMsg('');
-    const res = await requestSetPasswordOtp();
-    setBusy('');
-    if (!res.ok) return setMsg('⚠️ ' + res.error);
-    setStep('sent'); setCooldown(30);
-    setMsg(`✓ We emailed a 6-digit code to your email (${res.sentTo || 'your account'}). Enter it below to confirm.`);
-  };
-  const confirm = async () => {
-    const code = digits.join('');
-    if (code.length !== 6) return setMsg('⚠️ Enter the 6-digit code.');
-    setBusy('confirm'); setMsg('');
-    const res = await setUserPassword(account.id, pw, code, account.name);
-    setBusy('');
-    if (!res.ok) return setMsg('⚠️ ' + res.error);
-    setStep('idle'); setDigits(['', '', '', '', '', '']); setPw('');
-    setMsg('✓ Password reset. Share the new temporary password with the staff member securely.');
-  };
-
-  return (
-    <div className="space-y-3">
-      {msg && <div className={`rounded-lg px-4 py-2.5 text-sm font-semibold ${msg.startsWith('⚠️') ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{msg}</div>}
-      <input type="text" value={pw} onChange={(e) => { setPw(e.target.value); setStep('idle'); setMsg(''); }} placeholder="New temporary password" className="ip" disabled={step === 'sent' || locked} />
-      <ul className="space-y-1">
-        {Object.entries(passwordChecks(pw, account.role)).map(([label, ok]) => (
-          <li key={label} className={`flex items-center gap-2 text-[12px] font-medium ${ok ? 'text-[#48A675]' : 'text-slate-400'}`}><span>{ok ? '✓' : '•'}</span> {label}</li>
-        ))}
-      </ul>
-      {step === 'idle' ? (
-        <button onClick={send} disabled={!valid || !!busy || locked} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-50 cursor-pointer">{busy === 'otp' ? 'Sending…' : 'Reset password'}</button>
-      ) : (
-        <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-          <p className="text-[12px] font-bold text-slate-600">Enter the code emailed to you to confirm the reset.</p>
-          <div className="flex gap-2">
-            {digits.map((d, i) => (
-              <input key={i} ref={(el) => (refs.current[i] = el)} value={d} onChange={(e) => setDigit(i, e.target.value)} onKeyDown={(e) => onKey(i, e)} inputMode="numeric" maxLength={1}
-                className="w-11 h-14 text-center text-xl font-bold border border-gray-200 rounded-lg bg-white focus:border-[#800000] focus:outline-none" />
-            ))}
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={confirm} disabled={busy === 'confirm'} className="px-5 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'confirm' ? 'Confirming…' : 'Confirm reset'}</button>
-            {cooldown > 0 ? <span className="text-[12px] text-slate-400">Resend in {cooldown}s</span> : <button onClick={send} disabled={!!busy} className="text-[12px] font-bold text-[#800000] hover:underline">Resend code</button>}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

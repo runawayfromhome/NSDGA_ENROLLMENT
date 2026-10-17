@@ -1,1 +1,0 @@
-alter table public.sections add column if not exists status text not null default 'pending';

@@ -5,16 +5,22 @@
 // time-period filter (day/week/month/year), and paginated "Load more".
 import { useMemo, useState, useEffect } from 'react';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
-import { getAuditLog } from '../../../auth/authStore';
+import { getAuditLog, mfaAlerts } from '../../../auth/authStore';
 
 const ACTION_LABEL = {
-  LOGIN: 'Login', LOGOUT: 'Logout',
-  ENROLL: 'Enroll', REJECT: 'Reject', RETURN: 'Return for correction',
+  LOGIN: 'Login', LOGOUT: 'Logout', MFA_FAIL: 'MFA failed',
+  ENROLL: 'Enroll', REJECT: 'Reject', RETURN: 'Return for correction', REVIEW: 'Mark under review',
+  DOC_VERIFY: 'Verify document', DOC_REJECT: 'Reject document',
   COMPLETE: 'Mark completed', GRADUATED: 'Graduate', WITHDRAWN: 'Withdraw', ARCHIVED: 'Archive',
-  REACTIVATE: 'Reactivate', READMIT: 'Re-admit',
+  REACTIVATE: 'Reactivate', READMIT: 'Re-admit', BULK_ARCHIVE: 'Bulk archive',
   SECTION_APPROVE: 'Approve section', SECTION_UNAPPROVE: 'Un-approve section',
+  SECTION_CREATE: 'Create section', SECTION_RENAME: 'Rename section', SECTION_SUBMIT: 'Submit section',
+  SECTION_DELETE: 'Delete section', SECTION_ASSIGN: 'Assign to section', SECTION_UNASSIGN: 'Remove from section',
   ACCOUNT_CREATE: 'Create account', ACCOUNT_DISABLE: 'Disable account', ACCOUNT_ENABLE: 'Enable account',
   ROLE_CHANGE: 'Change role', HEADADMIN_PROMOTE: 'Promote to HeadAdmin', ACCOUNT_VERIFY: 'Verify account', PROFILE_RETURN: 'Return profile',
+  PASSWORD_RESET: 'Reset password', MFA_RESET: 'Remove MFA',
+  PASSWORD_CHANGE: 'Change own password', MFA_ENABLE: 'Enable MFA', MFA_DISABLE: 'Disable MFA',
+  APPLY_SIGNUP: 'Applicant signup', APPLY_SUBMIT: 'Submit application', APPLY_RESUBMIT: 'Resubmit application', DOC_UPLOAD: 'Upload document',
   CONTENT_EDIT: 'Edit content',
   BILLING_UPDATE: 'Update billing',
 };
@@ -22,34 +28,41 @@ const ACTION_LABEL = {
 // Which actions belong to each activity group (for the Activity-type filter).
 const CATEGORY_OF = {};
 const CATEGORIES = {
-  auth: ['LOGIN', 'LOGOUT'],
-  enrollment: ['ENROLL', 'REJECT', 'RETURN'],
-  lifecycle: ['COMPLETE', 'GRADUATED', 'WITHDRAWN', 'ARCHIVED', 'REACTIVATE', 'READMIT'],
-  sections: ['SECTION_APPROVE', 'SECTION_UNAPPROVE'],
-  accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'HEADADMIN_PROMOTE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN'],
+  auth: ['LOGIN', 'LOGOUT', 'MFA_FAIL'],
+  student: ['APPLY_SIGNUP', 'APPLY_SUBMIT', 'APPLY_RESUBMIT', 'DOC_UPLOAD'],
+  enrollment: ['ENROLL', 'REJECT', 'RETURN', 'REVIEW', 'DOC_VERIFY', 'DOC_REJECT'],
+  lifecycle: ['COMPLETE', 'GRADUATED', 'WITHDRAWN', 'ARCHIVED', 'REACTIVATE', 'READMIT', 'BULK_ARCHIVE'],
+  sections: ['SECTION_APPROVE', 'SECTION_UNAPPROVE', 'SECTION_CREATE', 'SECTION_RENAME', 'SECTION_SUBMIT', 'SECTION_DELETE', 'SECTION_ASSIGN', 'SECTION_UNASSIGN'],
+  accounts: ['ACCOUNT_CREATE', 'ACCOUNT_DISABLE', 'ACCOUNT_ENABLE', 'ROLE_CHANGE', 'HEADADMIN_PROMOTE', 'ACCOUNT_VERIFY', 'PROFILE_RETURN', 'PASSWORD_RESET', 'MFA_RESET'],
+  security: ['PASSWORD_CHANGE', 'MFA_ENABLE', 'MFA_DISABLE'],
   content: ['CONTENT_EDIT'],
-  billing: ['BILLING_UPDATE'],
+  billing: ['BILLING_UPDATE'], // kept so any historical billing rows still render with a label/tint
 };
 Object.entries(CATEGORIES).forEach(([cat, actions]) => actions.forEach((a) => { CATEGORY_OF[a] = cat; }));
 
+// Billing is intentionally absent: finance tracking was removed from the system
+// (Finance Export is read-only), so no new BILLING_UPDATE events are generated.
 const ACTIVITY = [
   { value: 'all', label: 'All Activity' },
   { value: 'auth', label: 'Logins' },
+  { value: 'student', label: 'Student' },
   { value: 'enrollment', label: 'Enrollment' },
   { value: 'lifecycle', label: 'Lifecycle' },
   { value: 'sections', label: 'Sections' },
   { value: 'accounts', label: 'Accounts' },
+  { value: 'security', label: 'Security' },
   { value: 'content', label: 'Content' },
-  { value: 'billing', label: 'Billing' },
 ];
 
 // Small colour accent per activity group for the Action cell.
 const ACTION_TINT = {
   auth: 'bg-slate-100 text-slate-600',
+  student: 'bg-sky-50 text-sky-600',
   enrollment: 'bg-[#D1F7E2] text-[#48A675]',
   lifecycle: 'bg-indigo-50 text-indigo-600',
   sections: 'bg-blue-50 text-blue-600',
   accounts: 'bg-[#F2F6D0] text-[#9A9E4C]',
+  security: 'bg-rose-50 text-rose-600',
   content: 'bg-orange-50 text-orange-600',
   billing: 'bg-teal-50 text-teal-600',
 };
@@ -82,10 +95,12 @@ const AuditLog = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [activity, setActivity] = useState('all');
   const [period, setPeriod] = useState('today');
-  const [visible, setVisible] = useState(PAGE);
+  const [page, setPage] = useState(1);
+  const [alerts, setAlerts] = useState([]);
 
   useEffect(() => { (async () => setLog(await getAuditLog()))(); }, []);
-  useEffect(() => { setVisible(PAGE); }, [search, roleFilter, statusFilter, activity, period]);
+  useEffect(() => { mfaAlerts().then(setAlerts); }, []);
+  useEffect(() => { setPage(1); }, [search, roleFilter, statusFilter, activity, period]);
 
   const rows = useMemo(() => log.filter((r) => {
     const q = search.trim().toLowerCase();
@@ -96,7 +111,9 @@ const AuditLog = () => {
     return matchesSearch && matchesRole && matchesStatus && matchesActivity && inPeriod(r.created_at, period);
   }), [log, search, roleFilter, statusFilter, activity, period]);
 
-  const shown = rows.slice(0, visible);
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const safePage = Math.min(page, totalPages);
+  const shown = rows.slice((safePage - 1) * PAGE, safePage * PAGE);
 
   const today = new Date().toDateString();
   const todays = log.filter((r) => new Date(r.created_at).toDateString() === today);
@@ -114,10 +131,21 @@ const AuditLog = () => {
             <p className="text-slate-500 text-sm">Every sign-in and every action staff take across the system.</p>
           </div>
 
+          {alerts.length > 0 && (
+            <div className="mb-8 rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+              <p className="font-black text-red-700 flex items-center gap-2 mb-2">⚠️ Possible MFA brute-force</p>
+              <ul className="space-y-1 text-sm text-red-700">
+                {alerts.map((a) => (
+                  <li key={a.email}><b>{a.name || a.email}</b> — {a.fiveMin >= 5 ? `${a.fiveMin} failed MFA codes in the last 5 minutes` : `${a.hour} failed MFA codes in the last hour`}. Consider disabling the account or resetting its MFA.</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 max-w-3xl">
             <StatTile label="Logins Today" value={loginsToday} />
             <StatTile label="Failed Today" value={failedToday} accent="text-[#C55A5A]" />
-            <StatTile label="Staff Actions Today" value={actionsToday} accent="text-[#48A675]" />
+            <StatTile label="Actions Today" value={actionsToday} accent="text-[#48A675]" />
             <StatTile label="Total Events" value={log.length} />
           </div>
 
@@ -146,7 +174,7 @@ const AuditLog = () => {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, email, or detail…"
               className="flex-1 min-w-[220px] px-5 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm focus:outline-none focus:border-[#800000]" />
             <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm text-slate-600 cursor-pointer">
-              <option value="all">All Roles</option><option value="registrar">Registrar</option><option value="admin">Admin</option><option value="headadmin">HeadAdmin</option>
+              <option value="all">All Roles</option><option value="student">Student</option><option value="registrar">Registrar</option><option value="admin">Admin</option><option value="headadmin">HeadAdmin</option>
             </select>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-4 py-3 bg-white border border-gray-100 rounded-xl shadow-sm text-sm text-slate-600 cursor-pointer">
               <option value="all">All Results</option><option value="SUCCESS">Success</option><option value="FAILED">Failed</option>
@@ -208,10 +236,16 @@ const AuditLog = () => {
             </div>
 
             {rows.length > 0 && (
-              <div className="flex items-center justify-between pt-5 mt-2 border-t border-gray-50">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-5 mt-2 border-t border-gray-50">
                 <span className="text-xs font-semibold text-slate-400">Showing {shown.length} of {rows.length}</span>
-                {visible < rows.length && (
-                  <button onClick={() => setVisible((v) => v + PAGE)} className="px-6 py-2.5 bg-[#800000] text-white rounded-lg font-bold text-sm hover:bg-[#600000] cursor-pointer">Load More</button>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}
+                      className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-xs font-bold text-slate-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">‹ Prev</button>
+                    <span className="text-xs font-semibold text-slate-500">Page {safePage} of {totalPages}</span>
+                    <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}
+                      className="px-4 py-2 rounded-lg border border-gray-200 bg-white text-xs font-bold text-slate-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">Next ›</button>
+                  </div>
                 )}
               </div>
             )}

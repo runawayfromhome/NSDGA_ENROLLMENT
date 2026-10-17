@@ -77,13 +77,12 @@ NSDGA-enrollment/
 └─ supabase/
    ├─ schema.sql           # Core tables: profiles, audit_log + triggers + RLS
    ├─ students.sql         # applications table + RLS + enforce trigger
-   ├─ sections.sql (+ sections2/3/4.sql) # sections table + status/strand columns + unique index
-   ├─ billing.sql          # adds a `billing` jsonb column to applications
-   ├─ signup.sql           # otp_codes table (email OTP codes)
+   ├─ sections.sql          # sections table + status/strand columns + indexes
+   ├─ students.sql         # applications, billing, lifecycle, and otp_codes
    ├─ presence.sql         # presence table (who's online)
    ├─ seed.sql             # 5 demo staff accounts
    ├─ seed-students.sql    # 100 realistic demo students (demo data only)
-   ├─ indexes.sql / remove-mfa.sql / harden-production.sql / ...  # migrations + hardening
+   ├─ remove-mfa.sql / harden-production.sql / ...  # operational hardening
    └─ functions/           # Edge Functions (Deno/TypeScript), deployed to Supabase
       ├─ create-applicant/  # make student account + draft application
       ├─ create-staff/      # make staff account (HeadAdmin only)
@@ -288,14 +287,14 @@ For a **direct-DB** action (e.g., Registrar clicks **Enroll**), the shape is the
 
 **Row-Level Security (RLS) — the real backbone.** Even though the frontend talks to the database directly, PostgreSQL policies decide what each user can touch:
 - `profiles`: a user sees/edits only their own row; **only HeadAdmin** can read all rows, change roles, or enable/disable — enforced by the `is_headadmin()` helper + `enforce_profile_update` trigger ([`schema.sql`](../supabase/schema.sql)).
-- `applications`: a student sees only their own; **verified staff** (`is_staff()`) see all. A student **cannot** set their own `status` to enrolled or set a `student_no` or change `billing` — blocked by `enforce_application_update` ([`students.sql`](../supabase/students.sql), [`billing.sql`](../supabase/billing.sql)).
+- `applications`: a student sees only their own; **verified staff** (`is_staff()`) see all. A student **cannot** set their own `status` to enrolled or set a `student_no` or change `billing` — blocked by `enforce_application_update` ([`students.sql`](../supabase/students.sql)).
 - New sign-ups can **never** make themselves staff — `handle_new_user` forces role `student` for self-signups ([`students.sql`](../supabase/students.sql)).
 
 **Password handling:** passwords are managed by Supabase Auth (hashed with bcrypt in `auth.users`) — the app never stores plaintext passwords. The policy lives in one place, [`password.js`](../src/lib/password.js): students need 8+ chars with a letter and number; staff need 12+ with upper/lower/number/special. The server **re-checks** the staff policy in `create-staff`.
 
 **MFA (Two-Factor):** TOTP authenticator via Supabase `auth.mfa.*`. Staff mutation pages are gated by the `useMfaLock` hook ([`MfaLock.jsx`](../src/components/MfaLock.jsx)); privileged HeadAdmin actions are also enforced **server-side** (the Edge Functions check for a verified MFA factor). Lost authenticators are recovered via an **emailed OTP step-up** (`admin-remove-mfa`).
 
-**OTP codes** ([`signup.sql`](../supabase/signup.sql) `otp_codes` table): stored **hashed** (SHA-256 of `userId:code`), 10-minute expiry, max 5 attempts, ~30-second resend throttle. Used for signup, password reset, and the privileged step-ups (different `purpose` values).
+**OTP codes** ([`students.sql`](../supabase/students.sql) `otp_codes` table): stored **hashed** (SHA-256 of `userId:code`), 10-minute expiry, max 5 attempts, ~30-second resend throttle. Used for signup, password reset, and the privileged step-ups (different `purpose` values).
 
 **CORS & headers:** Edge Functions return permissive CORS headers (`Access-Control-Allow-Origin: *`) so the browser can call them. The hosted site sends a strict **Content-Security-Policy** and other security headers via [`vercel.json`](../vercel.json) — notably `connect-src 'self' https://*.supabase.co` (the app may only talk to itself and Supabase), `frame-ancestors 'none'`, and HSTS. *(This is why the chatbot/address data must be same-origin or Supabase — an external URL would be blocked.)*
 
@@ -314,7 +313,7 @@ Tables live in `public` (plus Supabase's built-in `auth.users`).
 | `applications` | id, **student_id** (→auth.users), school_year, grade_level, student_type, **status**, **form**(jsonb), **documents**(jsonb), **billing**(jsonb), student_no, review_note | The core record. One student can have many (one per school year). ([`students.sql`](../supabase/students.sql)) |
 | `sections` | id, school_year, grade, name, strand, adviser, capacity, status | Class sections. Linked to students only by `form.section` string (no FK). ([`sections.sql`](../supabase/sections.sql)) |
 | `site_content` | section (key), content(jsonb) | Public content + SHS strands. ([`content.js`](../src/lib/content.js)) |
-| `otp_codes` | user_id (→auth.users), code_hash, purpose, expires_at, attempts | Email OTP codes (hashed). ([`signup.sql`](../supabase/signup.sql)) |
+| `otp_codes` | user_id (→auth.users), code_hash, purpose, expires_at, attempts | Email OTP codes (hashed). ([`students.sql`](../supabase/students.sql)) |
 | `presence` | id (→auth.users), last_seen | "Who's online". ([`presence.sql`](../supabase/presence.sql)) |
 | `audit_log` | id, email, name, role, action, status, reason, device | Login/action history (snapshots values; no FK). ([`schema.sql`](../supabase/schema.sql)) |
 
@@ -488,7 +487,7 @@ npm run lint      # run ESLint
 3. **A few Edge Function sources were not opened** in this analysis (`send-reset-otp`, `reset-password`, `notify`, `admin-role-change`, `admin-set-password`). Their behavior is described from their callers; verify the source before relying on exact details.
 4. **`sections` ↔ `applications` is a soft link** (by `form.section` string, not a foreign key). Renaming a section must update member records in code (`renameSection` does this) — there's no database-level guarantee.
 5. **`audit_log` insert is open** to `anon, authenticated` (`with check (true)` in `schema.sql`) so failed logins can be recorded. That means the table could be written to by any client; it's read-restricted to HeadAdmin, but write-flooding is theoretically possible. *(Note only.)*
-6. **Unused/legacy files may exist** (e.g. `LoginOtp.jsx`, `readmit.sql`, `lifecycle2.sql`) — routes exist for some; confirm which are live before teaching them as current behavior.
+6. **Development-only scripts remain separate** (for example `seed.sql` and `seed-students.sql`) and must not be run in production.
 7. **The chatbot & duplicate-LRN features depend on manual deploys** (Edge Functions are deployed via the Supabase dashboard, not by `git push`) and on secrets/credits being set — if not deployed, those features return errors by design.
 
 ---

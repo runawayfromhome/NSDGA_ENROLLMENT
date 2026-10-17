@@ -1,7 +1,7 @@
 # NSDGA Enrollment Entity-Relationship Diagram
 
 This diagram represents the database structure defined by the Supabase
-migrations in [`supabase/migrations/`](../supabase/migrations/). It includes
+canonical SQL files in [`supabase/`](../supabase/). It includes
 the Supabase-managed `auth.users` and `storage.objects` entities because
 application records and uploaded documents depend on them.
 
@@ -123,9 +123,8 @@ erDiagram
 
 | Entity | Migration/source |
 | --- | --- |
-| `profiles`, `audit_log` | [`20260924005805_schema.sql`](../supabase/migrations/20260924005805_schema.sql) |
-| `applications` | [`20260924010124_students.sql`](../supabase/migrations/20260924010124_students.sql) |
-| `sections` | [`20260924005814_sections.sql`](../supabase/migrations/20260924005814_sections.sql) |
-| `presence` | [`20260924005747_presence.sql`](../supabase/migrations/20260924005747_presence.sql) |
-| `otp_codes` | [`signup.sql`](../supabase/signup.sql) |
-| Application lifecycle, billing, and section columns | [`SUPABASE-MIGRATIONS-ORDER.md`](../SUPABASE-MIGRATIONS-ORDER.md) |
+| `profiles`, `audit_log` | [`schema.sql`](../supabase/schema.sql) |
+| `applications`, `billing`, `otp_codes` | [`students.sql`](../supabase/students.sql) |
+| `sections` | [`sections.sql`](../supabase/sections.sql) |
+| `presence` | [`presence.sql`](../supabase/presence.sql) |
+| Application lifecycle and SQL setup order | [`SUPABASE-SQL-ORDER.md`](../SUPABASE-SQL-ORDER.md) |

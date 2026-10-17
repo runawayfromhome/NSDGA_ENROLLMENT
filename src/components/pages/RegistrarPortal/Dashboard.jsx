@@ -10,6 +10,7 @@ import UrgentTaskCard from '../../icons/RegistrarIcons/UrgentTaskCard';
 import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
 import { HiOutlineUserAdd, HiOutlineAcademicCap, HiOutlineExclamationCircle } from "react-icons/hi";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { getActiveSchoolYear } from '../../../lib/content';
 import { TableSkeleton, StatCardsSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
@@ -17,10 +18,14 @@ const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year:
 const Dashboard = () => {
   const navigate = useNavigate();
   const [apps, setApps] = useState(null);
+  const [activeYear, setActiveYear] = useState(''); // admin-set school year — counts reflect only this year
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
 
-  const all = apps || [];
+  // Registrar only sees the Admin's active school year, so every count below is
+  // scoped to it (consistent with the Applications / Documents / Sections pages).
+  const all = (apps || []).filter((a) => !activeYear || a.school_year === activeYear);
   const pending = all.filter((a) => ['submitted', 'under_review', 'needs_correction'].includes(a.status)).length;
   const enrolled = all.filter((a) => a.status === 'enrolled').length;
   const needsAction = all.filter((a) => a.status === 'needs_correction').length;
@@ -34,7 +39,7 @@ const Dashboard = () => {
         <main className="p-8 md:p-12 max-w-[1400px]">
           <div className="mb-10">
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Registrar Overview</h1>
-            <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Academic Year 2026-2027</p>
+            <p className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Academic Year {activeYear || '…'} · set by Admin</p>
           </div>
 
           <MfaReminder settingsPath="/RegistrarPortal/Settings" />

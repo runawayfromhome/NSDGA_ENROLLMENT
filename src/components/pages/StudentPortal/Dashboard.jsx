@@ -5,10 +5,10 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
-import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus } from '../../../lib/student';
+import { getMyApplication, getMyApplications, reEnroll, STATUS_LABEL, APP_STEPS, isEnrolledStatus, REQUIRED_DOCS } from '../../../lib/student';
 import { getAnnouncements, getEnrollment, isEnrollmentOpen, formatEventDate } from '../../../lib/content';
 import { nextGrade, nextSchoolYear, isSHSGrade, SHS_STRANDS } from '../../../lib/grades';
-import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup } from "react-icons/hi";
+import { HiOutlineClipboardCheck, HiOutlineAcademicCap, HiOutlineIdentification, HiOutlineSpeakerphone, HiOutlineArrowCircleUp, HiOutlineClock, HiOutlineUserGroup, HiOutlineExclamationCircle } from "react-icons/hi";
 import { StatCardsSkeleton, CardSkeleton } from '../../Skeleton';
 import AnnouncementsModal from '../../icons/StudentPortalIcons/AnnouncementsModal';
 
@@ -68,6 +68,12 @@ const Dashboard = () => {
   // Moving into Senior High requires picking a strand (unless one already exists).
   const needsStrand = !!ng && isSHSGrade(ng) && !app?.form?.strand;
 
+  // Documents the Registrar returned for re-upload (status 'rejected') — surfaced
+  // here so an enrolled student sees it immediately, not just on My Documents.
+  const rejectedDocs = app?.documents
+    ? REQUIRED_DOCS.filter((d) => app.documents[d.key]?.status === 'rejected').map((d) => d.label)
+    : [];
+
   const doReEnroll = async () => {
     if (needsStrand && !strand) return;
     setBusy(true);
@@ -88,6 +94,18 @@ const Dashboard = () => {
               {app ? `${gradeText}${app.form?.sectionApproved && app.form?.section ? ` · Section ${app.form.section}` : ''} · S.Y. ${app.school_year}` : 'Student Overview'}
             </p>
           </div>
+
+          {/* Documents returned for re-upload — needs immediate action */}
+          {rejectedDocs.length > 0 && (
+            <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-6 mb-8 flex flex-wrap items-center gap-4">
+              <HiOutlineExclamationCircle className="text-red-600 shrink-0" size={30} />
+              <div className="flex-1 min-w-[220px]">
+                <p className="font-bold text-red-800">Action needed — document re-upload</p>
+                <p className="text-sm text-red-700 mt-0.5">The Registrar returned these for correction: <b>{rejectedDocs.join(', ')}</b>. Please upload a corrected copy.</p>
+              </div>
+              <NavLink to="/StudentPortal/Documents" className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm shrink-0">Go to My Documents →</NavLink>
+            </div>
+          )}
 
           {/* Re-enrollment under review (continuing student) */}
           {reenrolling && (

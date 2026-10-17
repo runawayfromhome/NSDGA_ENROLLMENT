@@ -62,11 +62,77 @@ export async function getStaffAccounts() {
   return data;
 }
 
+// ---- Active-account limits (per staff role) --------------------------------
+// How many VERIFIED + ENABLED accounts a role may have at once. HeadAdmin-set,
+// stored in site_content('account_limits'); defaults below. Students are never
+// capped. Enforced when an account would BECOME active (verify / enable / role
+// change) — creating a pending account is always allowed. Backed server-side by
+// the trg_enforce_account_limit trigger (supabase/account-limits.sql).
+export const ACCOUNT_LIMIT_DEFAULTS = { headadmin: 2, admin: 4, registrar: 15 };
+const LIMITED_ROLES = ['headadmin', 'admin', 'registrar'];
+
+export async function getAccountLimits() {
+  const { data } = await supabase.from('site_content').select('content').eq('section', 'account_limits').maybeSingle();
+  return { ...ACCOUNT_LIMIT_DEFAULTS, ...(data?.content || {}) };
+}
+
+// Saving account limits is step-up protected (emailed code), since raising a cap
+// could let someone add rogue staff. admin-account-limits Edge Function:
+//   { }               → emails a 6-digit code to the HeadAdmin
+//   { limits, code }   → verifies the code, then writes the new limits
+export async function requestAccountLimitsOtp() {
+  const { data, error } = await supabase.functions.invoke('admin-account-limits', { body: {} });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  return { ok: true, sentTo: data.sentTo };
+}
+export async function saveAccountLimitsWithOtp(limits, code) {
+  const { data, error } = await supabase.functions.invoke('admin-account-limits', { body: { limits, code } });
+  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not save the limits.' };
+  if (data && data.error) return { ok: false, error: data.error };
+  const l = data.limits || {};
+  logAction('CONTENT_EDIT', `Updated account limits: HeadAdmin ${l.headadmin} · Admin ${l.admin} · Registrar ${l.registrar}`);
+  return { ok: true, limits: l };
+}
+
+// Count of active (verified + enabled) accounts per limited role, with the cap.
+export async function getAccountUsage() {
+  const limits = await getAccountLimits();
+  const { data } = await supabase.from('profiles').select('role, status, disabled').in('role', LIMITED_ROLES);
+  const out = {};
+  for (const r of LIMITED_ROLES) {
+    const active = (data || []).filter((p) => p.role === r && p.status === STATUS.VERIFIED && !p.disabled).length;
+    out[r] = { active, cap: Number(limits[r]) || 0 };
+  }
+  return out;
+}
+
+// Returns { ok } or { ok:false, error } — blocks if the role is already at its
+// active cap. `excludeId` ignores one account (e.g. the one being changed).
+async function enforceActiveCap(role, excludeId = null) {
+  if (!LIMITED_ROLES.includes(role)) return { ok: true }; // students unlimited
+  const limits = await getAccountLimits();
+  const cap = Number(limits[role]) || 0;
+  let q = supabase.from('profiles').select('id', { count: 'exact', head: true })
+    .eq('role', role).eq('status', STATUS.VERIFIED).eq('disabled', false);
+  if (excludeId) q = q.neq('id', excludeId);
+  const { count, error } = await q;
+  if (error) return { ok: true }; // fail-open: never block account ops on a count error
+  if ((count || 0) >= cap) {
+    const label = role === 'headadmin' ? 'Head Administrator' : role.charAt(0).toUpperCase() + role.slice(1);
+    return { ok: false, error: `Active ${label} limit reached (${cap}). Disable an existing ${label} account first, or raise the limit in Settings → Account Limits.` };
+  }
+  return { ok: true };
+}
+
 // Create a staff account. Uses a Supabase Edge Function (`create-staff`) so it
 // works with public sign-ups DISABLED. (Deployed in the #4 lockdown step — until
 // then this returns a helpful error.)
 export async function createAccount({ name, email, password, role }) {
   if (!name || !email || !password || !role) return { ok: false, error: 'All fields are required.' };
+  // Creating only makes a PENDING account (not active), so it is never capped
+  // here — the active-account cap is enforced when the account would BECOME
+  // active: at verify / enable / role change.
   const { data, error } = await supabase.functions.invoke('create-staff', {
     body: { name, email, password, role },
   });
@@ -85,6 +151,14 @@ async function targetName(id) {
 
 // HeadAdmin actions (RLS + the enforce trigger allow these only for HeadAdmin).
 export async function setDisabled(id, disabled) {
+  // Re-enabling a VERIFIED account makes it active again — respect the role cap.
+  if (disabled === false) {
+    const p = await fetchProfileById(id);
+    if (p?.status === STATUS.VERIFIED) {
+      const cap = await enforceActiveCap(p.role, id);
+      if (!cap.ok) return cap;
+    }
+  }
   const { error } = await supabase.from('profiles').update({ disabled }).eq('id', id);
   if (!error) logAction(disabled ? 'ACCOUNT_DISABLE' : 'ACCOUNT_ENABLE', `${disabled ? 'Disabled' : 'Enabled'} account: ${await targetName(id)}`);
   return { ok: !error, error: error?.message };
@@ -105,6 +179,14 @@ export async function requestAdminOtp() {
   return { ok: true, sentTo: data.sentTo };
 }
 export async function changeRoleWithOtp(targetUserId, newRole, code, targetName) {
+  // Moving an ACTIVE account into a role that's already at its cap would push it
+  // over — block before spending the OTP. (excludeId: this account doesn't count
+  // toward the destination unless it's already that role.)
+  const p = await fetchProfileById(targetUserId);
+  if (p && p.status === STATUS.VERIFIED && !p.disabled && p.role !== newRole) {
+    const cap = await enforceActiveCap(newRole, targetUserId);
+    if (!cap.ok) return cap;
+  }
   const { data, error } = await supabase.functions.invoke('admin-role-change', { body: { targetUserId, newRole, code } });
   if (error && !(data && data.error)) return { ok: false, error: error.message || 'Role change failed.' };
   if (data && data.error) return { ok: false, error: data.error };
@@ -112,7 +194,7 @@ export async function changeRoleWithOtp(targetUserId, newRole, code, targetName)
     `${newRole === 'headadmin' ? 'Promoted to HeadAdmin' : 'Changed role to ' + newRole}: ${targetName || targetUserId}`);
   return { ok: true };
 }
-// admin-set-password Edge Function (HeadAdmin-only + OTP): reset a staff password.
+// admin-set-password Edge Function (HeadAdmin→staff, Admin→student; OTP step-up): reset a password.
 export async function requestSetPasswordOtp() {
   const { data, error } = await supabase.functions.invoke('admin-set-password', { body: {} });
   if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
@@ -144,6 +226,12 @@ export async function removeUserMfa(targetUserId, code, targetName) {
 }
 
 export async function verifyAccount(id) {
+  // Verifying makes the account active — respect the role cap.
+  const p = await fetchProfileById(id);
+  if (p) {
+    const cap = await enforceActiveCap(p.role, id);
+    if (!cap.ok) return cap;
+  }
   const { error } = await supabase.from('profiles')
     .update({ status: STATUS.VERIFIED, verified_at: new Date().toISOString() }).eq('id', id);
   if (!error) logAction('ACCOUNT_VERIFY', `Verified account: ${await targetName(id)}`);
@@ -184,19 +272,27 @@ export async function getAuditLog() {
   if (error) return [];
   return data;
 }
+// All audit writes go through the log_event() SECURITY DEFINER function, which
+// stamps email/name/role from the JWT — not from client input — so the audit
+// trail can't be forged (see supabase/schema.sql). `entry.email`
+// is used only as the attempted email for a FAILED login (no session yet).
 export async function recordAudit(entry) {
-  await supabase.from('audit_log').insert({ device: shortDevice(), ...entry });
+  try {
+    await supabase.rpc('log_event', {
+      p_action: entry.action,
+      p_status: entry.status || 'SUCCESS',
+      p_reason: entry.reason || '',
+      p_device: entry.device || shortDevice(),
+      p_attempt_email: entry.email || null,
+    });
+  } catch { /* never block the action being logged */ }
 }
 
-// Record an ACTION the current staff member performed (enroll, reject, etc.).
-// Fire-and-forget — never blocks the action it accompanies.
+// Record an ACTION the current user performed (enroll, reject, etc.). Identity is
+// derived server-side by log_event(). Fire-and-forget — never blocks the action.
 export async function logAction(action, detail) {
   try {
-    const { data: u } = await supabase.auth.getUser();
-    if (!u?.user) return;
-    const p = await fetchProfileById(u.user.id);
-    if (!p) return;
-    await recordAudit({ email: p.email, name: p.name, role: p.role, action, status: 'SUCCESS', reason: detail || '' });
+    await supabase.rpc('log_event', { p_action: action, p_reason: detail || '', p_device: shortDevice() });
   } catch { /* logging must never break the action */ }
 }
 
@@ -281,12 +377,14 @@ export async function activateMfa(factorId, code) {
   if (chErr) return { ok: false, error: chErr.message };
   const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
   if (vErr) return { ok: false, error: 'That code was not accepted. Check the app and try again.' };
+  logAction('MFA_ENABLE', 'Enabled Multi-Factor Authentication');
   return { ok: true };
 }
 
 // Turn MFA off.
 export async function disableMfa(factorId) {
   const { error } = await supabase.auth.mfa.unenroll({ factorId });
+  if (!error) logAction('MFA_DISABLE', 'Disabled Multi-Factor Authentication');
   return { ok: !error, error: error?.message };
 }
 
@@ -308,11 +406,25 @@ export async function verifyMfaChallenge(factorId, code) {
   const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
   if (chErr) return { ok: false, error: chErr.message };
   const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
-  return { ok: !vErr, error: vErr ? 'Invalid authenticator code.' : null };
+  if (vErr) { await recordMfaFail('Invalid authenticator code (step-up)'); return { ok: false, error: 'Invalid authenticator code.' }; }
+  return { ok: true, error: null };
+}
+
+// Record a failed MFA attempt to the audit log (fuels the HeadAdmin alert in
+// mfaAlerts). Best-effort — never blocks the flow.
+async function recordMfaFail(reason) {
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u?.user) return;
+    const p = await fetchProfileById(u.user.id);
+    if (!p) return;
+    await recordAudit({ email: p.email, name: p.name, role: p.role, action: 'MFA_FAIL', status: 'FAILED', reason: reason || 'Invalid authenticator code' });
+  } catch { /* logging must never break auth */ }
 }
 
 export async function changePassword(newPassword) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (!error) logAction('PASSWORD_CHANGE', 'Changed own password');
   return { ok: !error, error: error?.message };
 }
 
@@ -320,11 +432,30 @@ export async function verifyMfaLogin(factorId, code) {
   const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
   if (chErr) return { ok: false, error: chErr.message };
   const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
-  if (vErr) return { ok: false, error: 'Invalid code. Please try again.' };
+  if (vErr) { await recordMfaFail('Invalid authenticator code at login'); return { ok: false, error: 'Invalid code. Please try again.' }; }
   const { data: u } = await supabase.auth.getUser();
   const profile = await fetchProfileById(u.user.id);
   await recordAudit({ email: profile.email, name: profile.name, role: profile.role, action: 'LOGIN', status: 'SUCCESS' });
   return { ok: true, profile };
+}
+
+// HeadAdmin alert: scan the last hour of MFA_FAIL rows and flag users with a
+// brute-force pattern — 5+ failures in 5 minutes, or 20+ in the last hour.
+export async function mfaAlerts() {
+  const sinceHour = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase.from('audit_log')
+    .select('email, name, created_at')
+    .eq('action', 'MFA_FAIL').gte('created_at', sinceHour)
+    .order('created_at', { ascending: false }).limit(2000);
+  if (error) return [];
+  const now = Date.now();
+  const byUser = {};
+  (data || []).forEach((r) => {
+    const u = byUser[r.email] || (byUser[r.email] = { email: r.email, name: r.name, hour: 0, fiveMin: 0, lastAt: r.created_at });
+    u.hour += 1;
+    if (now - new Date(r.created_at).getTime() <= 5 * 60 * 1000) u.fiveMin += 1;
+  });
+  return Object.values(byUser).filter((u) => u.fiveMin >= 5 || u.hour >= 20);
 }
 
 export async function signOutWithAudit(sessionInfo) {

@@ -12,6 +12,11 @@
 // Deploy:   supabase functions deploy chatbot
 // Secret:   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 //           (set it in the Supabase dashboard → Edge Functions → Secrets)
+// Needs:    public.chat_rate_check() (see supabase/chatbot-ratelimit.sql).
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const RATE_LIMIT = 20;   // max chat requests ...
+const RATE_WINDOW = 60;  // ... per this many seconds, per IP (abuse / cost guard)
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +72,21 @@ Deno.serve(async (req) => {
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) return json({ error: 'The assistant is not configured on the server.' }, 500);
+
+  // Per-IP rate limit (F-04) so a script can't drain Anthropic credits. Fails
+  // open: if the limiter itself errors, the chat still works.
+  try {
+    const sbUrl = Deno.env.get('SUPABASE_URL');
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (sbUrl && serviceKey) {
+      const ip = (req.headers.get('cf-connecting-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0] || '').trim();
+      const admin = createClient(sbUrl, serviceKey);
+      const { data: allowed } = await admin.rpc('chat_rate_check', { p_ip: ip, p_limit: RATE_LIMIT, p_window_secs: RATE_WINDOW });
+      if (allowed === false) {
+        return json({ error: 'You are sending messages too quickly. Please wait a moment and try again.' }, 429);
+      }
+    }
+  } catch { /* limiter unavailable — don't block legitimate users */ }
 
   try {
     const body = await req.json().catch(() => ({}));

@@ -8,9 +8,10 @@ import {
   HiOutlineFolder, 
   HiOutlineAcademicCap,
   HiOutlineUserGroup,
+  HiOutlineClock,
   HiOutlineUser,
   HiOutlineCog,
-  HiOutlineLogout 
+  HiOutlineLogout
 } from "react-icons/hi";
 
 const RegistrarSidebar = ({ activePage }) => {
@@ -29,6 +30,7 @@ const RegistrarSidebar = ({ activePage }) => {
     { name: 'Documents', icon: HiOutlineFolder, path: '/RegistrarPortal/Documents' },
     { name: 'Student Records', icon: HiOutlineAcademicCap, path: '/RegistrarPortal/StudentRecords' },
     { name: 'Sections', icon: HiOutlineUserGroup, path: '/RegistrarPortal/Sections' },
+    { name: 'History', icon: HiOutlineClock, path: '/RegistrarPortal/History' },
     { name: 'My Profile', icon: HiOutlineUser, path: '/RegistrarPortal/Profile' },
     { name: 'Settings', icon: HiOutlineCog, path: '/RegistrarPortal/Settings' },
   ];

@@ -135,7 +135,7 @@ const StudentProfile = () => {
           <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mt-8 mb-6">Parent / Guardian &amp; Academic</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
             <D label="Father" v={f.fatherName} /><D label="Mother" v={f.motherName} /><D label="Guardian" v={f.guardianName} />
-            <D label="Guardian Contact" v={f.guardianContact} /><D label="Last School" v={f.lastSchool} /><D label="GWA" v={f.gwa} />
+            <D label="Guardian Contact" v={f.guardianContact} /><D label="Last School" v={f.lastSchool} /><D label="Prev. School Type" v={f.prevSchoolType} /><D label="GWA" v={f.gwa} />
           </div>
         </div>
 

@@ -74,11 +74,19 @@ export const DEFAULT_ENROLLMENT = {
   activeSchoolYear: '2026-2027',
   seasonStart: '', // YYYY-MM-DD (optional dated window)
   seasonEnd: '',
+  maxSectionsPerGrade: 20, // anti-spam cap per grade/strand (Admin can raise it)
 };
 
 export async function getEnrollment() {
   const e = await getSection('enrollment');
   return { ...DEFAULT_ENROLLMENT, ...e, announcements: e.announcements || [] };
+}
+
+// The Admin-configured section cap per grade (per strand for SHS). Default 20.
+export async function getMaxSectionsPerGrade() {
+  const e = await getEnrollment();
+  const n = Number(e.maxSectionsPerGrade);
+  return Number.isFinite(n) && n > 0 ? n : 20;
 }
 
 // Enrollment is open when the master switch is ON and — if a dated window is

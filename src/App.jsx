@@ -28,6 +28,7 @@ const Notification = lazy(() => import('./components/pages/StudentPortal/Notific
 const Application = lazy(() => import('./components/pages/StudentPortal/ApplicationStatus'));
 const StudentDashboard = lazy(() => import('./components/pages/StudentPortal/Dashboard'));
 const Documents = lazy(() => import('./components/pages/StudentPortal/Documents'));
+const StudentActivity = lazy(() => import('./components/pages/StudentPortal/Activity'));
 const Profile = lazy(() => import('./components/pages/StudentPortal/Profile'));
 const Setting = lazy(() => import('./components/pages/StudentPortal/Setting'));
 const LoginPage = lazy(() => import('./components/pages/RegistrarPortal/LoginPage'));
@@ -39,6 +40,7 @@ const RegistrarSettings = lazy(() => import('./components/pages/RegistrarPortal/
 const StudentRecords = lazy(() => import('./components/pages/RegistrarPortal/StudentRecords'));
 const StudentProfile = lazy(() => import('./components/pages/RegistrarPortal/StudentProfile'));
 const Sections = lazy(() => import('./components/pages/RegistrarPortal/Sections'));
+const RegistrarHistory = lazy(() => import('./components/pages/RegistrarPortal/History'));
 const Document = lazy(() => import('./components/pages/RegistrarPortal/Documents'));
 const DocuStudentProfile = lazy(() => import('./components/pages/RegistrarPortal/DocuStudentProfile'));
 const EditContactUs = lazy(() => import('./components/pages/AdminPortal/EditContactUs'));
@@ -49,7 +51,8 @@ const EditEnrollment = lazy(() => import('./components/pages/AdminPortal/EditEnr
 const EditStrands = lazy(() => import('./components/pages/AdminPortal/EditStrands'));
 const SectionApprovals = lazy(() => import('./components/pages/AdminPortal/SectionApprovals'));
 const Billing = lazy(() => import('./components/pages/AdminPortal/Billing'));
-const StudentMfa = lazy(() => import('./components/pages/AdminPortal/StudentMfa'));
+const ManageStudent = lazy(() => import('./components/pages/AdminPortal/ManageStudent'));
+const AdminActivity = lazy(() => import('./components/pages/AdminPortal/Activity'));
 const AdminLogin = lazy(() => import('./components/pages/AdminPortal/Login'));
 const AdminDashboard = lazy(() => import('./components/pages/AdminPortal/Dashboard'));
 const AdminProfile = lazy(() => import('./components/pages/AdminPortal/MyProfile'));
@@ -95,6 +98,7 @@ function App() {
       <Route path="/StudentPortal/Dashboard" element={<ProtectedRoute allow={['student']} requireEnrolled><StudentDashboard /></ProtectedRoute>} />
       <Route path="/StudentPortal/Notifications" element={<ProtectedRoute allow={['student']} requireEnrolled><Notification /></ProtectedRoute>} />
       <Route path="/StudentPortal/Documents" element={<ProtectedRoute allow={['student']} requireEnrolled><Documents /></ProtectedRoute>} />
+      <Route path="/StudentPortal/Activity" element={<ProtectedRoute allow={['student']} requireEnrolled><StudentActivity /></ProtectedRoute>} />
       <Route path="/StudentPortal/Profile" element={<ProtectedRoute allow={['student']} requireEnrolled><Profile /></ProtectedRoute>} />
       <Route path="/StudentPortal/Settings" element={<ProtectedRoute allow={['student']} requireEnrolled><Setting /></ProtectedRoute>} />
       {/* Registrar portal — login public; ProfileSetup requires login only; the rest require a VERIFIED registrar */}
@@ -108,6 +112,7 @@ function App() {
       <Route path="/RegistrarPortal/StudentRecords" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentRecords /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Student/:studentId" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><StudentProfile /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Sections" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Sections /></ProtectedRoute>} />
+      <Route path="/RegistrarPortal/History" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><RegistrarHistory /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/Documents" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><Document /></ProtectedRoute>} />
       <Route path="/RegistrarPortal/DocuStudentProfile" element={<ProtectedRoute allow={['registrar']} loginPath="/RegistrarPortal/Login" requireVerified><DocuStudentProfile /></ProtectedRoute>} />
 
@@ -119,7 +124,8 @@ function App() {
       <Route path="/AdminPortal/Settings" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminSettings /></ProtectedRoute>} />
       <Route path="/AdminPortal/SectionApprovals" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><SectionApprovals /></ProtectedRoute>} />
       <Route path="/AdminPortal/Billing" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><Billing /></ProtectedRoute>} />
-      <Route path="/AdminPortal/StudentMfa" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><StudentMfa /></ProtectedRoute>} />
+      <Route path="/AdminPortal/ManageStudent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><ManageStudent /></ProtectedRoute>} />
+      <Route path="/AdminPortal/Activity" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminActivity /></ProtectedRoute>} />
       <Route path="/AdminPortal/MfaSetup" element={<ProtectedRoute allow={['admin']} loginPath="/AdminPortal/Login" requireVerified skipMfaGate><MfaSetup /></ProtectedRoute>} />
       <Route path="/AdminPortal/EditContactUs" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditContactUs /></AdminLayout></ProtectedRoute>} />
       <Route path="/AdminPortal/EditSchoolEvent" element={<ProtectedRoute allow={['admin', 'headadmin']} loginPath="/AdminPortal/Login" requireVerified><AdminLayout><EditSchoolEvent /></AdminLayout></ProtectedRoute>} />

@@ -20,12 +20,13 @@ const json = (body: unknown) =>
   new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } });
 
 // Cloudflare Turnstile — verify the "I'm not a robot" token server-side so a bot
-// can't call this public endpoint directly. Falls back to Cloudflare's official
-// TEST secret (always passes) when TURNSTILE_SECRET isn't set, so the demo works
-// without a Cloudflare account. Set the real secret before go-live.
-const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET') || '1x0000000000000000000000000000000AA';
+// can't call this public endpoint directly. FAIL CLOSED: if TURNSTILE_SECRET is
+// not set, no signup is allowed (security review F-02). For the demo, set
+// TURNSTILE_SECRET to Cloudflare's test secret (1x000...AA, always passes) as an
+// explicit, deliberate choice — then swap in the real secret before go-live.
+const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET');
 async function verifyCaptcha(token: string, ip: string | null): Promise<boolean> {
-  if (!token) return false;
+  if (!TURNSTILE_SECRET || !token) return false; // no secret configured => fail closed
   try {
     const body = new FormData();
     body.append('secret', TURNSTILE_SECRET);
@@ -60,10 +61,26 @@ Deno.serve(async (req) => {
     const clean = String(email).trim().toLowerCase();
     const name = `${form.firstName || ''} ${form.lastName || ''}`.trim() || clean;
 
+    // Server-side format validation (mirror of the client's rules). The browser's
+    // checks can be bypassed via dev tools, so re-enforce the important ones here.
+    const PHONE_RE = /^09\d{9}$/;
+    const GMAIL_RE = /^[^\s@]+@gmail\.com$/i;
+    const pw = String(password);
+    const fn = String(form.firstName || '').trim();
+    const ln = String(form.lastName || '').trim();
+    const phone = String(contact || form.contact || '').trim();
+    if (!fn || !ln) return json({ error: 'First and last name are required.' });
+    if (!GMAIL_RE.test(clean)) return json({ error: 'Please use a valid Gmail address (must end with @gmail.com).' });
+    if (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw)) {
+      return json({ error: 'Password must be at least 8 characters and include a letter and a number.' });
+    }
+    if (!PHONE_RE.test(phone)) return json({ error: 'Enter a valid mobile number (09XXXXXXXXX).' });
+
     // 0) Reject a duplicate LRN — one learner can't register twice. (Skipped for
     //    incoming Grade 1 / no-LRN applicants, whose LRN is blank.)
     const lrn = String(form.lrn || '').trim();
     if (lrn) {
+      if (!/^\d{12}$/.test(lrn)) return json({ error: 'LRN must be 12 digits.' });
       const { data: dup } = await admin.from('applications').select('id').filter('form->>lrn', 'eq', lrn).limit(1);
       if (dup && dup.length) {
         return json({ error: 'This LRN is already registered. If you already have an account, please log in instead.' });

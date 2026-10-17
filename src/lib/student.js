@@ -3,6 +3,19 @@
 // application, and read/track it. Backed by Supabase Auth + `applications`.
 import { supabase } from './supabase';
 import { nextGrade, nextSchoolYear, levelOfGrade, isSHSGrade } from './grades';
+import { logAction, recordAudit } from '../auth/authStore';
+
+// Surface the REAL error an Edge Function returned. supabase-js collapses any
+// non-2xx response into a generic FunctionsHttpError ("Edge Function returned a
+// non-2xx status code"); the actual { error } message lives in the response
+// body, reachable via error.context.
+async function fnError(error, fallback) {
+  try {
+    const body = await error?.context?.json?.();
+    if (body?.error) return body.error;
+  } catch { /* body not JSON — fall through */ }
+  return error?.message || fallback;
+}
 
 // The application lifecycle, in order, with friendly labels.
 export const APP_STEPS = [
@@ -51,15 +64,18 @@ export async function uploadStudentDoc(appId, docKey, file) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: 'You are not signed in.' };
   const ext = (file.name.split('.').pop() || 'dat').toLowerCase();
-  const path = `${user.id}/${docKey}-${Date.now()}.${ext}`;
+  // Stable path per document key + upsert, so re-uploading OVERWRITES the same
+  // object instead of accumulating unbounded files in storage (security F-05).
+  const path = `${user.id}/${docKey}.${ext}`;
   const { error: upErr } = await supabase.storage.from('student-docs')
-    .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    .upload(path, file, { upsert: true, contentType: file.type || undefined });
   if (upErr) return { ok: false, error: upErr.message };
 
   const app = await getMyApplication();
   const documents = { ...(app?.documents || {}), [docKey]: { path, name: file.name, size: file.size, uploadedAt: new Date().toISOString(), status: 'uploaded' } };
   const { error } = await supabase.from('applications').update({ documents }).eq('id', appId);
   if (error) return { ok: false, error: error.message };
+  logAction('DOC_UPLOAD', `Uploaded document (${docKey})`);
   return { ok: true, documents };
 }
 
@@ -79,13 +95,12 @@ export async function applyAsStudent({ email, password, contact, level, studentT
   const { data, error } = await supabase.functions.invoke('create-applicant', {
     body: { email: clean, password, contact, level, studentType, form },
   });
-  if (error && !(data && data.error)) {
-    return { ok: false, error: error.message || 'Could not submit — is the create-applicant function deployed?' };
-  }
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not submit — is the create-applicant function deployed?') };
+  if (data?.error) return { ok: false, error: data.error };
 
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
+  logAction('APPLY_SUBMIT', `Submitted application${level ? ' for ' + level : ''}`);
   return { ok: true, userId: data.userId };
 }
 
@@ -98,10 +113,11 @@ export async function createApplicantAccount({ firstName, middleName, lastName, 
   const { data, error } = await supabase.functions.invoke('create-applicant', {
     body: { email: clean, password, contact: phone, level: null, studentType: null, form, captchaToken },
   });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not create your account — is create-applicant deployed?' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not create your account — is create-applicant deployed?') };
+  if (data?.error) return { ok: false, error: data.error };
   const { error: sErr } = await supabase.auth.signInWithPassword({ email: clean, password });
   if (sErr) return { ok: false, error: sErr.message };
+  logAction('APPLY_SIGNUP', 'Created applicant account');
   return { ok: true, appId: data.appId, userId: data.userId };
 }
 
@@ -118,16 +134,17 @@ export async function saveApplicationDraft(id, { form, grade_level, student_type
 // Email a 6-digit code to the signed-in applicant.
 export async function requestSignupOtp() {
   const { data, error } = await supabase.functions.invoke('send-otp', { body: {} });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not send the code.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true, sentTo: data.sentTo };
 }
 
 // Verify the code → completes registration (draft becomes submitted).
 export async function verifySignupOtp(code) {
   const { data, error } = await supabase.functions.invoke('verify-otp', { body: { code } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Verification failed.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Verification failed.') };
+  if (data?.error) return { ok: false, error: data.error };
+  logAction('APPLY_SUBMIT', 'Submitted application (email verified)');
   return { ok: true };
 }
 
@@ -135,13 +152,18 @@ export async function verifySignupOtp(code) {
 export async function signInStudent(email, password) {
   const clean = (email || '').trim().toLowerCase();
   const { data, error } = await supabase.auth.signInWithPassword({ email: clean, password });
-  if (error) return { ok: false, error: 'Invalid email or password.' };
-  const { data: profile } = await supabase.from('profiles').select('role, disabled').eq('id', data.user.id).single();
+  if (error) {
+    await recordAudit({ email: clean, name: clean, role: 'student', action: 'LOGIN', status: 'FAILED', reason: 'Invalid email or password' });
+    return { ok: false, error: 'Invalid email or password.' };
+  }
+  const { data: profile } = await supabase.from('profiles').select('role, disabled, name').eq('id', data.user.id).single();
   if (!profile || profile.role !== 'student') {
+    await recordAudit({ email: clean, name: profile?.name || clean, role: profile?.role || 'unknown', action: 'LOGIN', status: 'FAILED', reason: 'Wrong portal (not a student account)' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This is the Student portal. Please use your staff portal instead.' };
   }
   if (profile.disabled) {
+    await recordAudit({ email: clean, name: profile.name, role: 'student', action: 'LOGIN', status: 'FAILED', reason: 'Account disabled' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This account has been disabled. Please contact the Registrar.' };
   }
@@ -150,9 +172,11 @@ export async function signInStudent(email, password) {
     .select('status').eq('student_id', data.user.id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (app && ['withdrawn', 'graduated', 'archived'].includes(app.status)) {
+    await recordAudit({ email: clean, name: profile.name, role: 'student', action: 'LOGIN', status: 'FAILED', reason: 'Inactive student account' });
     await supabase.auth.signOut();
     return { ok: false, error: 'This student account is inactive. Please contact the Registrar.' };
   }
+  await recordAudit({ email: clean, name: profile.name, role: 'student', action: 'LOGIN', status: 'SUCCESS' });
   return { ok: true, userId: data.user.id };
 }
 
@@ -219,6 +243,7 @@ export async function resubmitApplication(id, form) {
   const { error } = await supabase.from('applications')
     .update({ form: merged, status: 'submitted', submitted_at: new Date().toISOString() })
     .eq('id', id);
+  if (!error) logAction('APPLY_RESUBMIT', `Resubmitted application (attempt ${count})`);
   return { ok: !error, error: error?.message, count };
 }
 
@@ -250,24 +275,24 @@ export async function setNewPassword(password) {
 // whether the account exists).
 export async function sendResetOtp(email) {
   const { data, error } = await supabase.functions.invoke('send-reset-otp', { body: { email: (email || '').trim().toLowerCase() } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Could not send the code.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 
 // Step 2: verify the code (does NOT consume it — the final step re-checks).
 export async function verifyResetOtp(email, code) {
   const { data, error } = await supabase.functions.invoke('reset-password', { body: { email: (email || '').trim().toLowerCase(), code } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Verification failed.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Verification failed.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 
 // Step 3: set the new password using the verified code.
 export async function resetPasswordWithOtp(email, code, newPassword) {
   const { data, error } = await supabase.functions.invoke('reset-password', { body: { email: (email || '').trim().toLowerCase(), code, newPassword } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Reset failed.' };
-  if (data && data.error) return { ok: false, error: data.error };
+  if (error) return { ok: false, error: await fnError(error, 'Reset failed.') };
+  if (data?.error) return { ok: false, error: data.error };
   return { ok: true };
 }
 
