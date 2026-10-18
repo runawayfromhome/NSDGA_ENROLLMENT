@@ -18,8 +18,12 @@ declare
   cap      int;
   n        int;
 begin
-  -- Seed / service-role writes (no interactive user) are exempt.
-  if auth.uid() is null then return new; end if;
+  -- Seed / service-role writes (no interactive user) are exempt. Also exempt any
+  -- NON-HeadAdmin caller: only a HeadAdmin can legitimately change roles / verify
+  -- accounts, so an illegitimate change (e.g. a student self-promoting) should be
+  -- stopped by enforce_profile_update ("Not allowed to change role") instead of
+  -- this cap — which otherwise leaks the role count to the attacker (QA-1).
+  if auth.uid() is null or not public.is_headadmin() then return new; end if;
   -- Only staff roles are limited.
   if new.role not in ('headadmin','admin','registrar') then return new; end if;
   -- Only care when the NEW row would be active.

@@ -15,8 +15,8 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const json = (body: unknown) =>
-  new Response(JSON.stringify(body), { headers: { ...cors, 'Content-Type': 'application/json' } });
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -31,35 +31,35 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('Authorization') ?? '';
     const caller = createClient(url, anonKey, { global: { headers: { Authorization: authHeader } } });
     const { data: { user } } = await caller.auth.getUser();
-    if (!user) return json({ error: 'Not authenticated.' });
+    if (!user) return json({ error: 'Not authenticated.' }, 401);
 
     const { data: prof } = await admin.from('profiles').select('role').eq('id', user.id).single();
     if (!prof || prof.role !== 'headadmin') {
-      return json({ error: 'Only the Head Administrator can create accounts.' });
+      return json({ error: 'Only the Head Administrator can create accounts.' }, 403);
     }
 
     // Require the Head Admin to have MFA enabled before creating accounts.
     const { data: factors } = await caller.auth.mfa.listFactors();
     if (!(factors?.totp || []).some((f) => f.status === 'verified')) {
-      return json({ error: 'Enable Multi-Factor Authentication (MFA) in your Settings before making account changes.' });
+      return json({ error: 'Enable Multi-Factor Authentication (MFA) in your Settings before making account changes.' }, 403);
     }
 
     // 2) Validate input.
     const { name, email, password, role } = await req.json();
     if (!name || !email || !password || !['registrar', 'admin'].includes(role)) {
-      return json({ error: 'All fields are required (role must be registrar or admin).' });
+      return json({ error: 'All fields are required (role must be registrar or admin).' }, 400);
     }
     // Server-side password policy (mirror of the client: 12+ with complexity).
     const pw = String(password);
     if (pw.length < 12 || !/[a-z]/.test(pw) || !/[A-Z]/.test(pw) || !/\d/.test(pw) || !/[^A-Za-z0-9]/.test(pw)) {
-      return json({ error: 'Password must be at least 12 characters with upper & lower case, a number, and a special character.' });
+      return json({ error: 'Password must be at least 12 characters with upper & lower case, a number, and a special character.' }, 400);
     }
 
     // 3) Create the auth user (confirmed, no email sent).
     const { data: created, error: cErr } = await admin.auth.admin.createUser({
       email, password, email_confirm: true, user_metadata: { name },
     });
-    if (cErr) return json({ error: cErr.message });
+    if (cErr) return json({ error: cErr.message }, 400);
 
     // 4) The handle_new_user trigger made a default profile row (status
     //    'verified', which is right for self-registering students). Staff must
