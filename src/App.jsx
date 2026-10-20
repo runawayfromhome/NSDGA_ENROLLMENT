@@ -10,6 +10,7 @@ import AdminLayout from './components/AdminLayout';
 const Home = lazy(() => import('./components/pages/Home'));
 const SHSOnlineAdmission = lazy(() => import('./components/pages/SHSOnlineAdmission'));
 const SHSOnCampus = lazy(() => import('./components/pages/SHSOnCampus'));
+const SHSStrands = lazy(() => import('./components/pages/SHSStrands'));
 const Kindergarten = lazy(() => import('./components/pages/Kindergarten'));
 const ElemOnCampus = lazy(() => import('./components/pages/ElemOnCampus'));
 const ElemOnline = lazy(() => import('./components/pages/ElemOnline'));
@@ -78,6 +79,7 @@ function App() {
       <Route path="/Home" element={<Home />} />
       <Route path="/SHSOnline" element={<SHSOnlineAdmission />} />
       <Route path="/SHSOnCampus" element={<SHSOnCampus />} />
+      <Route path="/SHSStrands" element={<SHSStrands />} />
       <Route path="/Kindergarten" element={<Kindergarten />} />
       <Route path="/ElemOnCampus" element={<ElemOnCampus />} />
       <Route path="/ElemOnline" element={<ElemOnline />} />

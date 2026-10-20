@@ -5,6 +5,7 @@ import AcademyLogo from '../assets/nuestralogo.jpg'
 const NavBar = () => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null); // which desktop dropdown is open (hover/click)
 
   const pathMapping = {
     'Elementary': 'Elem',
@@ -57,31 +58,48 @@ const NavBar = () => {
               const prefix = pathMapping[item];
               const isCurrentCategoryActive = prefix && location.pathname.startsWith(`/${prefix}`);
 
-              return (
-                <div key={item} className="dropdown dropdown-hover dropdown-bottom dropdown-end">
-                  {item === 'Kindergarten' ? (
-                    <NavLink
-                      to="/Kindergarten"
-                      className={`cursor-pointer text-sm transition-colors py-2 flex items-center gap-1 ${getLinkClassName(location.pathname === '/Kindergarten')}`}
-                    >
-                      Kindergarten
-                    </NavLink>
-                  ) : (
-                    <div tabIndex="0" role="button" className={`cursor-pointer text-sm transition-colors py-2 flex items-center gap-1 ${getLinkClassName(isCurrentCategoryActive)}`}>
-                      {item} <span className="text-[10px]">▼</span>
-                    </div>
-                  )}
+              if (item === 'Kindergarten') {
+                return (
+                  <NavLink key={item} to="/Kindergarten"
+                    className={`cursor-pointer text-sm transition-colors py-2 ${getLinkClassName(location.pathname === '/Kindergarten')}`}>
+                    Kindergarten
+                  </NavLink>
+                );
+              }
 
-                  {item !== 'Kindergarten' && (
-                    <ul tabIndex="0" className="dropdown-content menu bg-white text-black rounded-box z-[1] mt-1 w-52 p-2 shadow-xl border border-base-200">
-                      <li className="hover:text-[#800000]">
-                        <NavLink to={`/${prefix}OnCampus`} className="hover:bg-transparent active:bg-transparent">On-Campus Admission</NavLink>
-                      </li>
-                      <li className="hover:text-[#800000]">
-                        <NavLink to={`/${prefix}Online`} className="hover:bg-transparent active:bg-transparent">Online Admission</NavLink>
-                      </li>
+              const subLinks = [
+                { to: `/${prefix}OnCampus`, label: 'On-Campus Admission' },
+                { to: `/${prefix}Online`, label: 'Online Admission' },
+                ...(prefix === 'SHS' ? [{ to: '/SHSStrands', label: 'Strands / Tracks' }] : []),
+              ];
+              const open = openMenu === item;
+
+              return (
+                <div key={item} className="relative"
+                  onMouseEnter={() => setOpenMenu(item)}
+                  onMouseLeave={() => setOpenMenu((m) => (m === item ? null : m))}>
+                  <button type="button"
+                    onClick={() => setOpenMenu((m) => (m === item ? null : item))}
+                    className={`cursor-pointer text-sm transition-colors py-2 flex items-center gap-1.5 ${getLinkClassName(isCurrentCategoryActive)}`}>
+                    {item}
+                    <svg className={`w-3 h-3 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 4.5 6 7.5 9 4.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+
+                  {/* pt-3 keeps a visual gap while staying inside the hover area, so moving the cursor to the menu doesn't close it */}
+                  <div className={`absolute right-0 top-full pt-3 min-w-[230px] z-50 transition-all duration-200 origin-top-right ${open ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-1 pointer-events-none'}`}>
+                    <ul className="bg-white rounded-xl shadow-2xl border border-gray-100 p-2">
+                      {subLinks.map((l) => (
+                        <li key={l.to}>
+                          <NavLink to={l.to} onClick={() => setOpenMenu(null)}
+                            className={({ isActive }) => `block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-[#800000]/10 text-[#800000]' : 'text-slate-600 hover:bg-[#800000]/5 hover:text-[#800000]'}`}>
+                            {l.label}
+                          </NavLink>
+                        </li>
+                      ))}
                     </ul>
-                  )}
+                  </div>
                 </div>
               );
             })}
@@ -126,6 +144,9 @@ const NavBar = () => {
                       <div className="pl-6 space-y-2">
                         <NavLink to={`/${prefix}OnCampus`} onClick={closeMenu} className="block px-4 py-2 rounded-lg text-xs font-medium text-white/80 hover:bg-white/10 transition-colors">On-Campus Admission</NavLink>
                         <NavLink to={`/${prefix}Online`} onClick={closeMenu} className="block px-4 py-2 rounded-lg text-xs font-medium text-white/80 hover:bg-white/10 transition-colors">Online Admission</NavLink>
+                        {prefix === 'SHS' && (
+                          <NavLink to="/SHSStrands" onClick={closeMenu} className="block px-4 py-2 rounded-lg text-xs font-medium text-white/80 hover:bg-white/10 transition-colors">Strands / Tracks</NavLink>
+                        )}
                       </div>
                     </>
                   )}

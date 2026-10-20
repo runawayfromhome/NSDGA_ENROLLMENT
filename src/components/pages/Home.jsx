@@ -4,6 +4,8 @@ import MainLayout from '../../layouts/Mainlayouts'
 import ArrowIcon from '../icons/StudentPortalIcons/ArrowIcon'
 import NuestraLogoImage from '../../assets/nuestradg.png'
 import { getPublishedEvents, formatEventDate } from '../../lib/content'
+import ImageCarousel from '../ImageCarousel'
+import { LuCalendarDays } from 'react-icons/lu'
 
 const Home = () => {
   const [events, setEvents] = useState([])
@@ -65,10 +67,14 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {events.map((ev) => (
               <div key={ev.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all">
-                <div className="h-44 bg-gray-100">
-                  {ev.image
-                    ? <img src={ev.image} alt={ev.title} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full bg-gradient-to-br from-[#800000] to-[#4A1010]" />}
+                <div className="p-2 pb-0">
+                  <ImageCarousel
+                    images={ev.images}
+                    alt={ev.title}
+                    heightClass="h-44"
+                    rounded="rounded-xl"
+                    fallback={<LuCalendarDays className="w-12 h-12 text-white/85" strokeWidth={1.4} />}
+                  />
                 </div>
                 <div className="p-6">
                   {ev.category && <p className="text-[10px] font-black uppercase tracking-widest text-[#800000] mb-1">{ev.category}</p>}

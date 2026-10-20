@@ -5,7 +5,8 @@ import SchoolEventCard from '../icons/SchoolEventCard'
 import EventsCard from '../icons/EventsCard'
 import AcadSchedEventCard from '../icons/AcadSchedEventCard'
 import AcadSchedCard from '../icons/AcadSchedCard'
-import { LuCalendar, LuMapPin } from "react-icons/lu"
+import { LuCalendar, LuMapPin, LuCalendarDays } from "react-icons/lu"
+import ImageCarousel from '../ImageCarousel'
 
 const Calendar = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -61,16 +62,22 @@ const Calendar = () => {
         {/* EVENT MODAL (MATCHES SCREENSHOT) */}
         <dialog id="event_modal" className="modal backdrop:backdrop-blur-sm">
           <div className="modal-box max-w-2xl p-0 overflow-hidden bg-white rounded-xl shadow-2xl border-none">
-            <div className="relative h-64 w-full bg-[#800000]">
-              {selectedEvent?.image && <img src={selectedEvent.image} className="w-full h-full object-cover" alt="" />}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8">
+            <div className="relative h-64 w-full">
+              <ImageCarousel
+                images={selectedEvent?.images}
+                alt={selectedEvent?.title}
+                heightClass="h-64"
+                rounded="rounded-none"
+                fallback={<LuCalendarDays className="w-16 h-16 text-white/70" strokeWidth={1.3} />}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-8 pointer-events-none">
                 <p className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em] mb-1">
                   {selectedEvent?.category}
                 </p>
                 <h3 className="text-3xl font-bold text-white tracking-tight">{selectedEvent?.title}</h3>
               </div>
               <form method="dialog">
-                <button className="absolute right-4 top-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/20 text-white hover:bg-black/40 text-sm transition-colors">✕</button>
+                <button className="absolute right-4 top-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60 text-sm transition-colors">✕</button>
               </form>
             </div>
 
