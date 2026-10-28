@@ -278,12 +278,25 @@ export async function getAuditLog() {
 // is used only as the attempted email for a FAILED login (no session yet).
 export async function recordAudit(entry) {
   try {
+    if (entry.action === 'LOGIN' && entry.status === 'FAILED') {
+      await supabase.functions.invoke('log-event', {
+        body: {
+          action: entry.action,
+          status: entry.status,
+          reason: entry.reason || '',
+          device: entry.device || shortDevice(),
+          email: entry.email || null,
+        },
+      });
+      return;
+    }
     await supabase.rpc('log_event', {
       p_action: entry.action,
       p_status: entry.status || 'SUCCESS',
       p_reason: entry.reason || '',
       p_device: entry.device || shortDevice(),
       p_attempt_email: entry.email || null,
+      p_ip: null,
     });
   } catch { /* never block the action being logged */ }
 }

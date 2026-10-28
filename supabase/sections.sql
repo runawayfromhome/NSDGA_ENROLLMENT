@@ -35,15 +35,17 @@ grant select, insert, update, delete on public.sections to authenticated;
 
 create or replace function public.enforce_section_limit()
 returns trigger
-language plpgsql security definer set search_path = public
+language plpgsql security definer set search_path = ''
 as $$
 declare
   cnt int;
   max_per_grade int;
 begin
   if auth.uid() is null then return new; end if;
-  select nullif(content->>'maxSectionsPerGrade', '')::int into max_per_grade
-    from public.site_content where section = 'enrollment';
+  if to_regclass('public.site_content') is not null then
+    select nullif(content->>'maxSectionsPerGrade', '')::int into max_per_grade
+      from public.site_content where section = 'enrollment';
+  end if;
   if max_per_grade is null or max_per_grade < 1 then max_per_grade := 20; end if;
   if new.strand is not null then
     select count(*) into cnt from public.sections

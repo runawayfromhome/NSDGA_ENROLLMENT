@@ -142,11 +142,10 @@ const AuditLog = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 max-w-3xl">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 max-w-2xl">
             <StatTile label="Logins Today" value={loginsToday} />
             <StatTile label="Failed Today" value={failedToday} accent="text-[#C55A5A]" />
             <StatTile label="Actions Today" value={actionsToday} accent="text-[#48A675]" />
-            <StatTile label="Total Events" value={log.length} />
           </div>
 
           {/* Period tabs */}

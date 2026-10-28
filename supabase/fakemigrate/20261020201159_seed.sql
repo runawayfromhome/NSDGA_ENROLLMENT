@@ -15,12 +15,12 @@ declare
 begin
   for r in
     select * from (values
-      ('headadmin@nsdgamarikina.edu.ph',         'Head@123',      'System Head Administrator', 'headadmin', 'verified'),
-      ('registrar@nsdgamarikina.edu.ph',         'Registrar@123', 'Maria Santos',              'registrar', 'verified'),
-      ('registrar.pending@nsdgamarikina.edu.ph', 'Registrar@123', 'Pedro Cruz',                'registrar', 'pending_profile'),
-      ('admin@nsdgamarikina.edu.ph',             'Admin@123',     'Jose Dela Cruz',            'admin',     'verified'),
-      ('admin.pending@nsdgamarikina.edu.ph',     'Admin@123',     'Liza Gomez',                'admin',     'pending_profile')
-    ) as t(email, password, name, role, status)
+      ('headadmin@nsdgamarikina.edu.ph',         'System Head Administrator', 'headadmin', 'verified'),
+      ('registrar@nsdgamarikina.edu.ph',         'Maria Santos',              'registrar', 'verified'),
+      ('registrar.pending@nsdgamarikina.edu.ph', 'Pedro Cruz',                'registrar', 'pending_profile'),
+      ('admin@nsdgamarikina.edu.ph',             'Jose Dela Cruz',            'admin',     'verified'),
+      ('admin.pending@nsdgamarikina.edu.ph',     'Liza Gomez',                'admin',     'pending_profile')
+    ) as t(email, name, role, status)
   loop
     delete from public.profiles where email = r.email;
     delete from auth.users     where email = r.email;
@@ -33,7 +33,7 @@ begin
       confirmation_token, recovery_token, email_change_token_new, email_change
     ) values (
       '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
-      r.email, crypt(r.password, gen_salt('bf')), now(),
+      r.email, extensions.crypt(current_setting('app.staff_password'), extensions.gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}', jsonb_build_object('name', r.name),
       now(), now(), '', '', '', ''
     );

@@ -30,6 +30,7 @@ as $$
      where id = auth.uid()
        and role in ('admin', 'headadmin')
        and status = 'verified'
+       and disabled = false
   );
 $$;
 

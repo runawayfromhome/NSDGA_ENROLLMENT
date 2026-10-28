@@ -11,15 +11,19 @@
 -- ============================================================================
 create or replace function public.enforce_account_limit()
 returns trigger
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   defaults jsonb := '{"headadmin":2,"admin":4,"registrar":15}'::jsonb;
   limits   jsonb;
   cap      int;
   n        int;
 begin
-  -- Seed / service-role writes (no interactive user) are exempt.
-  if auth.uid() is null then return new; end if;
+  -- Seed / service-role writes (no interactive user) are exempt. Also exempt any
+  -- NON-HeadAdmin caller: only a HeadAdmin can legitimately change roles / verify
+  -- accounts, so an illegitimate change (e.g. a student self-promoting) should be
+  -- stopped by enforce_profile_update ("Not allowed to change role") instead of
+  -- this cap — which otherwise leaks the role count to the attacker (QA-1).
+  if auth.uid() is null or not public.is_headadmin() then return new; end if;
   -- Only staff roles are limited.
   if new.role not in ('headadmin','admin','registrar') then return new; end if;
   -- Only care when the NEW row would be active.

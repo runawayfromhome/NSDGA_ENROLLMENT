@@ -102,6 +102,12 @@ begin
   if new.student_no is distinct from old.student_no then
     raise exception 'Not allowed to set a student number';
   end if;
+  if new.school_year is distinct from old.school_year
+     or new.student_type is distinct from old.student_type
+     or new.form->>'grade' is distinct from old.form->>'grade'
+     or new.form->>'strand' is distinct from old.form->>'strand' then
+    raise exception 'Not allowed to change application classification';
+  end if;
   if new.billing is distinct from old.billing then
     raise exception 'Not allowed to change billing';
   end if;

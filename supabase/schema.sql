@@ -13,7 +13,7 @@ create table if not exists public.profiles (
   id           uuid primary key references auth.users(id) on delete cascade,
   email        text,
   name         text,
-  role         text not null default 'registrar'
+  role         text not null default 'student'
                  check (role in ('registrar','admin','headadmin','student')),
   status       text not null default 'pending_profile'
                  check (status in ('pending_profile','pending_verification','verified')),
@@ -41,8 +41,16 @@ create table if not exists public.audit_log (
   device     text
 );
 
+create table if not exists public.audit_log_rate_limits (
+  identity text primary key,
+  window_started timestamptz not null default now(),
+  event_count integer not null default 0
+);
+
 -- ---------------------------------------------------------------------------
--- Auto-create a lowest-privilege profile row whenever a new auth user is created.
+-- Auto-create a student profile whenever a new auth user is created. Applicant
+-- accounts are confirmed by create-applicant and are immediately usable; staff
+-- accounts are changed to pending_profile by the protected create-staff flow.
 -- Only the display name is read from signup metadata; role is never client-controlled.
 -- Runs as owner (security definer), so it bypasses RLS.
 -- ---------------------------------------------------------------------------
@@ -95,7 +103,7 @@ $$;
 create or replace function public.enforce_profile_update()
 returns trigger
 language plpgsql
-security definer set search_path = public
+security definer set search_path = ''
 as $$
 begin
   if auth.uid() is null or public.is_headadmin() then
@@ -157,7 +165,8 @@ create or replace function public.log_event(
   p_status text default 'SUCCESS',
   p_reason text default '',
   p_device text default '',
-  p_attempt_email text default null
+  p_attempt_email text default null,
+  p_ip text default null
 ) returns void
 language plpgsql
 security definer
@@ -167,7 +176,49 @@ declare
   v_email text;
   v_name text;
   v_role text;
+  v_identity text;
+  v_count integer;
 begin
+  if p_action not in (
+    'LOGIN', 'LOGOUT', 'MFA_FAIL', 'MFA_ENABLE', 'MFA_DISABLE', 'MFA_RESET',
+    'PASSWORD_CHANGE', 'PASSWORD_RESET', 'ACCOUNT_CREATE', 'ACCOUNT_VERIFY',
+    'ROLE_CHANGE', 'PROFILE_RETURN', 'CONTENT_EDIT', 'BILLING_UPDATE',
+    'DOC_UPLOAD', 'APPLY_SIGNUP', 'APPLY_SUBMIT', 'APPLY_RESUBMIT',
+    'REVIEW', 'RETURN', 'REJECT', 'ENROLL', 'COMPLETE', 'READMIT',
+    'BULK_ARCHIVE', 'REACTIVATE', 'SECTION_APPROVE', 'SECTION_UNAPPROVE',
+    'SECTION_CREATE', 'SECTION_RENAME', 'SECTION_SUBMIT', 'SECTION_DELETE'
+  ) then
+    raise exception 'Unsupported audit action';
+  end if;
+  if coalesce(p_status, 'SUCCESS') not in ('SUCCESS', 'FAILED') then
+    raise exception 'Unsupported audit status';
+  end if;
+
+  v_identity := coalesce(auth.uid()::text, lower(nullif(trim(p_attempt_email), '')));
+  if v_identity is null then
+    raise exception 'An authenticated identity or attempted email is required';
+  end if;
+
+  if coalesce(p_status, 'SUCCESS') = 'FAILED' then
+    insert into public.audit_log_rate_limits (identity, window_started, event_count)
+    values (v_identity, now(), 1)
+    on conflict (identity) do update
+      set window_started = case
+        when public.audit_log_rate_limits.window_started <= now() - interval '1 minute'
+          then now()
+        else public.audit_log_rate_limits.window_started
+      end,
+      event_count = case
+        when public.audit_log_rate_limits.window_started <= now() - interval '1 minute'
+          then 1
+        else public.audit_log_rate_limits.event_count + 1
+      end
+    returning event_count into v_count;
+    if v_count > 20 then
+      return;
+    end if;
+  end if;
+
   if auth.uid() is not null then
     select p.email, p.name, p.role
       into v_email, v_name, v_role
@@ -179,16 +230,17 @@ begin
     v_role := 'unknown';
   end if;
 
-  insert into public.audit_log (email, name, role, action, status, reason, device)
+  insert into public.audit_log (email, name, role, action, status, reason, ip, device)
   values (v_email, coalesce(v_name, v_email), coalesce(v_role, 'unknown'),
           p_action, coalesce(p_status, 'SUCCESS'), coalesce(p_reason, ''),
-          coalesce(p_device, ''));
+          p_ip, coalesce(p_device, ''));
 end;
 $$;
 
-revoke all on function public.log_event(text, text, text, text, text)
+drop function if exists public.log_event(text, text, text, text, text);
+revoke all on function public.log_event(text, text, text, text, text, text)
   from public;
-grant execute on function public.log_event(text, text, text, text, text)
+grant execute on function public.log_event(text, text, text, text, text, text)
   to anon, authenticated;
 grant select on public.audit_log to authenticated;
 

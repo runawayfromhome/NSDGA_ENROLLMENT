@@ -9,7 +9,7 @@ import { SHS_STRANDS } from './grades';
 const SECTION_LABEL = {
   enrollment: 'Enrollment & Announcements', contact: 'Contact Info',
   events: 'School Events', board: 'Executive Board', hero: 'Homepage', about: 'About Page',
-  strands: 'SHS Courses (Strands)',
+  strands: 'SHS Courses (Strands)', strand_promo: 'SHS Strands Promo',
 };
 
 // Read a section's JSON (public — anyone can read).
@@ -41,12 +41,19 @@ export async function uploadSiteImage(file, folder = 'events') {
   return { ok: true, url: data.publicUrl };
 }
 
-// Public helper: published events, earliest date first.
+// Normalize an event's images: new multi-image `images[]`, falling back to the
+// legacy single `image` field so events created before multi-image still show.
+export function eventImages(e) {
+  if (Array.isArray(e?.images) && e.images.length) return e.images.filter(Boolean);
+  return e?.image ? [e.image] : [];
+}
+
+// Public helper: published events, earliest date first (with images[] attached).
 export async function getPublishedEvents() {
   const content = await getSection('events');
   const items = (content.items || []).filter((e) => e.published);
   items.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-  return items;
+  return items.map((e) => ({ ...e, images: eventImages(e) }));
 }
 
 // Format an ISO date (YYYY-MM-DD) for display.
@@ -129,6 +136,20 @@ export async function getStrands() {
 export async function saveStrands(items) {
   const clean = (items || []).map((s) => String(s).trim()).filter(Boolean);
   return saveSection('strands', { items: clean });
+}
+
+// --- SHS Strands PROMO showcase (public /SHSStrands page) ---------------------
+// A standalone list of promo cards, intentionally DECOUPLED from the `strands`
+// name list above (which the Apply form + sections depend on) — editing promos
+// never touches the Apply dropdown. Shape:
+//   { items: [{ id, name, description, images: [url, …] }] }
+export async function getStrandPromo() {
+  const c = await getSection('strand_promo');
+  return Array.isArray(c.items) ? c.items : [];
+}
+
+export async function saveStrandPromo(items) {
+  return saveSection('strand_promo', { items: Array.isArray(items) ? items : [] });
 }
 
 export async function saveEnrollment(data) {

@@ -8,7 +8,7 @@
 --     (registrar / admin / headadmin) are NOT touched. Do NOT run on a live
 --     system that already has real enrolled students.
 --
--- Student login (all 100):  password = Student@123
+-- Set app.student_password in the database session before running this file.
 -- Email pattern:            <first>.<last><n>@demo.nsdga.test  (sentinel)
 -- Every application is tagged  form->>'seed' = true  for easy bulk-deletion.
 --
@@ -139,7 +139,7 @@ begin
       confirmation_token, recovery_token, email_change_token_new, email_change
     ) values (
       '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
-      email, crypt('Student@123', gen_salt('bf')), now(),
+      email, extensions.crypt(current_setting('app.student_password'), extensions.gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}', jsonb_build_object('name', fn || ' ' || ln),
       now(), now(), '', '', '', ''
     );

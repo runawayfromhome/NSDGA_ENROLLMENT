@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import MainLayout from '../../layouts/Mainlayouts'
 import AboutImage from '../../assets/About.png'
 import NuestraLogoImage from '../../assets/nuestralogo.jpg'
+import PhilosophyImage from '../../assets/nuestradg.png'
 import { LuEye, LuSparkles } from "react-icons/lu";
 import ExecutiveBoardCard from '../icons/ExecutiveBoardCard';
 import { getSection } from '../../lib/content'
@@ -137,9 +138,9 @@ const About = () => {
             <div className="relative">
               <div className="absolute -top-4 -left-4 w-24 h-24 bg-[#800000]/10 rounded-lg -z-10" />
               <div className="bg-[#FFF4E5] rounded-2xl p-8 shadow-xl">
-                 <img 
-                  src="https://img.freepik.com/free-vector/teacher-concept-illustration_114360-1638.jpg" 
-                  alt="Philosophy Illustration" 
+                 <img
+                  src={PhilosophyImage}
+                  alt="Nuestra Señora de Guia Academy campus"
                   className="w-full h-auto rounded-lg"
                  />
               </div>
@@ -197,7 +198,11 @@ const About = () => {
                     <img
                       src={member.photo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(member.name)}`}
                       alt={member.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-top"
+                      onError={(e) => {
+                        const fallback = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(member.name)}`;
+                        if (e.currentTarget.src !== fallback) e.currentTarget.src = fallback;
+                      }}
                     />
                   </div>
                   <div className="text-left">

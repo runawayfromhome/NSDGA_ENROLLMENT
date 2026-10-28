@@ -19,11 +19,11 @@ browser's `localStorage` and is designed to be swapped for Supabase later.
 ### Seed accounts (created automatically on first load)
 | Role | Email | Password | State |
 |------|-------|----------|-------|
-| HeadAdmin | `headadmin@nsdgamarikina.edu.ph` | `Head@123` | verified |
-| Registrar | `registrar@nsdgamarikina.edu.ph` | `Registrar@123` | ✅ verified |
-| Registrar | `registrar.pending@nsdgamarikina.edu.ph` | `Registrar@123` | 🆕 not verified (awaiting profile) |
-| Admin | `admin@nsdgamarikina.edu.ph` | `Admin@123` | ✅ verified |
-| Admin | `admin.pending@nsdgamarikina.edu.ph` | `Admin@123` | 🆕 not verified (awaiting profile) |
+| HeadAdmin | `headadmin@nsdgamarikina.edu.ph` | Set locally | verified |
+| Registrar | `registrar@nsdgamarikina.edu.ph` | Set locally | ✅ verified |
+| Registrar | `registrar.pending@nsdgamarikina.edu.ph` | Set locally | 🆕 not verified (awaiting profile) |
+| Admin | `admin@nsdgamarikina.edu.ph` | Set locally | ✅ verified |
+| Admin | `admin.pending@nsdgamarikina.edu.ph` | Set locally | 🆕 not verified (awaiting profile) |
 
 > New seed accounts are merged in on load, so they appear even in a browser that already has data.
 

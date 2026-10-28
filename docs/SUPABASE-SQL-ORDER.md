@@ -1,8 +1,31 @@
 # Supabase SQL setup order
 
-The SQL files directly under `supabase/` are the deployment source of truth.
-Run them in dependency order; do not run deleted migration copies or historical
-one-purpose scripts.
+## Single-file setup
+
+If you prefer to use one query in the Supabase SQL Editor, run
+[`supabase/all-migrations.sql`](../supabase/all-migrations.sql). It contains
+the timestamped migrations below in dependency order.
+
+The timestamped files in `supabase/migrations/` remain the source for Supabase
+CLI migration history. Do not run both the bundle and the timestamped files
+against the same database.
+
+The bundle contains schema and security migrations only. Demo seed scripts are
+kept separately under `supabase/seed/`, require session-supplied passwords,
+and are never run by `supabase db push`. The production hardening step is
+included in the bundle.
+
+After applying the migrations, deploy the failed-login logging function with:
+
+```powershell
+supabase functions deploy log-event
+```
+
+## Individual files
+
+The SQL files directly under `supabase/` document the individual deployment
+steps. Run them in dependency order; do not run deleted migration copies or
+historical one-purpose scripts.
 
 1. `schema.sql` — profiles, audit log, auth trigger, profile security, and
    trusted audit logging.
@@ -20,7 +43,5 @@ one-purpose scripts.
 11. `harden-production.sql` — production cleanup; run after development seed
     data is no longer needed.
 
-Development-only data scripts:
-
-- `seed.sql` creates demo staff accounts and must not be used in production.
-- `seed-students.sql` creates test students and must not be used in production.
+Development-only data scripts are documented in
+[`supabase/seed/README.md`](../supabase/seed/README.md).
