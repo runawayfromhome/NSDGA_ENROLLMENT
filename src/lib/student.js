@@ -275,9 +275,18 @@ export async function setNewPassword(password) {
 // whether the account exists).
 export async function sendResetOtp(email) {
   const { data, error } = await supabase.functions.invoke('send-reset-otp', { body: { email: (email || '').trim().toLowerCase() } });
-  if (error) return { ok: false, error: await fnError(error, 'Could not send the code.') };
+  if (error) {
+    let retryAfter = 0;
+    let responseError = '';
+    try {
+      const body = await error?.context?.json?.();
+      retryAfter = Number(body?.retryAfter) || 0;
+      responseError = body?.error || '';
+    } catch { /* body was not JSON */ }
+    return { ok: false, error: responseError || error?.message || 'Could not send the code.', retryAfter };
+  }
   if (data?.error) return { ok: false, error: data.error };
-  return { ok: true };
+  return { ok: true, retryAfter: Number(data?.retryAfter) || 0 };
 }
 
 // Step 2: verify the code (does NOT consume it — the final step re-checks).

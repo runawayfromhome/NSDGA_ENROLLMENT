@@ -1,18 +1,30 @@
 // Applicant status page — inside the student portal frame (sidebar + header).
 // Reads the signed-in student's real application and shows the tracker.
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import StudentSidebar from '../../StudentSidebar';
 import Header from '../../Header';
 import { getMyApplication, APP_STEPS, STATUS_LABEL } from '../../../lib/student';
 import { CardSkeleton } from '../../Skeleton';
 import ChatbotWidget from '../../ChatbotWidget';
+import { useSession } from '../../../contexts/useSession';
+import { subscribeToTable } from '../../../lib/realtime';
 
 const ApplicationStatus = () => {
   const [loading, setLoading] = useState(true);
   const [app, setApp] = useState(null);
+  const { session } = useSession();
 
-  useEffect(() => { getMyApplication().then((a) => { setApp(a); setLoading(false); }); }, []);
+  const load = useCallback(() => getMyApplication().then((a) => { setApp(a); setLoading(false); }), []);
+  useEffect(() => { if (session?.id) load(); }, [load, session?.id]);
+  useEffect(() => {
+    if (!session?.id) return undefined;
+    return subscribeToTable('applications', {
+      channelName: `student-application-${session.id}`,
+      filter: `student_id=eq.${session.id}`,
+      onChange: load,
+    });
+  }, [load, session?.id]);
 
   return (
     <div className="flex min-h-screen bg-[#F8F9FA]">

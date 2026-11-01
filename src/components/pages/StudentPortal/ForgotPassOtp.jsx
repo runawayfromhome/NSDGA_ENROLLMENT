@@ -46,8 +46,11 @@ const ForgotPassOtp = () => {
     setError(''); setBusy(true);
     const res = await sendResetOtp(email);
     setBusy(false);
-    if (!res.ok) return setError(res.error || 'Could not resend the code.');
-    setCooldown(30);
+    if (!res.ok) {
+      if (res.retryAfter > 0) setCooldown(res.retryAfter);
+      return setError(res.error || 'Could not resend the code.');
+    }
+    setCooldown(res.retryAfter || 60);
   };
 
   return (

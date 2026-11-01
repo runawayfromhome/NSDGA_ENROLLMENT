@@ -10,6 +10,7 @@ import { listApplications, applicantName } from '../../../lib/registrar';
 import { REQUIRED_DOCS } from '../../../lib/student';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
 import { getActiveSchoolYear } from '../../../lib/content';
+import { subscribeToTable } from '../../../lib/realtime';
 import { TableSkeleton } from '../../Skeleton';
 
 const STATUS_STYLE = {
@@ -51,6 +52,10 @@ const Documents = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => subscribeToTable('applications', {
+    channelName: 'registrar-documents-applications',
+    onChange: () => { listApplications().then(setApps); },
+  }), []);
   useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
   useEffect(() => { setVisible(PAGE_SIZE); }, [q, filter, grade, gradeNum]);
   // Keep the URL in sync with the filters (replace → Back returns here filtered).

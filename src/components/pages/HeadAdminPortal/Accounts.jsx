@@ -3,7 +3,7 @@
 // full profile, verify/return, enable/disable, and change roles (registrar /
 // admin / headadmin). Role changes require an OTP step-up: a 6-digit code is
 // emailed to the acting HeadAdmin and must be verified before the change applies.
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useCallback, useMemo, useState, useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import MfaReminder from '../../MfaReminder';
@@ -15,6 +15,7 @@ import {
   getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, getAccountUsage, STATUS,
 } from '../../../auth/authStore';
 import { isPasswordValid } from '../../../lib/password';
+import { subscribeToTable } from '../../../lib/realtime';
 
 const ONLINE_MS = 5 * 60 * 1000;
 
@@ -91,14 +92,26 @@ const Accounts = () => {
   const [mfaOn, setMfaOn] = useState(true); // Head Admin must have MFA before changes
   const [usage, setUsage] = useState(null); // active-vs-cap per role
 
-  const refresh = async () => { setAccounts(await getStaffAccounts()); getAccountUsage().then(setUsage); };
-  useEffect(() => { refresh(); getMfaFactor().then((f) => setMfaOn(!!f)); }, []);
+  const refresh = useCallback(async () => { setAccounts(await getStaffAccounts()); getAccountUsage().then(setUsage); }, []);
+  useEffect(() => { refresh(); getMfaFactor().then((f) => setMfaOn(!!f)); }, [refresh]);
   useEffect(() => {
     const load = async () => { setPresence(await getPresence()); setNow(Date.now()); };
     load();
     const iv = setInterval(load, 60000);
-    return () => clearInterval(iv);
-  }, []);
+    const removePresence = subscribeToTable('presence', {
+      channelName: 'headadmin-presence',
+      onChange: load,
+    });
+    const removeProfiles = subscribeToTable('profiles', {
+      channelName: 'headadmin-staff-accounts',
+      onChange: refresh,
+    });
+    return () => {
+      clearInterval(iv);
+      removePresence();
+      removeProfiles();
+    };
+  }, [refresh]);
 
   const handleCreate = async (e) => {
     e.preventDefault();

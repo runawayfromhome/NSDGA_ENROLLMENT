@@ -15,6 +15,17 @@ kept separately under `supabase/seed/`, require session-supplied passwords,
 and are never run by `supabase db push`. The production hardening step is
 included in the bundle.
 
+After applying the bundle, apply the timestamped
+[`20261029055000_enable_realtime_workflows.sql`](../supabase/migrations/20261029055000_enable_realtime_workflows.sql)
+migration once to enable Realtime for applications, sections, presence, and
+staff profiles. RLS continues to control which rows each user can receive.
+
+Apply [`20261029072000_secure_password_reset_otp.sql`](../supabase/migrations/20261029072000_secure_password_reset_otp.sql)
+before deploying the updated `send-reset-otp` Edge Function. Password-reset
+requests are limited to one per minute and five per fifteen minutes per
+normalized email identity. The identity is stored only as a hash, and the
+function intentionally does not reveal whether an email belongs to a student.
+
 After applying the migrations, deploy the failed-login logging function with:
 
 ```powershell

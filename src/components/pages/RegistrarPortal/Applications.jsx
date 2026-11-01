@@ -8,6 +8,7 @@ import { HiOutlineCalendar } from "react-icons/hi";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
 import { getActiveSchoolYear } from '../../../lib/content';
+import { subscribeToTable } from '../../../lib/realtime';
 import { TableSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
@@ -40,6 +41,10 @@ const Applications = () => {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => subscribeToTable('applications', {
+    channelName: 'registrar-applications-list',
+    onChange: () => { listApplications().then(setApps); },
+  }), []);
   useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
   // Keep the URL in sync with the filters (replace, so Back returns to the list
   // in its filtered state instead of piling up history entries).

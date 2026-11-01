@@ -1,21 +1,15 @@
 -- NSDGA Enrollment - create one test account for every application role
 --
 -- Run this in Supabase Dashboard -> SQL Editor after the migrations have been
--- applied. Replace every CHANGE_ME password before running this script.
+-- applied. Rotate or delete these accounts after testing.
 --
--- This script:
---   * creates one verified account for headadmin, registrar, admin, and student
---   * creates the matching public.profiles rows through the auth trigger
---   * is safe from accidental overwrites: it stops if an email already exists
---
--- Do not commit real passwords to source control. Change these values only in
--- the SQL Editor, then rotate the passwords after testing.
+-- Do not commit the filled-in passwords to source control.
 
 begin;
 
 do $$
 declare
-  r record;
+  v_row record;
   v_id uuid;
   v_existing_count integer;
 begin
@@ -28,10 +22,10 @@ begin
   ) on commit drop;
 
   insert into role_users (email, display_name, role_name, password) values
-    ('headadmin.test@nsdgamarikina.edu.ph', 'Test Head Administrator', 'headadmin', 'CHANGE_ME_HEADADMIN'),
-    ('registrar.test@nsdgamarikina.edu.ph', 'Test Registrar', 'registrar', 'CHANGE_ME_REGISTRAR'),
-    ('admin.test@nsdgamarikina.edu.ph', 'Test Administrator', 'admin', 'CHANGE_ME_ADMIN'),
-    ('student.test@nsdgamarikina.edu.ph', 'Test Student', 'student', 'CHANGE_ME_STUDENT');
+    ('headadmin.test@nsdgamarikina.edu.ph', 'Test Head Administrator', 'headadmin', 'Tst!H3adAdm1n-2026'),
+    ('registrar.test@nsdgamarikina.edu.ph', 'Test Registrar',          'registrar', 'Tst!R3g1strar-2026'),
+    ('admin.test@nsdgamarikina.edu.ph',     'Test Administrator',      'admin',     'Tst!Adm1n-2026'),
+    ('student.test@nsdgamarikina.edu.ph',   'Test Student',            'student',   'Tst!Stud3nt-2026');
 
   if exists (
     select 1
@@ -42,17 +36,26 @@ begin
       'Replace every CHANGE_ME password in create-role-users.sql before running it';
   end if;
 
+  if exists (
+    select 1
+    from role_users
+    where length(password) < 12
+  ) then
+    raise exception
+      'Every test password must be at least 12 characters';
+  end if;
+
   select count(*)
     into v_existing_count
     from auth.users u
-    join role_users r on lower(u.email) = lower(r.email);
+    join role_users ru on lower(u.email) = lower(ru.email);
 
   if v_existing_count > 0 then
     raise exception
       'One or more role-user emails already exist; no accounts were changed';
   end if;
 
-  for r in select * from role_users loop
+  for v_row in select * from role_users loop
     v_id := gen_random_uuid();
 
     insert into auth.users (
@@ -76,11 +79,11 @@ begin
       v_id,
       'authenticated',
       'authenticated',
-      lower(r.email),
-      extensions.crypt(r.password, extensions.gen_salt('bf')),
+      lower(v_row.email),
+      crypt(v_row.password, gen_salt('bf')),
       now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
-      jsonb_build_object('name', r.display_name),
+      jsonb_build_object('name', v_row.display_name),
       now(),
       now(),
       '',
@@ -102,7 +105,7 @@ begin
       gen_random_uuid(),
       v_id,
       v_id::text,
-      jsonb_build_object('sub', v_id::text, 'email', lower(r.email)),
+      jsonb_build_object('sub', v_id::text, 'email', lower(v_row.email)),
       'email',
       now(),
       now(),
@@ -111,8 +114,8 @@ begin
 
     -- handle_new_user() creates this row with the default student role.
     update public.profiles
-       set name = r.display_name,
-           role = r.role_name,
+       set name = v_row.display_name,
+           role = v_row.role_name,
            status = 'verified',
            verified_at = now()
      where id = v_id;

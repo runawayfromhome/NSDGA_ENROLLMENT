@@ -4,7 +4,7 @@
 // first). Rules: section names are unique per grade, each section holds at most
 // 45 students, and every section can be edited then (re)submitted to Admin —
 // only Admin approves. Editing a section sends it back to draft for re-approval.
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import RegistrarSidebar from '../../RegistrarSidebar';
 import Header from '../../Header';
 import {
@@ -15,6 +15,7 @@ import { getActiveSchoolYear, getStrands, getMaxSectionsPerGrade } from '../../.
 import { ALL_GRADES, isSHSGrade } from '../../../lib/grades';
 import { useMfaLock } from '../../MfaLock';
 import { HiOutlineUserGroup, HiOutlineTrash, HiOutlinePencil, HiOutlinePaperAirplane } from "react-icons/hi";
+import { subscribeToTable } from '../../../lib/realtime';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—');
 
@@ -55,15 +56,29 @@ const Sections = () => {
   useEffect(() => { getStrands().then(setShsStrands); }, []);
   useEffect(() => { getMaxSectionsPerGrade().then(setMaxSections); }, []);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!schoolYear) return;
     setLoading(true);
     const [secs, enrolled] = await Promise.all([listSections(schoolYear, grade), listEnrolledInGrade(schoolYear, grade)]);
     setSections(secs); setPool(enrolled); setPicked({});
     setSelected((prev) => secs.find((s) => s.id === prev?.id) || null);
     setLoading(false);
-  };
-  useEffect(() => { load(); }, [schoolYear, grade]);
+  }, [schoolYear, grade]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!schoolYear) return undefined;
+    const refresh = () => { load(); };
+    const removeSections = subscribeToTable('sections', {
+      channelName: `registrar-sections-${schoolYear}-${grade}`,
+      filter: `school_year=eq.${schoolYear}`,
+      onChange: refresh,
+    });
+    const removeApplications = subscribeToTable('applications', {
+      channelName: `registrar-section-applications-${schoolYear}-${grade}`,
+      onChange: refresh,
+    });
+    return () => { removeSections(); removeApplications(); };
+  }, [schoolYear, grade, load]);
 
   const countIn = (nm) => pool.filter((a) => a.form?.section === nm).length;
   const members = selected ? pool.filter((a) => a.form?.section === selected.name) : [];

@@ -21,7 +21,7 @@ const ForgotPass = () => {
     const res = await sendResetOtp(email);
     setBusy(false);
     if (res.ok) navigate('/StudentPortal/ForgotPassOtp', { state: { email } });
-    else setError(res.error || 'Could not send the code.');
+    else setError(res.error || 'No registered student account was found for this email.');
   };
 
   return (

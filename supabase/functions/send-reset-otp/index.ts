@@ -1,8 +1,7 @@
 // supabase/functions/send-reset-otp/index.ts
 // PUBLIC forgot-password step 1: emails a 6-digit reset code to a STUDENT.
 // Anonymous (the user forgot their password), so it looks the account up by
-// email server-side with the service role. To avoid leaking which emails exist,
-// it ALWAYS returns { ok: true } — a code is only actually sent for a real
+// email server-side with the service role. A code is sent only for a registered
 // student account. Code is stored hashed with a 10-minute expiry.
 //
 // Deploy:  supabase functions deploy send-reset-otp
@@ -36,15 +35,30 @@ Deno.serve(async (req) => {
     const clean = String(email || '').trim().toLowerCase();
     if (!clean) return json({ error: 'Email is required.' }, 400);
 
-    // Look up the student by email. If none, pretend success (no leak).
-    const { data: prof } = await admin.from('profiles')
-      .select('id, role').ilike('email', clean).maybeSingle();
-    if (!prof || prof.role !== 'student') return json({ ok: true });
+    // Apply the same limiter to known and unknown addresses so the response
+    // cannot be used to enumerate student accounts.
+    const identity = await sha256(`reset-otp:${clean}`);
+    const { data: limitData, error: limitError } = await admin.rpc('otp_resend_check', {
+      p_identity: identity,
+      p_min_interval_seconds: 60,
+      p_window_seconds: 900,
+      p_max_requests: 5,
+    }).maybeSingle();
+    if (limitError) return json({ error: 'Could not process the request.' }, 500);
+    const limit = limitData as { allowed: boolean; retry_after: number } | null;
+    if (!limit?.allowed) {
+      return json({
+        error: 'Please wait before requesting another code.',
+        retryAfter: limit?.retry_after || 60,
+      }, 429);
+    }
 
-    // Throttle: refuse if a code was issued < 30s ago.
-    const { data: existing } = await admin.from('otp_codes').select('created_at').eq('user_id', prof.id).maybeSingle();
-    if (existing && Date.now() - new Date(existing.created_at).getTime() < 30_000) {
-      return json({ ok: true }); // silently ok — don't reveal timing either
+    // Only registered student accounts may receive a password-reset code.
+    const { data: prof, error: profileError } = await admin.from('profiles')
+      .select('id, role').ilike('email', clean).maybeSingle();
+    if (profileError) return json({ error: 'Could not verify the email address.' }, 500);
+    if (!prof || prof.role !== 'student') {
+      return json({ error: 'No registered student account was found for this email.' }, 404);
     }
 
     const code = String(Math.floor(100000 + Math.random() * 900000));

@@ -11,6 +11,7 @@ import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
 import { HiOutlineUserAdd, HiOutlineAcademicCap, HiOutlineExclamationCircle } from "react-icons/hi";
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
 import { getActiveSchoolYear } from '../../../lib/content';
+import { subscribeToTable } from '../../../lib/realtime';
 import { TableSkeleton, StatCardsSkeleton } from '../../Skeleton';
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase() : '';
@@ -21,6 +22,10 @@ const Dashboard = () => {
   const [activeYear, setActiveYear] = useState(''); // admin-set school year — counts reflect only this year
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => subscribeToTable('applications', {
+    channelName: 'registrar-dashboard-applications',
+    onChange: () => { listApplications().then(setApps); },
+  }), []);
   useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
 
   // Registrar only sees the Admin's active school year, so every count below is
