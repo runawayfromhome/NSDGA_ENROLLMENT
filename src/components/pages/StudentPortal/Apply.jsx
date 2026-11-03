@@ -144,6 +144,7 @@ const Apply = () => {
   const [noLrn, setNoLrn] = useState(false);       // incoming Grade 1 with no LRN yet
   const [agreedAccount, setAgreedAccount] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
+  const [legalDocument, setLegalDocument] = useState(null);
   const [captchaToken, setCaptchaToken] = useState(''); // Cloudflare Turnstile
   const [captchaKey, setCaptchaKey] = useState(0);       // bump to remount → fresh token
   const [showPw, setShowPw] = useState(false);
@@ -487,7 +488,13 @@ const Apply = () => {
           </div>
           <label className="flex items-start gap-3 text-sm text-gray-600 cursor-pointer pt-1">
             <input type="checkbox" checked={agreedAccount} onChange={(e) => setAgreedAccount(e.target.checked)} className="mt-1 accent-[#800000] w-4 h-4" />
-            <span>I have read and agree to the <b className="text-[#800000]">Terms of Service</b> and <b className="text-[#800000]">Privacy Policy</b> of NSDGA. <span className="text-red-500">*</span></span>
+            <span>
+              I have read and agree to the{' '}
+              <button type="button" onClick={(e) => { e.preventDefault(); setLegalDocument('terms'); }} className="font-bold text-[#800000] underline hover:text-[#600000]">Terms of Service</button>
+              {' '}and{' '}
+              <button type="button" onClick={(e) => { e.preventDefault(); setLegalDocument('privacy'); }} className="font-bold text-[#800000] underline hover:text-[#600000]">Privacy Policy</button>
+              {' '}of NSDGA. <span className="text-red-500">*</span>
+            </span>
           </label>
           <div className="pt-1">
             <Turnstile key={captchaKey} onToken={setCaptchaToken} />
@@ -571,10 +578,69 @@ const Apply = () => {
             : <button type="button" onClick={next} disabled={busy} className="px-8 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-lg font-bold shadow disabled:opacity-60">{busy ? 'Saving…' : 'Next →'}</button>}
       </div>
 
+      {legalDocument && <LegalDocumentModal document={legalDocument} onClose={() => setLegalDocument(null)} />}
+
       <style>{`.ip{width:100%;border:1px solid #E5E7EB;border-radius:.6rem;padding:.6rem .8rem;font-size:.9rem;outline:none;background:#fff}.ip:focus{border-color:#800000}`}</style>
     </Shell>
   );
 };
+
+const LegalDocumentModal = ({ document, onClose }) => {
+  const title = document === 'terms' ? 'Terms of Service' : 'Privacy Policy';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="legal-document-title" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+          <h2 id="legal-document-title" className="text-lg font-bold text-[#800000]">{title}</h2>
+          <button type="button" onClick={onClose} aria-label={`Close ${title}`} className="rounded-full px-3 py-1 text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700">×</button>
+        </div>
+        <div className="overflow-y-auto px-6 py-5 text-sm leading-6 text-gray-600">
+          {document === 'terms' ? <TermsOfService /> : <PrivacyPolicy />}
+        </div>
+        <div className="flex justify-end border-t border-gray-100 px-6 py-4">
+          <button type="button" onClick={onClose} className="rounded-lg bg-[#800000] px-5 py-2 text-sm font-bold text-white hover:bg-[#600000]">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TermsOfService = () => (
+  <div className="space-y-5">
+    <p>By creating an account and using the NSDGA Online Admission System, you agree to these Terms of Service. If you do not agree, you must not use the system.</p>
+    <LegalSection title="Account Responsibility">You are responsible for keeping your login credentials secure. You agree that all information and documents you submit are true, accurate, and authentic. Falsifying information or submitting forged documents will result in the immediate rejection of your application.</LegalSection>
+    <LegalSection title="Proper Use">You agree to use this system only for its intended purpose: applying for admission. You must not attempt to bypass security measures, access other users' accounts, or disrupt the system's operations.</LegalSection>
+    <LegalSection title="Admission Decisions">Submitting an application through this system does not guarantee admission. All admission decisions are made by the school administration based on official policies.</LegalSection>
+    <LegalSection title="System Availability">The school strives to keep the system running smoothly, but we do not guarantee uninterrupted access due to scheduled maintenance or technical issues.</LegalSection>
+  </div>
+);
+
+const PrivacyPolicy = () => (
+  <div className="space-y-5">
+    <LegalSection title="Data Privacy Act Compliance">Nuestra Señora de Guia Academy respects your privacy and complies with the Philippine Data Privacy Act of 2012 (RA 10173). This policy explains how we handle your personal information.</LegalSection>
+    <LegalSection title="Information We Collect">
+      <p>We collect the necessary information to process your application, including:</p>
+      <ul className="mt-2 list-disc space-y-1 pl-5">
+        <li><b>Personal Details:</b> Name, birth date, sex, religion, nationality, and LRN.</li>
+        <li><b>Contact Info:</b> Home address, email, and phone number.</li>
+        <li><b>Family Info:</b> Parents' or guardians' names and contact numbers.</li>
+        <li><b>Academic Records:</b> Previous school, grades, and report cards.</li>
+        <li><b>Uploaded Documents:</b> PSA birth certificate, photos, and other required files.</li>
+      </ul>
+    </LegalSection>
+    <LegalSection title="How We Use Your Data">Your data is used strictly for evaluating your application, creating your student record, and communicating official school updates. If the applicant is a minor, data is collected with the consent of the parent or legal guardian.</LegalSection>
+    <LegalSection title="Data Sharing and Retention">Only authorized school personnel can access your information. We do not share your data with third parties without your consent, except as required by law. We retain your data only for as long as necessary for institutional and legal requirements.</LegalSection>
+    <LegalSection title="Your Rights">Under the Data Privacy Act, you have the right to access, correct, or object to the processing of your personal data. To exercise these rights, you may contact the school's Admissions Office or Data Protection Officer.</LegalSection>
+  </div>
+);
+
+const LegalSection = ({ title, children }) => (
+  <section>
+    <h3 className="mb-1 font-bold text-gray-800">{title}</h3>
+    <div>{children}</div>
+  </section>
+);
 
 const Shell = ({ children, steps, step, done = -1, chatContext }) => (
   <div className="flex min-h-screen w-full font-sans">
