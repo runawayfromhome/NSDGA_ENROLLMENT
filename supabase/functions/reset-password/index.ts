@@ -64,9 +64,31 @@ Deno.serve(async (req) => {
     if (newPassword === undefined) return json({ ok: true });
 
     // Set the new password (service role, no session needed) and consume the code.
+    const { data: authUser, error: authUserError } = await admin.auth.admin.getUserById(prof.id);
+    if (authUserError || !authUser.user) {
+      console.error('Reset password profile has no matching auth user', {
+        profileId: prof.id,
+        authError: authUserError?.message || null,
+      });
+      return json({ error: 'The account could not be loaded. Please contact the administrator.' }, 500);
+    }
+
     const { error: upErr } = await admin.auth.admin.updateUserById(prof.id, { password: String(newPassword) });
-    if (upErr) return json({ error: upErr.message }, 500);
-    await admin.from('otp_codes').delete().eq('user_id', prof.id);
+    if (upErr) {
+      console.error('Reset password Auth update failed', {
+        profileId: prof.id,
+        authError: upErr.message,
+      });
+      return json({ error: 'The password could not be updated. Please try again or contact the administrator.' }, 500);
+    }
+
+    const { error: consumeError } = await admin.from('otp_codes').delete().eq('user_id', prof.id);
+    if (consumeError) {
+      console.error('Reset password OTP cleanup failed', {
+        profileId: prof.id,
+        databaseError: consumeError.message,
+      });
+    }
     return json({ ok: true });
   } catch (e) {
     return json({ error: String(e) }, 500);
