@@ -24,7 +24,11 @@ import Turnstile from '../../Turnstile';
 const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const TYPES = ['New Student', 'Transferee', 'Returnee'];
 const SUFFIXES = ['Jr.', 'Sr.', 'II', 'III', 'IV', 'V'];
-const TODAY_ISO = new Date().toISOString().slice(0, 10); // for the max birth date (no future)
+const TODAY = new Date();
+const MINIMUM_AGE = 4;
+const MIN_DOB_DATE = new Date(TODAY);
+MIN_DOB_DATE.setFullYear(MIN_DOB_DATE.getFullYear() - MINIMUM_AGE);
+const MIN_DOB_ISO = MIN_DOB_DATE.toISOString().slice(0, 10);
 
 // Account-first no more: Step 1 collects account INFO (no email/password, no
 // account yet); the real account is created at Step 5 "Account Creation" (email
@@ -240,6 +244,7 @@ const Apply = () => {
     }
     if (current === 'personal') {
       if (!f.sex || !f.dob) return 'Sex and date of birth are required.';
+      if (f.dob > MIN_DOB_ISO) return `Student must be at least ${MINIMUM_AGE} years old.`;
       if (!f.birthplace.trim()) return 'Birthplace is required.';
       if (!f.region || !f.city || !f.barangay || !f.houseStreet?.trim()) return 'Please complete your home address (region, city, barangay, and house no. & street).';
       if (f.guardianContact && !PHONE_RE.test(f.guardianContact)) return "Guardian's contact must be a valid mobile number (09XXXXXXXXX).";
@@ -265,7 +270,7 @@ const Apply = () => {
   // Persist the current step's data onto the draft.
   const persist = async () => {
     if (!appId) return { ok: true };
-    const form = { ...f, contact: acct.phone || f.contact, age: f.age || ageFromDob(f.dob) };
+    const form = { ...f, contact: acct.phone || f.contact, age: ageFromDob(f.dob) };
     return saveApplicationDraft(appId, { form, grade_level: level || null, student_type: studentType });
   };
 
@@ -282,7 +287,7 @@ const Apply = () => {
       if (!res.ok) { setBusy(false); setCaptchaToken(''); setCaptchaKey((k) => k + 1); return setError(res.error || 'Could not create your account.'); }
       setAppId(res.appId);
       // Push everything already collected in Steps 1–4 onto the fresh draft.
-      const form = { ...f, contact: acct.phone || f.contact, age: f.age || ageFromDob(f.dob) };
+      const form = { ...f, contact: acct.phone || f.contact, age: ageFromDob(f.dob) };
       await saveApplicationDraft(res.appId, { form, grade_level: level || null, student_type: studentType });
       setBusy(false);
       setStep((s) => s + 1); // → Document Submission
@@ -384,8 +389,8 @@ const Apply = () => {
             <Field label="Sex" req>
               <select className="ip" value={f.sex} onChange={(e) => set('sex', e.target.value)}><option value="">Select Sex</option><option>Male</option><option>Female</option></select>
             </Field>
-            <Field label="Age"><input className="ip" value={f.age} onChange={(e) => set('age', onlyDigits(e.target.value, 3))} inputMode="numeric" placeholder="Auto-fills from birth date" /></Field>
-            <Field label="Date of Birth" req><input className="ip" type="date" max={TODAY_ISO} value={f.dob} onChange={(e) => { const v = e.target.value; setF((p) => ({ ...p, dob: v, age: ageFromDob(v) })); }} /></Field>
+            <Field label="Age"><input className="ip bg-gray-50" value={ageFromDob(f.dob)} readOnly aria-readonly="true" placeholder="Auto-fills from birth date" /></Field>
+            <Field label="Date of Birth" req><input className="ip" type="date" max={MIN_DOB_ISO} value={f.dob} onChange={(e) => { const v = e.target.value; setF((p) => ({ ...p, dob: v, age: ageFromDob(v) })); }} /></Field>
             <Field label="Birthplace" req><input className="ip" value={f.birthplace} onChange={(e) => set('birthplace', placeClean(e.target.value))} placeholder="City, Province" maxLength={100} /></Field>
             <Field label="Nationality"><input className="ip" value={f.nationality} onChange={(e) => set('nationality', nameClean(e.target.value))} onBlur={(e) => set('nationality', titleCaseName(e.target.value))} placeholder="Filipino" maxLength={40} /></Field>
             <Field label="Religion"><input className="ip" value={f.religion} onChange={(e) => set('religion', nameClean(e.target.value))} onBlur={(e) => set('religion', titleCaseName(e.target.value))} placeholder="e.g. Roman Catholic" maxLength={50} /></Field>
@@ -537,7 +542,7 @@ const Apply = () => {
           <Summary title="Personal Information" rows={[
             ['Name', `${f.firstName} ${f.middleName} ${f.lastName} ${f.suffix}`.replace(/\s+/g, ' ').trim()],
             ['LRN', f.lrn], ['Email', acct.email || f.email], ['Contact', acct.phone || f.contact],
-            ['Sex', f.sex], ['Age', f.age || ageFromDob(f.dob)], ['Date of Birth', f.dob], ['Birthplace', f.birthplace],
+            ['Sex', f.sex], ['Age', ageFromDob(f.dob)], ['Date of Birth', f.dob], ['Birthplace', f.birthplace],
             ['Nationality', f.nationality], ['Religion', f.religion],
             ['Home Address', f.address],
           ]} />

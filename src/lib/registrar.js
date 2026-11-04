@@ -21,6 +21,7 @@ export const APP_DISPLAY = {
 
 // Statuses where a student's portal access is revoked (still fully reversible).
 export const DEPROVISIONED = ['withdrawn', 'graduated', 'archived'];
+export const GRADUATION_GRADES = ['Grade 6', 'Grade 10', 'Grade 12'];
 
 // A registrar may only ACT on an application that is still in review. Guarding the
 // decisive updates on this set prevents two registrars from handling the same
@@ -64,6 +65,19 @@ export async function listApplications() {
     .select('*')
     .order('created_at', { ascending: false })
     .limit(5000); // sanity cap vs unbounded fetch (see pagination TODO)
+  if (error) return [];
+  return data;
+}
+
+// Applications awaiting registrar action. Historical and already-decided
+// records remain available through Student Records, not the Applications queue.
+export async function listPendingApplications() {
+  const { data, error } = await supabase
+    .from('applications')
+    .select('*')
+    .in('status', ACTIONABLE)
+    .order('created_at', { ascending: false })
+    .limit(5000);
   if (error) return [];
   return data;
 }
@@ -129,9 +143,10 @@ export async function enrollApplication(id, note) {
   if (!app) return { ok: false, error: 'Application not found.' };
   const { data: { user } } = await supabase.auth.getUser();
   const msg = note || 'Congratulations! You have been accepted and enrolled.';
-  // A returning student keeps the number they were first given; only a brand-new
-  // student is minted the next number for the school year.
-  const reuse = app.student_no || await existingStudentNo(app.student_id);
+  // Only reuse a number already attached to this exact application. A returning
+  // student gets a new application row, so reusing an older historical row's
+  // number would violate the unique student-number constraint.
+  const reuse = app.student_no;
 
   // Atomic-ish: a UNIQUE index on student_no guarantees no duplicates. If two
   // registrars enroll at once and collide (Postgres 23505), regenerate + retry.
@@ -151,7 +166,7 @@ export async function enrollApplication(id, note) {
       lastErr = null; break;
     }
     lastErr = error;
-    if (error.code === '23505' && !reuse) { student_no = null; continue; } // number taken → retry
+    if (error.code === '23505') { student_no = null; continue; } // number taken → retry
     break;
   }
   if (lastErr) return { ok: false, error: lastErr.message };
@@ -159,17 +174,6 @@ export async function enrollApplication(id, note) {
   notifyStudent(app.student_id, `You're enrolled at NSDGA — Student No. ${student_no}`,
     emailShell('Enrollment Confirmed 🎓', `<p>Congratulations, ${applicantName(app)}!</p><p>Your application for <b>${app.grade_level}</b> (S.Y. ${app.school_year}) has been <b>accepted</b>. Your student number is <b>${student_no}</b>.</p><p>${msg}</p><p>Log in to your Student Portal to view the details.</p>`));
   return { ok: true, student_no };
-}
-
-// The student number this person was already assigned in an earlier year (if
-// any) — so returnees carry the same number instead of getting a new one.
-async function existingStudentNo(studentId) {
-  if (!studentId) return null;
-  const { data } = await supabase.from('applications')
-    .select('student_no, created_at').eq('student_id', studentId)
-    .not('student_no', 'is', null)
-    .order('created_at', { ascending: true }).limit(1);
-  return data?.[0]?.student_no || null;
 }
 
 // Next student number, e.g. 2026-0001, based on the school year's starting year.
@@ -438,6 +442,9 @@ export async function setLifecycle(id, status, note) {
   if (!['withdrawn', 'graduated', 'archived'].includes(status)) return { ok: false, error: 'Invalid status.' };
   const { data: { user } } = await supabase.auth.getUser();
   const app = await getApplication(id);
+  if (status === 'graduated' && !GRADUATION_GRADES.includes(app?.form?.grade)) {
+    return { ok: false, error: 'Only Grade 6, Grade 10, and Grade 12 students can be graduated.' };
+  }
   const { error } = await supabase.from('applications')
     .update({ status, review_note: note || '', reviewed_by: user?.id || null, reviewed_at: new Date().toISOString() })
     .eq('id', id);
@@ -463,6 +470,14 @@ export async function markCompleted(id, note) {
 // the latest also restores their portal login. Returns { ok, id }.
 export async function readmitStudent(prevApp, grade, schoolYear) {
   if (!grade || !schoolYear) return { ok: false, error: 'Grade and school year are required.' };
+  const previousGrade = parseInt(String(prevApp?.form?.grade || '').replace(/\D/g, ''), 10);
+  const returningGrade = parseInt(String(grade).replace(/\D/g, ''), 10);
+  if (previousGrade === 12) {
+    return { ok: false, error: 'Grade 12 students have completed the final grade and cannot be re-admitted.' };
+  }
+  if (!previousGrade || !returningGrade || returningGrade <= previousGrade) {
+    return { ok: false, error: `A returning student must be re-admitted to a grade higher than Grade ${previousGrade}.` };
+  }
   const { data, error } = await supabase.from('applications').insert({
     student_id: prevApp.student_id,
     school_year: schoolYear,

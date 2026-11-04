@@ -67,8 +67,33 @@ create or replace function public.enforce_application_insert()
 returns trigger
 language plpgsql security definer set search_path = ''
 as $$
+declare
+  previous_grade int;
+  returning_grade int;
 begin
-  if auth.uid() is null or public.is_staff() then return new; end if;
+  if auth.uid() is null then return new; end if;
+  if public.is_staff() then
+    if new.student_type = 'Returnee' then
+      select max(nullif(regexp_replace(form->>'grade', '\D', '', 'g'), '')::int)
+        into previous_grade
+        from public.applications
+        where student_id = new.student_id;
+      returning_grade := nullif(regexp_replace(new.form->>'grade', '\D', '', 'g'), '')::int;
+      if previous_grade = 12 then
+        raise exception 'Grade 12 students cannot be re-admitted';
+      end if;
+      if previous_grade is null or returning_grade is null or returning_grade <= previous_grade then
+        raise exception 'A returning student must be re-admitted to a higher grade';
+      end if;
+    elsif exists (
+      select 1 from public.applications
+      where student_id = new.student_id
+        and form->>'grade' = 'Grade 12'
+    ) then
+      raise exception 'Grade 12 students cannot be re-admitted';
+    end if;
+    return new;
+  end if;
   if new.student_id is distinct from auth.uid()
      or new.status not in ('draft', 'submitted')
      or new.student_no is not null then
@@ -94,7 +119,15 @@ as $$
 declare
   k text;
 begin
-  if auth.uid() is null or public.is_staff() then return new; end if;
+  if auth.uid() is null then return new; end if;
+  if public.is_staff() then
+    if new.status = 'graduated'
+       and old.status = 'enrolled'
+       and old.form->>'grade' not in ('Grade 6', 'Grade 10', 'Grade 12') then
+      raise exception 'Only Grade 6, Grade 10, and Grade 12 students can be graduated';
+    end if;
+    return new;
+  end if;
   if new.status is distinct from old.status
      and not (old.status = 'needs_correction' and new.status = 'submitted') then
     raise exception 'Not allowed to change application status';
