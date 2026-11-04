@@ -737,18 +737,6 @@ alter table public.chat_rate_limits enable row level security;
 -- touch this table; anon/authenticated have no access at all.
 revoke all on public.chat_rate_limits from anon, authenticated;
 
--- Password-reset OTP resend limiter. The identity is a SHA-256 email hash,
--- so raw email addresses are never stored in this table.
-create table if not exists public.otp_resend_limits (
-  identity text primary key,
-  window_started timestamptz not null default now(),
-  request_count integer not null default 0,
-  last_requested_at timestamptz not null default now()
-);
-
-alter table public.otp_resend_limits enable row level security;
-revoke all on public.otp_resend_limits from public, anon, authenticated;
-
 -- Atomic check-and-increment. Returns TRUE if the request is allowed, FALSE if
 -- the caller has exceeded p_limit requests within the last p_window_secs.
 create or replace function public.chat_rate_check(p_ip text, p_limit int, p_window_secs int)

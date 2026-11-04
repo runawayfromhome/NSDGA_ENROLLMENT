@@ -9,7 +9,7 @@ import Header from '../../Header';
 import { IoChevronBack } from "react-icons/io5";
 import {
   getStudentRecord, applicantName, APP_DISPLAY, setDocumentStatus,
-  markCompleted, setLifecycle, reactivateStudent, readmitStudent, GRADUATION_GRADES,
+  markCompleted, setLifecycle, reactivateStudent, readmitStudent,
 } from '../../../lib/registrar';
 import { REQUIRED_DOCS, DOC_STATUS_STYLE, signedDocUrl } from '../../../lib/student';
 import { levelOfGrade, ALL_GRADES } from '../../../lib/grades';
@@ -74,10 +74,6 @@ const StudentProfile = () => {
   const isCompleted = current.status === 'completed';
   const isDeprov = ['withdrawn', 'graduated', 'archived'].includes(current.status);
   const isPending = ['submitted', 'under_review', 'needs_correction'].includes(current.status);
-  const isGrade12 = current.form?.grade === 'Grade 12';
-  const canGraduate = GRADUATION_GRADES.includes(current.form?.grade);
-  const currentGradeNumber = parseInt(String(current.form?.grade || '').replace(/\D/g, ''), 10);
-  const readmitGrades = ALL_GRADES.filter((g) => parseInt(g.replace(/\D/g, ''), 10) > currentGradeNumber);
 
   return (
     <Frame>
@@ -182,7 +178,7 @@ const StudentProfile = () => {
               {isEnrolled && (
                 <>
                   <button disabled={busy || locked} onClick={() => run(() => markCompleted(current.id), 'Year marked completed.')} className="px-6 py-3 bg-teal-100 hover:bg-teal-200 text-teal-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">✓ Mark Year Completed</button>
-                  {canGraduate && <button disabled={busy || locked} onClick={() => run(() => setLifecycle(current.id, 'graduated', `Graduated${gradLevel ? ' from ' + gradLevel : ''}. Congratulations!`), 'Marked as graduated.')} className="px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Graduate{gradLevel ? ` (${gradLevel})` : ''}</button>}
+                  <button disabled={busy || locked} onClick={() => run(() => setLifecycle(current.id, 'graduated', `Graduated${gradLevel ? ' from ' + gradLevel : ''}. Congratulations!`), 'Marked as graduated.')} className="px-6 py-3 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Graduate{gradLevel ? ` (${gradLevel})` : ''}</button>
                   <button disabled={busy || locked} onClick={() => run(() => setLifecycle(current.id, 'withdrawn', 'Student marked as withdrawn.'), 'Student withdrawn.')} className="px-6 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Withdraw</button>
                   <button disabled={busy || locked} onClick={() => run(() => setLifecycle(current.id, 'archived', 'Record archived.'), 'Student archived.')} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer disabled:opacity-60">Archive</button>
                 </>
@@ -201,17 +197,13 @@ const StudentProfile = () => {
             {isDeprov && (
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <h3 className="text-sm font-bold text-slate-700 mb-1">Re-admit (returning student)</h3>
-                <p className="text-xs text-slate-500 mb-4 max-w-xl">
-                  {isGrade12
-                    ? 'Grade 12 is the final grade. This student cannot be re-admitted.'
-                    : <>This student may only return at a grade higher than <b>{grade}</b>. Creates a new enrollment for their same record and restores access.</>}
-                </p>
-                {!isGrade12 && <div className="flex flex-wrap gap-3 items-end">
+                <p className="text-xs text-slate-500 mb-4 max-w-xl">For a former student returning at a <b>new grade</b> — e.g. graduated Elementary here, did a year elsewhere, and returns for JHS. Creates a new enrollment for their same record and restores access.</p>
+                <div className="flex flex-wrap gap-3 items-end">
                   <label className="block">
                     <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Returning grade</span>
                     <select value={readmitGrade} onChange={(e) => setReadmitGrade(e.target.value)} className="bg-[#F1F3F6] rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 border-none outline-none">
                       <option value="">Select…</option>
-                      {readmitGrades.map((g) => <option key={g}>{g}</option>)}
+                      {ALL_GRADES.map((g) => <option key={g}>{g}</option>)}
                     </select>
                   </label>
                   <label className="block">
@@ -219,7 +211,7 @@ const StudentProfile = () => {
                     <input value={readmitYear} onChange={(e) => setReadmitYear(e.target.value)} placeholder="2027-2028" className="bg-[#F1F3F6] rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 border-none outline-none w-40" />
                   </label>
                   <button disabled={busy || !readmitGrade || !readmitYear || locked} onClick={doReadmit} className="px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold cursor-pointer disabled:opacity-50">Re-admit →</button>
-                </div>}
+                </div>
               </div>
             )}
           </div>

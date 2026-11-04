@@ -5,7 +5,7 @@ import Header from '../../Header';
 import ApplicationCard from '../../icons/RegistrarIcons/ApplicationCard';
 import { IoSearchOutline } from "react-icons/io5";
 import { HiOutlineCalendar } from "react-icons/hi";
-import { listPendingApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
 import { GRADES_BY_LEVEL } from '../../../lib/grades';
 import { getActiveSchoolYear } from '../../../lib/content';
 import { subscribeToTable } from '../../../lib/realtime';
@@ -40,10 +40,10 @@ const Applications = () => {
   const [dateTo, setDateTo] = useState(searchParams.get('to') || '');
   const [visible, setVisible] = useState(PAGE_SIZE);
 
-  useEffect(() => { listPendingApplications().then(setApps); }, []);
+  useEffect(() => { listApplications().then(setApps); }, []);
   useEffect(() => subscribeToTable('applications', {
     channelName: 'registrar-applications-list',
-    onChange: () => { listPendingApplications().then(setApps); },
+    onChange: () => { listApplications().then(setApps); },
   }), []);
   useEffect(() => { getActiveSchoolYear().then(setActiveYear); }, []);
   // Keep the URL in sync with the filters (replace, so Back returns to the list
