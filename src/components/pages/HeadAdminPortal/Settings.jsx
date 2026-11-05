@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import HeadAdminSidebar from '../../HeadAdminSidebar';
 import ChangePassword from '../../ChangePassword';
 import MfaSettings from '../../MfaSettings';
-import { getAccountLimits, requestAccountLimitsOtp, saveAccountLimitsWithOtp, getAccountUsage } from '../../../auth/authStore';
+import { getAccountLimits, saveAccountLimitsWithMfa, getAccountUsage, getMfaFactor, verifyMfaChallenge } from '../../../auth/authStore';
 
 const ROLES = [
   { key: 'headadmin', label: 'Head Administrator', hint: 'Full control — keep this small.' },
@@ -17,14 +17,12 @@ const AccountLimitsCard = () => {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
-  const [step, setStep] = useState('idle'); // idle | sent (awaiting OTP)
+  const [step, setStep] = useState('idle'); // idle | mfa (awaiting authenticator code)
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
-  const [cooldown, setCooldown] = useState(0);
   const [info, setInfo] = useState('');
   const refs = useRef([]);
 
   useEffect(() => { getAccountLimits().then(setLimits); getAccountUsage().then(setUsage); }, []);
-  useEffect(() => { if (cooldown > 0) { const t = setTimeout(() => setCooldown((c) => c - 1), 1000); return () => clearTimeout(t); } }, [cooldown]);
 
   const set = (role, v) => { setLimits((p) => ({ ...p, [role]: v.replace(/\D/g, '').slice(0, 2) })); setStep('idle'); setErr(''); setSaved(false); };
   const setDigit = (i, v) => {
@@ -34,21 +32,25 @@ const AccountLimitsCard = () => {
   };
   const onKey = (i, e) => { if (e.key === 'Backspace' && !digits[i] && i > 0) refs.current[i - 1]?.focus(); };
 
-  // Step 1 — email a confirmation code.
+  // Step 1 — request a fresh authenticator challenge.
   const requestCode = async () => {
-    setBusy('otp'); setErr(''); setSaved(false); setInfo('');
-    const res = await requestAccountLimitsOtp();
+    setBusy('mfa'); setErr(''); setSaved(false); setInfo('');
+    const factor = await getMfaFactor();
     setBusy('');
-    if (!res.ok) return setErr(res.error);
-    setStep('sent'); setCooldown(30); setDigits(['', '', '', '', '', '']);
-    setInfo(`We emailed a 6-digit code to ${res.sentTo || 'your email'}. Enter it below to apply the new limits.`);
+    if (!factor) return setErr('Set up an authenticator app in MFA Settings before changing account limits.');
+    setStep('mfa'); setDigits(['', '', '', '', '', '']);
+    setInfo('Open your authenticator app and enter the current 6-digit code to apply the new limits.');
   };
-  // Step 2 — verify + save.
+  // Step 2 — verify the authenticator code, then save with the AAL2 session.
   const confirm = async () => {
     const code = digits.join('');
-    if (code.length !== 6) return setErr('Enter the 6-digit code.');
+    if (code.length !== 6) return setErr('Enter the 6-digit authenticator code.');
     setBusy('confirm'); setErr('');
-    const res = await saveAccountLimitsWithOtp(limits, code);
+    const factor = await getMfaFactor();
+    if (!factor) { setBusy(''); return setErr('No verified authenticator was found. Set up MFA first.'); }
+    const verified = await verifyMfaChallenge(factor.id, code);
+    if (!verified.ok) { setBusy(''); return setErr(verified.error); }
+    const res = await saveAccountLimitsWithMfa(limits, verified.accessToken);
     setBusy('');
     if (!res.ok) return setErr(res.error);
     setLimits(res.limits); setStep('idle'); setDigits(['', '', '', '', '', '']); setInfo('');
@@ -61,7 +63,7 @@ const AccountLimitsCard = () => {
       <h2 className="text-2xl font-extrabold text-[#800000] mb-1">Account Limits</h2>
       <p className="text-sm text-slate-500 mb-6">
         The maximum number of <b>active</b> (verified &amp; enabled) accounts allowed per staff role.
-        Disabled accounts don't count. Students are never limited. Saving requires an emailed code.
+        Disabled accounts don't count. Students are never limited.         Saving requires a code from the Head Administrator&apos;s authenticator app.
       </p>
 
       {err && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">⚠️ {err}</div>}
@@ -83,7 +85,7 @@ const AccountLimitsCard = () => {
                     </p>
                   )}
                 </div>
-                <input value={limits[r.key] ?? ''} onChange={(e) => set(r.key, e.target.value)} inputMode="numeric" disabled={step === 'sent'}
+                <input value={limits[r.key] ?? ''} onChange={(e) => set(r.key, e.target.value)} inputMode="numeric" disabled={step === 'mfa'}
                   className="w-20 h-12 text-center text-lg font-bold border border-gray-200 rounded-xl bg-white focus:border-[#800000] focus:outline-none shrink-0 disabled:bg-gray-50" />
               </div>
             );
@@ -93,7 +95,7 @@ const AccountLimitsCard = () => {
             <div className="pt-1">
               <button onClick={requestCode} disabled={!!busy}
                 className="bg-[#800000] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#600000] transition-all disabled:opacity-60 text-sm cursor-pointer">
-                {busy === 'otp' ? 'Sending code…' : 'Save Limits'}
+                {busy === 'mfa' ? 'Preparing…' : 'Save Limits'}
               </button>
             </div>
           ) : (
@@ -108,7 +110,6 @@ const AccountLimitsCard = () => {
               <div className="flex items-center gap-3">
                 <button onClick={confirm} disabled={busy === 'confirm'}
                   className="px-6 py-2.5 bg-[#800000] hover:bg-[#600000] text-white rounded-xl text-sm font-bold disabled:opacity-60 cursor-pointer">{busy === 'confirm' ? 'Applying…' : 'Confirm & apply'}</button>
-                {cooldown > 0 ? <span className="text-[12px] text-slate-400">Resend in {cooldown}s</span> : <button onClick={requestCode} disabled={!!busy} className="text-[12px] font-bold text-[#800000] hover:underline">Resend code</button>}
                 <button onClick={() => { setStep('idle'); setErr(''); setInfo(''); }} className="text-[12px] font-bold text-slate-400 hover:underline ml-auto">Cancel</button>
               </div>
             </div>

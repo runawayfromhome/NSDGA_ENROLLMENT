@@ -76,19 +76,23 @@ export async function getAccountLimits() {
   return { ...ACCOUNT_LIMIT_DEFAULTS, ...(data?.content || {}) };
 }
 
-// Saving account limits is step-up protected (emailed code), since raising a cap
-// could let someone add rogue staff. admin-account-limits Edge Function:
-//   { }               → emails a 6-digit code to the HeadAdmin
-//   { limits, code }   → verifies the code, then writes the new limits
-export async function requestAccountLimitsOtp() {
-  const { data, error } = await supabase.functions.invoke('admin-account-limits', { body: {} });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not send the code.' };
-  if (data && data.error) return { ok: false, error: data.error };
-  return { ok: true, sentTo: data.sentTo };
-}
-export async function saveAccountLimitsWithOtp(limits, code) {
-  const { data, error } = await supabase.functions.invoke('admin-account-limits', { body: { limits, code } });
-  if (error && !(data && data.error)) return { ok: false, error: error.message || 'Could not save the limits.' };
+// Saving account limits is step-up protected with the HeadAdmin's authenticator.
+// The MFA verification elevates the session to AAL2 before the Edge Function
+// accepts the update.
+export async function saveAccountLimitsWithMfa(limits, accessToken = null) {
+  const options = { body: { limits } };
+  if (accessToken) options.headers = { Authorization: `Bearer ${accessToken}` };
+  const { data, error } = await supabase.functions.invoke('admin-account-limits', options);
+  if (error && !(data && data.error)) {
+    let message = error.message || 'Could not save the limits.';
+    try {
+      const body = await error.context?.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // Keep Supabase's message when the response is not JSON or was already consumed.
+    }
+    return { ok: false, error: message };
+  }
   if (data && data.error) return { ok: false, error: data.error };
   const l = data.limits || {};
   logAction('CONTENT_EDIT', `Updated account limits: HeadAdmin ${l.headadmin} · Admin ${l.admin} · Registrar ${l.registrar}`);
@@ -418,9 +422,14 @@ export async function verifyCurrentPassword(currentPassword) {
 export async function verifyMfaChallenge(factorId, code) {
   const { data: ch, error: chErr } = await supabase.auth.mfa.challenge({ factorId });
   if (chErr) return { ok: false, error: chErr.message };
-  const { error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
+  const { data: verified, error: vErr } = await supabase.auth.mfa.verify({ factorId, challengeId: ch.id, code });
   if (vErr) { await recordMfaFail('Invalid authenticator code (step-up)'); return { ok: false, error: 'Invalid authenticator code.' }; }
-  return { ok: true, error: null };
+  const { data: sessionData } = await supabase.auth.getSession();
+  return {
+    ok: true,
+    error: null,
+    accessToken: verified?.session?.access_token || sessionData?.session?.access_token || null,
+  };
 }
 
 // Record a failed MFA attempt to the audit log (fuels the HeadAdmin alert in
