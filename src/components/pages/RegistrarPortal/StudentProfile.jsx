@@ -10,6 +10,7 @@ import { IoChevronBack } from "react-icons/io5";
 import {
   getStudentRecord, applicantName, APP_DISPLAY, setDocumentStatus,
   markCompleted, setLifecycle, reactivateStudent, readmitStudent, GRADUATION_GRADES,
+  updateEnrolledStudentDetails,
 } from '../../../lib/registrar';
 import { REQUIRED_DOCS, DOC_STATUS_STYLE, signedDocUrl } from '../../../lib/student';
 import { levelOfGrade, ALL_GRADES } from '../../../lib/grades';
@@ -34,6 +35,8 @@ const StudentProfile = () => {
   const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
   const [readmitGrade, setReadmitGrade] = useState('');
   const [readmitYear, setReadmitYear] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
   const load = async () => {
     const data = await getStudentRecord(studentId);
@@ -59,6 +62,15 @@ const StudentProfile = () => {
   };
   const viewDoc = async (path) => { const url = await signedDocUrl(path); if (url) window.open(url, '_blank'); };
   const setDoc = async (key, status) => { const r = await setDocumentStatus(viewed, key, status); if (r.ok) await load(); else setMsg('⚠️ ' + (r.error || 'Failed.')); };
+  const beginEdit = () => { setEditForm({ ...(viewed?.form || {}) }); setEditing(true); setMsg(''); };
+  const cancelEdit = () => { setEditing(false); setEditForm({}); };
+  const applyEdit = async () => {
+    setBusy(true); setMsg('');
+    const r = await updateEnrolledStudentDetails(va.id, editForm);
+    setBusy(false);
+    if (!r.ok) { setMsg('⚠️ ' + (r.error || 'Could not update student details.')); return; }
+    setEditing(false); setEditForm({}); setMsg('✓ Student details updated.'); await load();
+  };
 
   if (rows === null) return <Frame><div className="p-8 md:p-12 max-w-[1000px] space-y-6"><CardSkeleton lines={2} /><CardSkeleton lines={4} /></div></Frame>;
   if (rows.length === 0) return <Frame><div className="p-12"><p className="text-slate-500">Student record not found.</p><button onClick={() => navigate('/RegistrarPortal/StudentRecords')} className="mt-4 text-[#800000] font-bold">← Back to Student Records</button></div></Frame>;
@@ -71,6 +83,7 @@ const StudentProfile = () => {
   const grade = current.form?.grade || current.grade_level;
   const gradLevel = levelOfGrade(current.form?.grade);
   const isEnrolled = current.status === 'enrolled';
+  const canEditViewed = va.status === 'enrolled';
   const isCompleted = current.status === 'completed';
   const isDeprov = ['withdrawn', 'graduated', 'archived'].includes(current.status);
   const isPending = ['submitted', 'under_review', 'needs_correction'].includes(current.status);
@@ -127,20 +140,51 @@ const StudentProfile = () => {
 
         {/* Details of the selected year */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 md:p-8">
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-6">Personal Information — S.Y. {va.school_year}</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            <D label="First Name" v={f.firstName} /><D label="Middle Name" v={f.middleName} /><D label="Last Name" v={f.lastName} />
-            <D label="LRN" v={f.lrn} /><D label="Sex" v={f.sex} /><D label="Age" v={ageFrom(f.dob)} />
-            <D label="Date of Birth" v={f.dob} /><D label="Birthplace" v={f.birthplace} /><D label="Religion" v={f.religion} />
-            <D label="Grade" v={f.grade || va.grade_level} /><D label="Student Type" v={va.student_type} /><D label="Contact" v={f.contact} />
-            <D label="Section" v={f.section} />
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px]">Personal Information — S.Y. {va.school_year}</h2>
+            {canEditViewed && !editing && <button type="button" onClick={beginEdit} disabled={locked} className="px-4 py-2 rounded-lg bg-[#800000] text-white text-xs font-bold disabled:opacity-50">Edit</button>}
+            {editing && <button type="button" onClick={cancelEdit} disabled={busy} className="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold">Cancel</button>}
           </div>
-          <div className="mt-5"><D label="Home Address" v={f.address} /></div>
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mt-8 mb-6">Parent / Guardian &amp; Academic</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            <D label="Father" v={f.fatherName} /><D label="Mother" v={f.motherName} /><D label="Guardian" v={f.guardianName} />
-            <D label="Guardian Contact" v={f.guardianContact} /><D label="Last School" v={f.lastSchool} /><D label="Prev. School Type" v={f.prevSchoolType} /><D label="GWA" v={f.gwa} />
-          </div>
+          {editing ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[
+                ['firstName', 'First Name'], ['middleName', 'Middle Name'], ['lastName', 'Last Name'],
+                ['lrn', 'LRN'], ['sex', 'Sex'], ['dob', 'Date of Birth'],
+                ['birthplace', 'Birthplace'], ['religion', 'Religion'], ['contact', 'Contact'],
+                ['address', 'Home Address'], ['fatherName', 'Father'], ['motherName', 'Mother'],
+                ['guardianName', 'Guardian'], ['guardianContact', 'Guardian Contact'],
+                ['lastSchool', 'Last School'], ['prevSchoolType', 'Prev. School Type'],
+              ].map(([key, label]) => (
+                <label key={key} className={key === 'address' ? 'col-span-2 md:col-span-3 text-xs font-bold text-slate-500' : 'text-xs font-bold text-slate-500'}>
+                  {label}
+                  <input type={key === 'dob' ? 'date' : 'text'} value={editForm[key] || ''} onChange={(e) => setEditForm((p) => ({ ...p, [key]: e.target.value }))} className="mt-1 w-full p-3 rounded-lg border border-slate-200 text-sm font-medium" />
+                </label>
+              ))}
+              <label className="text-xs font-bold text-slate-500">
+                GWA
+                <div className="flex items-center gap-2 mt-1">
+                  <input type="text" value={editForm.gwa || ''} onChange={(e) => setEditForm((p) => ({ ...p, gwa: e.target.value }))} className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium" />
+                  <button type="button" onClick={applyEdit} disabled={busy || locked} className="shrink-0 px-4 py-3 rounded-lg bg-[#800000] text-white text-xs font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Apply'}</button>
+                </div>
+              </label>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                <D label="First Name" v={f.firstName} /><D label="Middle Name" v={f.middleName} /><D label="Last Name" v={f.lastName} />
+                <D label="LRN" v={f.lrn} /><D label="Sex" v={f.sex} /><D label="Age" v={ageFrom(f.dob)} />
+                <D label="Date of Birth" v={f.dob} /><D label="Birthplace" v={f.birthplace} /><D label="Religion" v={f.religion} />
+                <D label="Grade" v={f.grade || va.grade_level} /><D label="Student Type" v={va.student_type} /><D label="Contact" v={f.contact} />
+                <D label="Section" v={f.section} />
+              </div>
+              <div className="mt-5"><D label="Home Address" v={f.address} /></div>
+              <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mt-8 mb-6">Parent / Guardian &amp; Academic</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+                <D label="Father" v={f.fatherName} /><D label="Mother" v={f.motherName} /><D label="Guardian" v={f.guardianName} />
+                <D label="Guardian Contact" v={f.guardianContact} /><D label="Last School" v={f.lastSchool} /><D label="Prev. School Type" v={f.prevSchoolType} /><D label="GWA" v={f.gwa} />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Documents of the selected year */}
