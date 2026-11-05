@@ -162,11 +162,11 @@ const StudentProfile = () => {
               ))}
               <label className="text-xs font-bold text-slate-500">
                 GWA
-                <div className="flex items-center gap-2 mt-1">
-                  <input type="text" value={editForm.gwa || ''} onChange={(e) => setEditForm((p) => ({ ...p, gwa: e.target.value }))} className="w-full p-3 rounded-lg border border-slate-200 text-sm font-medium" />
-                  <button type="button" onClick={applyEdit} disabled={busy || locked} className="shrink-0 px-4 py-3 rounded-lg bg-[#800000] text-white text-xs font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Apply'}</button>
-                </div>
+                <input type="text" value={editForm.gwa || ''} onChange={(e) => setEditForm((p) => ({ ...p, gwa: e.target.value }))} className="mt-1 w-full p-3 rounded-lg border border-slate-200 text-sm font-medium" />
               </label>
+              <div className="col-span-2 md:col-span-3 flex justify-end items-end">
+                <button type="button" onClick={applyEdit} disabled={busy || locked} className="px-5 py-3 rounded-lg bg-[#800000] text-white text-xs font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Apply'}</button>
+              </div>
             </div>
           ) : (
             <>
