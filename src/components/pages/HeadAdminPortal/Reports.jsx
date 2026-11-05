@@ -76,12 +76,11 @@ const Reports = () => {
 
   const byLevelApps = LEVELS.map((label) => ({ label: LEVEL_SHORT[label], count: all.filter((a) => applicationLevel(a) === label).length }));
   const maxLevel = Math.max(1, ...byLevelApps.map((b) => b.count));
-  // Show enrolled applications as a percentage of all applications so these
-  // figures can be compared directly with the school-wide totals above.
+  // Show each level's share of the enrolled students.
   const byLevelEnrolled = LEVELS.map((label) => ({
     label: LEVEL_SHORT[label],
     count: enrolled.filter((a) => applicationLevel(a) === label).length,
-    value: pct(enrolled.filter((a) => applicationLevel(a) === label).length, total),
+    value: pct(enrolled.filter((a) => applicationLevel(a) === label).length, enrolled.length),
   }));
 
   const exportCsv = () => {
