@@ -7,6 +7,7 @@ import {
   HiOutlineUserAdd, HiOutlineAcademicCap, HiOutlineClock, HiOutlineExclamationCircle, HiOutlineDownload,
 } from 'react-icons/hi';
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { subscribeToTable } from '../../../lib/realtime';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 // Kindergarten is admitted face-to-face (not online), so grade_level is never
@@ -21,6 +22,10 @@ const Reports = () => {
   const [year, setYear] = useState('All');
 
   useEffect(() => { listApplications().then(setApps); }, []);
+  useEffect(() => subscribeToTable('applications', {
+    channelName: 'headadmin-reports-applications',
+    onChange: () => { listApplications().then(setApps); },
+  }), []);
 
   const years = useMemo(
     () => ['All', ...Array.from(new Set((apps || []).map((a) => a.school_year).filter(Boolean))).sort().reverse()],

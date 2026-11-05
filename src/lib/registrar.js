@@ -88,6 +88,21 @@ export async function getApplication(id) {
   return data;
 }
 
+// Staff may correct personal details only after the application is enrolled.
+// The status predicate prevents this helper from editing pending applications.
+export async function updateEnrolledStudentDetails(id, form) {
+  const { data, error } = await supabase.from('applications')
+    .update({ form })
+    .eq('id', id)
+    .eq('status', 'enrolled')
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: 'Only enrolled student details can be edited.' };
+  logAction('STUDENT_DETAILS_EDIT', `Updated enrolled student details: ${id}`);
+  return { ok: true };
+}
+
 export async function setUnderReview(id) {
   const { data, error } = await supabase.from('applications')
     .update({ status: 'under_review' }).eq('id', id).in('status', ACTIONABLE).select('id');

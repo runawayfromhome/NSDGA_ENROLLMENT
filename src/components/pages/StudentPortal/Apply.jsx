@@ -46,8 +46,8 @@ const DOCS = [
   // Form 137 is NOT uploaded here — it is confidential and transmitted school-to-school.
   { key: 'kinderCert', label: 'Kinder Cert / ECCD Checklist', hint: 'Certificate of completion (if any)', required: false, grade1Only: true },
 ];
-// Incoming Grade 1 (from Kindergarten) has no GWA / Form 137, and may have no
-// LRN yet — only these documents are required for them.
+// Incoming Grade 1 (from Kindergarten) has no GWA / Form 137 — only these
+// documents are required for them.
 const GRADE1_REQUIRED_DOCS = ['photo', 'psa'];
 
 const emptyForm = {
@@ -145,7 +145,6 @@ const Apply = () => {
   const [acct, setAcct] = useState({ email: '', password: '', confirm: '', phone: '' });
   const [f, setF] = useState(emptyForm);
   const [docs, setDocs] = useState({});           // { key: {name,status} }
-  const [noLrn, setNoLrn] = useState(false);       // incoming Grade 1 with no LRN yet
   const [agreedAccount, setAgreedAccount] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [legalDocument, setLegalDocument] = useState(null);
@@ -179,7 +178,6 @@ const Apply = () => {
             setF({ ...base, ...(saved.f || {}) });
             if (saved.level) setLevel(saved.level);
             if (saved.studentType) setStudentType(saved.studentType);
-            if (typeof saved.noLrn === 'boolean') setNoLrn(saved.noLrn);
             setAcct((p) => ({ ...p, email: saved.email || '', phone: saved.phone || p.phone }));
           } else {
             setF(base);
@@ -196,7 +194,6 @@ const Apply = () => {
         setF({ ...emptyForm, schoolYear: activeSY, ...(saved.f || {}) });
         setLevel(saved.level || '');
         setStudentType(saved.studentType || 'New Student');
-        setNoLrn(!!saved.noLrn);
         setAcct((p) => ({ ...p, email: saved.email || '', phone: saved.phone || '' }));
       } else {
         // Fresh applicant: file under the school year the Admin has set active.
@@ -212,10 +209,10 @@ const Apply = () => {
     if (!ready) return;
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        appId, level, studentType, noLrn, f, email: acct.email, phone: acct.phone, ts: Date.now(),
+        appId, level, studentType, f, email: acct.email, phone: acct.phone, ts: Date.now(),
       }));
     } catch { /* storage disabled/full — ignore */ }
-  }, [ready, appId, level, studentType, noLrn, f, acct.email, acct.phone]);
+  }, [ready, appId, level, studentType, f, acct.email, acct.phone]);
 
   const current = STEP_KEYS[step];
   const isSHS = level === 'Senior High School';
@@ -229,8 +226,8 @@ const Apply = () => {
     setError('');
     if (current === 'account') {
       if (!f.firstName.trim() || !f.lastName.trim()) return 'First and last name are required.';
-      if (!noLrn && !f.lrn) return 'LRN is required (or tick "No LRN yet").';
-      if (f.lrn && !/^\d{12}$/.test(f.lrn.trim())) return 'LRN must be 12 digits.';
+      if (!f.lrn.trim()) return 'LRN is required.';
+      if (!/^\d{12}$/.test(f.lrn.trim())) return 'LRN must be 12 digits.';
       if (!acct.phone) return 'Phone number is required.';
       if (!PHONE_RE.test(acct.phone)) return 'Enter a valid mobile number (09XXXXXXXXX).';
     }
@@ -370,12 +367,8 @@ const Apply = () => {
             <Field label="Middle Name (if any)"><input className="ip" value={f.middleName} onChange={(e) => set('middleName', nameClean(e.target.value))} onBlur={(e) => set('middleName', titleCaseName(e.target.value))} placeholder="Ponce" maxLength={50} /></Field>
             <Field label="Suffix (if any)"><select className="ip" value={f.suffix} onChange={(e) => set('suffix', e.target.value)}><option value="">— None —</option>{SUFFIXES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
           </div>
-          <Field label="LRN Number" req={!noLrn}>
-            <input className="ip" value={f.lrn} onChange={(e) => set('lrn', onlyDigits(e.target.value, 12))} placeholder="136676090147" inputMode="numeric" maxLength={12} disabled={noLrn} />
-            <label className="flex items-center gap-2 text-[12px] text-gray-500 cursor-pointer mt-2">
-              <input type="checkbox" checked={noLrn} onChange={(e) => { setNoLrn(e.target.checked); if (e.target.checked) set('lrn', ''); }} className="accent-[#800000] w-3.5 h-3.5" />
-              Wala pa akong LRN (incoming Grade 1 / hindi nag-Kinder)
-            </label>
+          <Field label="LRN Number" req>
+            <input className="ip" value={f.lrn} onChange={(e) => set('lrn', onlyDigits(e.target.value, 12))} placeholder="136676090147" inputMode="numeric" maxLength={12} />
           </Field>
           <Field label="Phone Number" req><input className="ip" value={acct.phone} onChange={(e) => setAcct({ ...acct, phone: onlyDigits(e.target.value, 11) })} placeholder="09171234567" inputMode="numeric" maxLength={11} /></Field>
           <p className="text-center text-gray-500 text-sm pt-1">Already have an account? <NavLink to="/StudentPortal/Login" className="text-[#800000] font-bold">Login</NavLink></p>

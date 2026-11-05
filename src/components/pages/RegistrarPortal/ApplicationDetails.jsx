@@ -9,7 +9,7 @@ import AdditionalNotesCard from '../../icons/AdditionalNotesCard';
 import {
   getApplication, applicantName, APP_DISPLAY,
   enrollApplication, returnForCorrection, rejectApplication, setUnderReview,
-  setDocumentStatus,
+  setDocumentStatus, updateEnrolledStudentDetails,
 } from '../../../lib/registrar';
 import { REQUIRED_DOCS, DOC_STATUS_STYLE, signedDocUrl } from '../../../lib/student';
 import { CardSkeleton } from '../../Skeleton';
@@ -31,6 +31,8 @@ const ApplicationDetails = () => {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
   const { locked, banner } = useMfaLock('/RegistrarPortal/Settings');
 
   const load = async () => { const a = await getApplication(id); setApp(a); setNote(a?.review_note || ''); setLoading(false); };
@@ -47,6 +49,14 @@ const ApplicationDetails = () => {
 
   const viewDoc = async (path) => { const url = await signedDocUrl(path); if (url) window.open(url, '_blank'); };
   const setDoc = async (key, status) => { const r = await setDocumentStatus(app, key, status); if (r.ok) await load(); else setMsg('⚠️ ' + (r.error || 'Failed.')); };
+  const beginEdit = () => { setEditForm({ ...(app.form || {}) }); setEditing(true); setMsg(''); };
+  const saveEdit = async () => {
+    setBusy(true); setMsg('');
+    const res = await updateEnrolledStudentDetails(app.id, editForm);
+    setBusy(false);
+    if (!res.ok) return setMsg('⚠️ ' + res.error);
+    setEditing(false); setMsg('✓ Student details updated.'); await load();
+  };
 
   if (loading) return <Frame><div className="p-8 md:p-12 max-w-[1200px] mx-auto w-full space-y-6"><CardSkeleton lines={4} /><CardSkeleton lines={3} /></div></Frame>;
   if (!app) return <Frame><div className="p-12"><p className="text-slate-500">Application not found.</p><button onClick={() => navigate('/RegistrarPortal/Applications')} className="mt-4 text-[#800000] font-bold">← Back to Applications</button></div></Frame>;
@@ -80,26 +90,42 @@ const ApplicationDetails = () => {
         {banner}
 
         <PersonalInfoCard>
-          <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-6">Personal Information</h2>
-          <div className="grid grid-cols-3 gap-6">
-            <DetailField label="First Name" value={f.firstName} />
-            <DetailField label="Middle Name" value={f.middleName} />
-            <DetailField label="Last Name" value={f.lastName} />
-            <DetailField label="LRN (12-digit)" value={f.lrn} />
-            <DetailField label="Sex" value={f.sex} />
-            <DetailField label="Age" value={ageFrom(f.dob)} />
-            <DetailField label="Date of Birth" value={f.dob} />
-            <DetailField label="Birthplace" value={f.birthplace} />
-            <DetailField label="Religion" value={f.religion} />
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <h2 className="text-[11px] font-black text-slate-400 uppercase tracking-[2px]">Personal Information</h2>
+            {isEnrolled && !editing && <button onClick={beginEdit} disabled={locked} className="px-4 py-2 rounded-lg bg-[#800000] text-white text-xs font-bold disabled:opacity-50">Edit Student Details</button>}
           </div>
-          <div className="mt-6"><DetailField label="Home Address" value={f.address} /></div>
-          <div className="grid grid-cols-3 gap-6 mt-6">
-            <DetailField label="Contact Number" value={f.contact} />
-            <DetailField label="Grade Level Applying For" value={f.grade ? `${f.grade} (${app.grade_level})` : app.grade_level} />
-            <DetailField label="School Year" value={app.school_year} />
-            <DetailField label="Student Type" value={app.student_type} />
-            {f.strand && <DetailField label="SHS Strand" value={f.strand} />}
-          </div>
+          {editing ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                ['firstName', 'First Name'], ['middleName', 'Middle Name'], ['lastName', 'Last Name'],
+                ['lrn', 'LRN (12-digit)'], ['sex', 'Sex'], ['dob', 'Date of Birth'],
+                ['birthplace', 'Birthplace'], ['religion', 'Religion'], ['address', 'Home Address'],
+                ['contact', 'Contact Number'], ['fatherName', "Father's Name"], ['motherName', "Mother's Name"],
+                ['guardianName', "Guardian's Name"], ['guardianContact', "Guardian's Contact"],
+              ].map(([key, label]) => (
+                <label key={key} className={key === 'address' ? 'md:col-span-3 text-xs font-bold text-slate-500' : 'text-xs font-bold text-slate-500'}>
+                  {label}
+                  <input type={key === 'dob' ? 'date' : 'text'} value={editForm[key] || ''} onChange={(e) => setEditForm((p) => ({ ...p, [key]: e.target.value }))} className="mt-1 w-full p-3 rounded-lg border border-slate-200 text-sm font-medium" />
+                </label>
+              ))}
+              <div className="md:col-span-3 flex justify-end gap-3">
+                <button onClick={() => setEditing(false)} disabled={busy} className="px-4 py-2 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold">Cancel</button>
+                <button onClick={saveEdit} disabled={busy || locked} className="px-5 py-2 rounded-lg bg-[#800000] text-white text-xs font-bold disabled:opacity-50">{busy ? 'Saving…' : 'Save Changes'}</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-3 gap-6">
+                <DetailField label="First Name" value={f.firstName} /><DetailField label="Middle Name" value={f.middleName} /><DetailField label="Last Name" value={f.lastName} />
+                <DetailField label="LRN (12-digit)" value={f.lrn} /><DetailField label="Sex" value={f.sex} /><DetailField label="Age" value={ageFrom(f.dob)} />
+                <DetailField label="Date of Birth" value={f.dob} /><DetailField label="Birthplace" value={f.birthplace} /><DetailField label="Religion" value={f.religion} />
+              </div>
+              <div className="mt-6"><DetailField label="Home Address" value={f.address} /></div>
+              <div className="grid grid-cols-3 gap-6 mt-6">
+                <DetailField label="Contact Number" value={f.contact} /><DetailField label="Grade Level" value={f.grade ? `${f.grade} (${app.grade_level})` : app.grade_level} /><DetailField label="School Year" value={app.school_year} /><DetailField label="Student Type" value={app.student_type} />{f.strand && <DetailField label="SHS Strand" value={f.strand} />}
+              </div>
+            </>
+          )}
         </PersonalInfoCard>
 
         <PersonalInfoCard>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import MainLayout from '../../layouts/Mainlayouts'
 import { getPublishedEvents, formatEventDate, getSection } from '../../lib/content'
 import SchoolEventCard from '../icons/SchoolEventCard'
@@ -13,14 +14,21 @@ const Calendar = () => {
   const [schoolEvents, setSchoolEvents] = useState([]);
   const [levels, setLevels] = useState([]);
   const [activeLevel, setActiveLevel] = useState(0);
+  const location = useLocation();
 
   // Load the Admin-published events + per-level academic schedule from Supabase.
   useEffect(() => {
-    getPublishedEvents().then((items) =>
-      setSchoolEvents(items.map((e) => ({ ...e, date: formatEventDate(e.date) })))
-    );
+    getPublishedEvents().then((items) => {
+      const formatted = items.map((e) => ({ ...e, date: formatEventDate(e.date) }));
+      setSchoolEvents(formatted);
+      const selected = formatted.find((e) => e.id === location.state?.eventId);
+      if (selected) {
+        setSelectedEvent(selected);
+        requestAnimationFrame(() => document.getElementById('event_modal')?.showModal());
+      }
+    });
     getSection('schedule').then((c) => setLevels(c.levels || []));
-  }, []);
+  }, [location.state]);
 
   const activeTerms = levels[activeLevel]?.terms || [];
 

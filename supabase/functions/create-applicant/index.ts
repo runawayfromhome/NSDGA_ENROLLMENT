@@ -76,15 +76,12 @@ Deno.serve(async (req) => {
     }
     if (!PHONE_RE.test(phone)) return json({ error: 'Enter a valid mobile number (09XXXXXXXXX).' });
 
-    // 0) Reject a duplicate LRN — one learner can't register twice. (Skipped for
-    //    incoming Grade 1 / no-LRN applicants, whose LRN is blank.)
+    // 0) Require an LRN and reject duplicates — one learner can't register twice.
     const lrn = String(form.lrn || '').trim();
-    if (lrn) {
-      if (!/^\d{12}$/.test(lrn)) return json({ error: 'LRN must be 12 digits.' });
-      const { data: dup } = await admin.from('applications').select('id').filter('form->>lrn', 'eq', lrn).limit(1);
-      if (dup && dup.length) {
-        return json({ error: 'This LRN is already registered. If you already have an account, please log in instead.' });
-      }
+    if (!/^\d{12}$/.test(lrn)) return json({ error: 'LRN is required and must be 12 digits.' });
+    const { data: dup } = await admin.from('applications').select('id').filter('form->>lrn', 'eq', lrn).limit(1);
+    if (dup && dup.length) {
+      return json({ error: 'This LRN is already registered. If you already have an account, please log in instead.' });
     }
 
     // 1) Create the confirmed applicant account (trigger makes a 'student' profile).

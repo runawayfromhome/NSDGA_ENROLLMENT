@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import MainLayout from '../../layouts/Mainlayouts'
 import ArrowIcon from '../icons/StudentPortalIcons/ArrowIcon'
 import NuestraLogoImage from '../../assets/nuestradg.png'
@@ -8,6 +8,7 @@ import ImageCarousel from '../ImageCarousel'
 import { LuCalendarDays } from 'react-icons/lu'
 
 const Home = () => {
+  const navigate = useNavigate()
   const [events, setEvents] = useState([])
 
   useEffect(() => {
@@ -66,7 +67,7 @@ const Home = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {events.map((ev) => (
-              <div key={ev.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all">
+              <button type="button" key={ev.id} onClick={() => navigate('/Calendar', { state: { eventId: ev.id } })} className="text-left w-full bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer">
                 <div className="p-2 pb-0">
                   <ImageCarousel
                     images={ev.images}
@@ -82,7 +83,7 @@ const Home = () => {
                   <p className="text-xs text-slate-400 mt-1">{formatEventDate(ev.date)}{ev.location ? ' · ' + ev.location : ''}</p>
                   <p className="text-sm text-slate-500 mt-3" style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{ev.description}</p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </section>
