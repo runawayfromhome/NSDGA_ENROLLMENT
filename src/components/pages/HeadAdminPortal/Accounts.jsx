@@ -227,6 +227,7 @@ const Accounts = () => {
               <option value="all">All Roles</option>
               <option value="registrar">Registrar</option>
               <option value="admin">Admin</option>
+              <option value="headadmin">Head Admin</option>
             </select>
           </div>
 

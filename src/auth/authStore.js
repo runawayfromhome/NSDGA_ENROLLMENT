@@ -56,7 +56,7 @@ export async function getStaffAccounts() {
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .in('role', ['registrar', 'admin'])
+    .in('role', ['registrar', 'admin', 'headadmin'])
     .order('created_at', { ascending: true });
   if (error) return [];
   return data;
