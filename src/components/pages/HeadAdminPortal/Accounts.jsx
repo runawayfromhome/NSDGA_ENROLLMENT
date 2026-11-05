@@ -12,7 +12,7 @@ import ResetPasswordSection from '../../ResetPasswordSection';
 import { useSession } from '../../../contexts/useSession';
 import {
   getStaffAccounts, createAccount, setDisabled, verifyAccount, returnProfile,
-  getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, getAccountUsage, STATUS,
+  getPresence, requestAdminOtp, changeRoleWithOtp, getMfaFactor, getAccountUsage, updateProfile, STATUS,
 } from '../../../auth/authStore';
 import { isPasswordValid } from '../../../lib/password';
 import { subscribeToTable } from '../../../lib/realtime';
@@ -311,6 +311,8 @@ const Accounts = () => {
 
 // ---- Manage modal ----------------------------------------------------------
 const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
+  const [profileDraft, setProfileDraft] = useState({ ...(account.profile || {}) });
+  const [editingProfile, setEditingProfile] = useState(false);
   const [newRole, setNewRole] = useState(account.role);
   const [otpStep, setOtpStep] = useState('idle'); // idle | sent
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
@@ -352,6 +354,20 @@ const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
   const doVerify = async () => { setBusy('verify'); await verifyAccount(account.id); setBusy(''); onDone(); };
   const doReturn = async () => { setBusy('return'); await returnProfile(account.id, note); setBusy(''); onDone(); };
   const doDisable = async () => { setBusy('disable'); await setDisabled(account.id, !account.disabled); setBusy(''); onDone(); };
+  const updateProfileField = (field, value) => setProfileDraft((p) => ({ ...p, [field]: value }));
+  const saveProfile = async () => {
+    setBusy('profile');
+    setMsg('');
+    const result = await updateProfile(account.id, profileDraft);
+    setBusy('');
+    if (!result.ok) return setMsg(`⚠️ ${result.error || 'Could not update the profile.'}`);
+    onDone();
+  };
+  const cancelProfileEdit = () => {
+    setProfileDraft({ ...(account.profile || {}) });
+    setEditingProfile(false);
+    setMsg('');
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -369,9 +385,26 @@ const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
 
           {/* Profile */}
           <div>
-            <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3">Profile</h4>
-            {account.profile?.photo && <img src={account.profile.photo} alt="ID" className="w-24 h-24 rounded-xl object-cover border mb-4" />}
-            <ProfileGrid profile={account.profile} />
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Profile</h4>
+              {!editingProfile ? (
+                <button onClick={() => setEditingProfile(true)} disabled={!!busy || mfaLocked}
+                  className="px-4 py-2 rounded-lg text-xs font-bold border border-[#800000] text-[#800000] hover:bg-[#FDF3F3] disabled:opacity-50 cursor-pointer">
+                  Edit Profile
+                </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={cancelProfileEdit} disabled={busy === 'profile'}
+                    className="px-4 py-2 rounded-lg text-xs font-bold border border-gray-300 text-slate-600 hover:bg-gray-50 disabled:opacity-50 cursor-pointer">Cancel</button>
+                  <button onClick={saveProfile} disabled={busy === 'profile'}
+                    className="px-4 py-2 rounded-lg text-xs font-bold bg-[#800000] text-white hover:bg-[#600000] disabled:opacity-50 cursor-pointer">
+                    {busy === 'profile' ? 'Applying…' : 'Apply'}
+                  </button>
+                </div>
+              )}
+            </div>
+            {profileDraft.photo && <img src={profileDraft.photo} alt="ID" className="w-24 h-24 rounded-xl object-cover border mb-4" />}
+            <ProfileGrid profile={profileDraft} editing={editingProfile} onChange={updateProfileField} />
           </div>
 
           {/* Role & access */}
@@ -460,8 +493,36 @@ const ManageModal = ({ account, isSelf, mfaLocked, onClose, onDone }) => {
   );
 };
 
-const ProfileGrid = ({ profile }) => {
+const PROFILE_FIELDS = [
+  ['Full Name', 'firstName', 'middleName', 'lastName'],
+  ['Sex', 'sex'], ['Date of Birth', 'dob'], ['Civil Status', 'civilStatus'],
+  ['Mobile', 'mobile'], ['Address', 'address'],
+  ['Emergency Name', 'emergencyName'], ['Emergency Number', 'emergencyNumber'],
+  ['Employee ID', 'employeeId'], ['Position', 'position'], ['Department', 'department'],
+  ['Date Hired', 'dateHired'], ['Employment Type', 'employmentType'], ['Supervisor', 'supervisor'],
+  ['Education', 'education'], ['Course', 'course'], ['PRC License', 'prcLicense'],
+];
+
+const ProfileGrid = ({ profile, editing, onChange }) => {
   if (!profile) return <p className="text-sm text-slate-400">No profile submitted yet.</p>;
+  const input = (label, field) => (
+    <div key={field}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      {editing
+        ? <input value={profile[field] || ''} onChange={(e) => onChange(field, e.target.value)} className="ip h-10 mt-1 text-sm" />
+        : <p className="text-sm text-slate-700">{profile[field] || '—'}</p>}
+    </div>
+  );
+  if (editing) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+        {PROFILE_FIELDS.flatMap(([label, ...fields]) => fields.map((field) => input(
+          label === 'Full Name' ? `${label} — ${field === 'firstName' ? 'First' : field === 'middleName' ? 'Middle' : 'Last'}` : label,
+          field,
+        )))}
+      </div>
+    );
+  }
   const rows = [
     ['Full Name', [profile.firstName, profile.middleName, profile.lastName].filter(Boolean).join(' ')],
     ['Sex', profile.sex], ['Date of Birth', profile.dob], ['Civil Status', profile.civilStatus],

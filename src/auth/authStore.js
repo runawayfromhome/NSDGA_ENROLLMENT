@@ -266,7 +266,8 @@ export async function updateProfile(id, partial) {
   const current = await fetchProfileById(id);
   const merged = { ...(current?.profile || {}), ...partial };
   const { error } = await supabase.from('profiles').update({ profile: merged }).eq('id', id);
-  return { ok: !error, error: error?.message };
+  if (!error) logAction('PROFILE_EDIT', `Updated staff profile: ${await targetName(id)}`);
+  return { ok: !error, error: error?.message, profile: merged };
 }
 
 // --- audit log ---------------------------------------------------------------
