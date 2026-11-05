@@ -71,9 +71,9 @@ const ElemOnCampus = () => {
 
         {/* Footer Button */}
         <div className="mt-6 md:mt-8">
-          <button className="w-full sm:w-auto bg-[#a32a2a] text-white px-6 md:px-12 py-2 md:py-3.5 rounded-lg font-bold hover:bg-[#800000] transition-all shadow-md cursor-pointer text-sm md:text-base">
+          <a href="/Enrolment-Application-Form.pdf" download="Enrolment-Application-Form.pdf" className="inline-block w-full sm:w-auto text-center bg-[#a32a2a] text-white px-6 md:px-12 py-2 md:py-3.5 rounded-lg font-bold hover:bg-[#800000] transition-all shadow-md cursor-pointer text-sm md:text-base">
             Download Admission Form
-          </button>
+          </a>
         </div>
       </div>
     </MainLayout>
