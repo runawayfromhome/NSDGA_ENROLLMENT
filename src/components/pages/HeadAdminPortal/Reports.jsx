@@ -7,6 +7,7 @@ import {
   HiOutlineUserAdd, HiOutlineAcademicCap, HiOutlineClock, HiOutlineExclamationCircle, HiOutlineDownload,
 } from 'react-icons/hi';
 import { listApplications, applicantName, APP_DISPLAY } from '../../../lib/registrar';
+import { levelOfGrade } from '../../../lib/grades';
 import { subscribeToTable } from '../../../lib/realtime';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -16,15 +17,26 @@ const LEVELS = ['Elementary', 'Junior High School', 'Senior High School'];
 const LEVEL_SHORT = { 'Elementary': 'Elementary', 'Junior High School': 'Junior High', 'Senior High School': 'Senior High' };
 const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
 const csvCell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+const applicationLevel = (app) => {
+  if (app.grade_level && LEVELS.includes(app.grade_level)) return app.grade_level;
+  const grade = app.form?.grade || app.form?.gradeLevel || app.grade;
+  return grade ? levelOfGrade(grade) : null;
+};
 
 const Reports = () => {
   const [apps, setApps] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const [year, setYear] = useState('All');
 
-  useEffect(() => { listApplications().then(setApps); }, []);
+  const loadApplications = async () => {
+    setLoadError('');
+    const data = await listApplications(() => setLoadError('Applications could not be loaded from Supabase.'));
+    setApps(data);
+  };
+  useEffect(() => { loadApplications(); }, []);
   useEffect(() => subscribeToTable('applications', {
     channelName: 'headadmin-reports-applications',
-    onChange: () => { listApplications().then(setApps); },
+    onChange: loadApplications,
   }), []);
 
   const years = useMemo(
@@ -48,7 +60,10 @@ const Reports = () => {
 
   const chartYear = year === 'All' ? new Date().getFullYear() : parseInt(year, 10);
   const monthly = MONTHS.map((m, i) => ({
-    m, v: all.filter((a) => { const d = new Date(a.created_at); return d.getFullYear() === chartYear && d.getMonth() === i; }).length,
+    m, v: all.filter((a) => {
+      const d = new Date(a.submitted_at || a.created_at);
+      return d.getFullYear() === chartYear && d.getMonth() === i;
+    }).length,
   }));
   const maxMonthly = Math.max(1, ...monthly.map((d) => d.v));
 
@@ -59,9 +74,15 @@ const Reports = () => {
     { label: 'Rejected', value: pct(rejected.length, total), color: '#94A3B8' },
   ];
 
-  const byLevelApps = LEVELS.map((label) => ({ label: LEVEL_SHORT[label], count: all.filter((a) => a.grade_level === label).length }));
+  const byLevelApps = LEVELS.map((label) => ({ label: LEVEL_SHORT[label], count: all.filter((a) => applicationLevel(a) === label).length }));
   const maxLevel = Math.max(1, ...byLevelApps.map((b) => b.count));
-  const byLevelEnrolled = LEVELS.map((label) => ({ label: LEVEL_SHORT[label], value: pct(enrolled.filter((a) => a.grade_level === label).length, enrolled.length) }));
+  // Show enrolled applications as a percentage of all applications so these
+  // figures can be compared directly with the school-wide totals above.
+  const byLevelEnrolled = LEVELS.map((label) => ({
+    label: LEVEL_SHORT[label],
+    count: enrolled.filter((a) => applicationLevel(a) === label).length,
+    value: pct(enrolled.filter((a) => applicationLevel(a) === label).length, total),
+  }));
 
   const exportCsv = () => {
     const header = ['Application ID', 'Name', 'Grade Level', 'Student Type', 'Status', 'Student No.', 'School Year', 'Submitted'];
@@ -87,6 +108,7 @@ const Reports = () => {
               <h1 className="text-3xl font-bold text-slate-900 mb-1">Reports &amp; Analytics</h1>
               <p className="text-slate-500 text-sm">School-wide enrollment overview.</p>
             </div>
+            {loadError && <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">⚠️ {loadError}</div>}
             <div className="flex items-center gap-3">
               <div className="flex flex-col">
                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">School Year</label>
@@ -162,6 +184,7 @@ const Reports = () => {
                   <div key={b.label} className="text-center">
                     <p className="text-4xl font-black text-[#800000]">{b.value}%</p>
                     <p className="text-[12px] font-bold text-slate-500 uppercase tracking-wide mt-1">{b.label}</p>
+                    <p className="text-[12px] font-semibold text-slate-400 mt-1">{b.count} enrolled</p>
                   </div>
                 ))}
               </div>

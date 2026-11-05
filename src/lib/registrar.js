@@ -59,13 +59,16 @@ export function applicantName(app) {
   return `${f.firstName || ''} ${f.middleName || ''} ${f.lastName || ''} ${f.suffix || ''}`.replace(/\s+/g, ' ').trim() || '—';
 }
 
-export async function listApplications() {
+export async function listApplications(onError) {
   const { data, error } = await supabase
     .from('applications')
     .select('*')
     .order('created_at', { ascending: false })
     .limit(5000); // sanity cap vs unbounded fetch (see pagination TODO)
-  if (error) return [];
+  if (error) {
+    onError?.(error);
+    return [];
+  }
   return data;
 }
 
