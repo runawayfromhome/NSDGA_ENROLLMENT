@@ -12,8 +12,16 @@ import { logAction, recordAudit } from '../auth/authStore';
 async function fnError(error, fallback) {
   try {
     const body = await error?.context?.json?.();
-    if (body?.error) return body.error;
+    if (body?.error) {
+      if (/database error checking email|email.*already registered|email.*already exists/i.test(body.error)) {
+        return 'This email is already registered. Please use a different email.';
+      }
+      return body.error;
+    }
   } catch { /* body not JSON — fall through */ }
+  if (/database error checking email/i.test(error?.message || '')) {
+    return 'This email is already registered. Please use a different email.';
+  }
   return error?.message || fallback;
 }
 

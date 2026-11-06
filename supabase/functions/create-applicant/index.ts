@@ -89,7 +89,14 @@ Deno.serve(async (req) => {
       email: clean, password, email_confirm: true,
       user_metadata: { name, role: 'student', contact },
     });
-    if (cErr) return json({ error: cErr.message });
+    if (cErr) {
+      const duplicateEmail = /already registered|already exists|email.*(used|exists)|user.*exists/i.test(cErr.message);
+      return json({
+        error: duplicateEmail
+          ? 'This email is already registered. Please use a different email.'
+          : cErr.message,
+      });
+    }
     const uid = created.user.id;
 
     // 2) Open a DRAFT admission application (service role bypasses RLS). The
